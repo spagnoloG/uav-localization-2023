@@ -8,6 +8,7 @@ import os
 import numpy as np
 import numpy.typing as npt
 
+
 class DroneImagePreprocess:
     def __init__(
         self,
@@ -33,13 +34,11 @@ class DroneImagePreprocess:
         with Pool() as pool:
             results = pool.map(load_image_partial, self.entry_paths)
 
-
         X = [result[0] for result in results if result is not None]
         y = [result[1] for result in results if result is not None]
 
         for a in y:
             print(a)
-
 
         return self.training_set, self.validation_set, self.test_set
 
@@ -61,18 +60,17 @@ class DroneImagePreprocess:
 
         return self.preprocess_image(img, img_info)
 
-
     def extract_info_from_filename(self, filename) -> tuple[str, int]:
-        filename_without_ext = filename.replace('.jpeg', '')
-        segments = filename_without_ext.split('/')
+        filename_without_ext = filename.replace(".jpeg", "")
+        segments = filename_without_ext.split("/")
         info = segments[-1]
         try:
-            number = int(info.split('_')[-1])
+            number = int(info.split("_")[-1])
         except ValueError:
             print("Could not extract number from filename: ", filename)
             return None
 
-        info = '_'.join(info.split('_')[:-1])
+        info = "_".join(info.split("_")[:-1])
 
         return info, number
 

@@ -96,7 +96,7 @@ def read_maribor(
             if map_im is not None:
                 # Create matplotlib figure
                 fig = plt.figure(figsize=(10, 10))
-                ax = fig.subplots(1,2)
+                ax = fig.subplots(1, 2)
 
                 # Read the imageA
                 im_drone = plt.imread(i_path + im)
@@ -107,7 +107,11 @@ def read_maribor(
 
                 # Plot the drone position
                 x, y = coord_to_pixel(
-                    frame["coordinate"]["latitude"], frame["coordinate"]["longitude"], tile, SAT_DIM_IM, SAT_DIM_IM
+                    frame["coordinate"]["latitude"],
+                    frame["coordinate"]["longitude"],
+                    tile,
+                    SAT_DIM_IM,
+                    SAT_DIM_IM,
                 )
                 ax[0].scatter(x, y, c="r", s=50)
 
