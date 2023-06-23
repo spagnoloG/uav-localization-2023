@@ -1,12 +1,12 @@
 import json
 from torch.utils.data import Dataset, DataLoader
-from multiprocessing import Pool
-from functools import partial
 from PIL import Image
 from tqdm import tqdm
 import os
 import numpy as np
 import numpy.typing as npt
+from itertools import chain
+import matplotlib.pyplot as plt
 
 
 class DroneImagePreprocess:
@@ -15,8 +15,8 @@ class DroneImagePreprocess:
         path="./drone/",
         validation_set="Train1_MB_150m_80fov_90deg",
         test_set="Train1_MB_150m_80fov_90deg",
-        patch_w=400,
-        patch_h=400,
+        patch_w=750,
+        patch_h=750,
     ):
         super().__init__()
         self.path = path
@@ -28,19 +28,37 @@ class DroneImagePreprocess:
         self.patch_h = patch_h
         self.metadata_dict = {}
 
-    def load_images(self):
+    def load_and_preprocess_images(self):
         self.get_entry_paths(self.path)
-        load_image_partial = partial(self.load_image_helper)
-        with Pool() as pool:
-            results = pool.map(load_image_partial, self.entry_paths)
+        for entry_path in self.entry_paths:
+            result = self.load_image_helper(entry_path)
+            if result is not None:
+                image, img_info = result
+                preprocessed_images, preprocessed_infos = self.preprocess_image(image, img_info)
+                for img, info in zip(preprocessed_images,
+                                     preprocessed_infos):
+                    yield img, info
 
-        X = [result[0] for result in results if result is not None]
-        y = [result[1] for result in results if result is not None]
+    #def load_images(self):
+    #    self.get_entry_paths(self.path)
+    #    load_image_partial = partial(self.load_image_helper)
+    #    preprocess_image_partial = partial(self.preprocess_image)
 
-        for a in y:
-            print(a)
+    #    with Pool() as pool:
+    #        results = pool.map(load_image_partial, self.entry_paths)
 
-        return self.training_set, self.validation_set, self.test_set
+    #    X = [result[0] for result in results if result is not None]
+    #    y = [result[1] for result in results if result is not None]
+
+    #    with Pool() as pool:
+    #        processed_results = pool.map(preprocess_image_partial, zip(X, y))
+
+    #    # Flatten the lists
+    #    X_processed = list(chain.from_iterable([result[0] for result in processed_results]))
+    #    y_processed = list(chain.from_iterable([result[1] for result in processed_results]))
+
+    #    return X_processed, y_processed
+
 
     def load_image_helper(self, entry_path) -> tuple[npt.NDArray, str]:
         try:
@@ -58,7 +76,7 @@ class DroneImagePreprocess:
         img_info = self.metadata_dict[lookup_str][file_number]
         img_info["filename"] = entry_path
 
-        return self.preprocess_image(img, img_info)
+        return img, img_info
 
     def extract_info_from_filename(self, filename) -> tuple[str, int]:
         filename_without_ext = filename.replace(".jpeg", "")
@@ -92,12 +110,26 @@ class DroneImagePreprocess:
             if entry_path.endswith(".json"):
                 self.get_metadata(entry_path)
 
-    def preprocess_image(self, image, img_name) -> tuple[npt.NDArray, str]:
-        image = image.resize((self.patch_w, self.patch_h))
-        image = image.convert("L")
-        image = np.array(image).astype(np.float32)
-        image = image / 255
-        return image, img_name
+    def preprocess_image(self, image, img_info) -> tuple[list[npt.NDArray], list[str]]:
+        imgs = []
+        infos = []
+        for angle in range(0, 360, 20):
+            img = image.copy().rotate(angle)
+            img = self.crop_center(img, self.patch_w, self.patch_h)
+            img = np.array(img, dtype=np.float32)
+            img = img / 255
+            info = img_info.copy()
+            info["angle"] = angle
+            imgs.append(img)
+            infos.append(info)
+        return imgs, infos
+
+    def crop_center(self, img, crop_width, crop_height) -> Image:
+        img_width, img_height = img.size
+        return img.crop(((img_width - crop_width) // 2,
+                         (img_height - crop_height) // 2,
+                         (img_width + crop_width) // 2,
+                         (img_height + crop_height) // 2))
 
 
 class GEDataset(Dataset):
@@ -117,7 +149,13 @@ class GEDataset(Dataset):
 
 
 def main():
-    ds = DroneImagePreprocess().load_images()
+    image_preprocessor = DroneImagePreprocess().load_and_preprocess_images()
+    for img, info in image_preprocessor:
+        # plot the image for sanity check
+        plt.imshow(img)
+        plt.show()
+        print(info)
+
 
 
 if __name__ == "__main__":
