@@ -1,16 +1,11 @@
+#!/usr/bin/env python3
 import json
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import os
 import numpy as np
-import numpy.typing as npt
 import matplotlib.pyplot as plt
-import os
-import json
-from PIL import Image
-import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 
 class DroneDataset(Dataset):
