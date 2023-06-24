@@ -8,6 +8,7 @@ import torch
 import mercantile
 from tqdm import tqdm
 import requests
+import time
 
 
 class SatDataset(Dataset):
@@ -206,15 +207,36 @@ class SatDataset(Dataset):
                 file_path = f"{self.root_dir}/tiles/{r_name}/{self.zoom_level}_{tile.x}_{tile.y}.jpg"
 
                 if not os.path.exists(file_path):
-                    response = requests.get(
-                        f"https://c.tiles.mapbox.com/v4/mapbox.satellite/{self.zoom_level}/{tile.x}/{tile.y}@2x.jpg",
-                        params=params,
-                        headers=headers,
-                    )
-
-                    if response.status_code == 200:
-                        with open(file_path, "wb") as f:
-                            f.write(response.content)
+                    max_attempts = 5
+                    for attempt in range(max_attempts):
+                        try:
+                            response = requests.get(
+                                f"https://c.tiles.mapbox.com/v4/mapbox.satellite/{self.zoom_level}/{tile.x}/{tile.y}@2x.jpg",
+                                params=params,
+                                headers=headers,
+                            )
+                            response.raise_for_status()  # raises a Python exception if the response contains an HTTP error status code
+                        except (
+                            requests.exceptions.RequestException,
+                            requests.exceptions.ConnectionError,
+                        ) as e:
+                            if (
+                                attempt < max_attempts - 1
+                            ):  # i.e., if it's not the final attempt
+                                print(
+                                    f"An error occurred: {e}. Trying again in 5 seconds..."
+                                )
+                                time.sleep(5)  # wait for 5 seconds before trying again
+                                continue
+                            else:
+                                print(
+                                    f"Failed to download after {max_attempts} attempts. Skipping this tile."
+                                )
+                                break
+                        else:  # executes if the try block didn't throw any exceptions
+                            with open(file_path, "wb") as f:
+                                f.write(response.content)
+                            break
                     else:
                         print(f"Error downloading {file_path}")
 
