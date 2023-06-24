@@ -1,3 +1,4 @@
-sat/
+sat/tiles/
+sat/metadata*
 drone/
 .venv/
