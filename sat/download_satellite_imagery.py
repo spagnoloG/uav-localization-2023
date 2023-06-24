@@ -12,7 +12,18 @@ metadata_file = "metadata.csv"
 csv_file = open(metadata_file, "w", newline="")
 csv_writer = csv.writer(csv_file)
 csv_writer.writerow(
-    ["file_path", "lat", "lng", "bbox_west", "bbox_east", "bbox_north", "bbox_south", "x", "y", "z"]
+    [
+        "file_path",
+        "lat",
+        "lng",
+        "bbox_west",
+        "bbox_east",
+        "bbox_north",
+        "bbox_south",
+        "x",
+        "y",
+        "z",
+    ]
 )
 
 

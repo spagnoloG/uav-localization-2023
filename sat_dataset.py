@@ -9,6 +9,7 @@ import mercantile
 from tqdm import tqdm
 import requests
 import time
+from sat.bounding_boxes import bboxes
 
 
 class SatDataset(Dataset):
@@ -19,76 +20,6 @@ class SatDataset(Dataset):
         self.zoom_level = zoom_level
         self.metadata_dict = {}
         self.image_paths = self.get_entry_paths(self.root_dir)
-        self.bboxes = {
-            "Ljubljana": [
-                # min_lon, min_lat, max_lon, max_lat
-                14.240385738692186,
-                45.86981981981982,
-                14.759614261307814,
-                46.23018018018018,
-            ],
-            "Maribor": [
-                15.388004073975386,
-                46.36981981981982,
-                15.91199592602461,
-                46.73018018018018,
-            ],
-            "Koper": [
-                13.345989640529755,
-                45.39501981981982,
-                13.860810359470246,
-                45.75538018018018,
-            ],
-            "Trieste": [
-                13.53576184109465,
-                45.48811981981982,
-                14.051438158905349,
-                45.84848018018018,
-            ],
-            "Graz": [
-                15.219761930343768,
-                46.90931981981982,
-                15.749038069656233,
-                47.26968018018018,
-            ],
-            "Pordenone": [
-                12.445284175425714,
-                45.80621981981982,
-                12.963915824574284,
-                46.16658018018018,
-            ],
-            "Udine": [
-                13.013190931720771,
-                45.91121981981982,
-                13.532809068279228,
-                46.27158018018018,
-            ],
-            "Klagenfurt": [
-                14.069018622761167,
-                46.47011981981982,
-                14.593981377238833,
-                46.83048018018018,
-            ],
-            "Pula": [
-                13.649637837381869,
-                44.71811981981982,
-                14.15836216261813,
-                45.07848018018018,
-            ],
-            "Szombathely": [
-                16.395132946222155,
-                47.07541981981982,
-                16.926067053777842,
-                47.43578018018018,
-            ],
-            "Venice": [
-                12.113566873256218,
-                45.29061981981982,
-                12.627433126743782,
-                45.65098018018018,
-            ],
-        }
-
         self.download_maps()
         self.fill_metadata_dict()
 
@@ -193,7 +124,7 @@ class SatDataset(Dataset):
 
         os.makedirs(f"{self.root_dir}/tiles", exist_ok=True)
 
-        for r_name, bbox in self.bboxes.items():
+        for r_name, bbox in bboxes.items():
             print("Downloading maps for region: ", r_name)
             for tile in tqdm(
                 mercantile.tiles(bbox[0], bbox[1], bbox[2], bbox[3], self.zoom_level)

@@ -1,13 +1,16 @@
 import math
 import json
 
+
 def update_bounding_box(bbox):
     min_lon, min_lat, max_lon, max_lat = bbox
     lat_center = (min_lat + max_lat) / 2
     lon_center = (min_lon + max_lon) / 2
 
     delta_lat = 20 / 111  # Approximate conversion to degrees for 20 km
-    delta_lon = 20 / (111 * math.cos(math.radians(lat_center)))  # Varies based on latitude
+    delta_lon = 20 / (
+        111 * math.cos(math.radians(lat_center))
+    )  # Varies based on latitude
 
     min_lat = lat_center - delta_lat
     max_lat = lat_center + delta_lat
@@ -16,9 +19,13 @@ def update_bounding_box(bbox):
 
     return [min_lon, min_lat, max_lon, max_lat]
 
+
 def update_bboxes_dict(bboxes_dict):
-    new_bboxes_dict = {city: update_bounding_box(bbox) for city, bbox in bboxes_dict.items()}
+    new_bboxes_dict = {
+        city: update_bounding_box(bbox) for city, bbox in bboxes_dict.items()
+    }
     return new_bboxes_dict
+
 
 bboxes = {
     "Ljubljana": [14.4, 46.0, 14.6, 46.1],  # min_lon, min_lat, max_lon, max_lat
