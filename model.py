@@ -62,42 +62,46 @@ class CustomResNetDeiT(nn.Module):
     def __init__(self, nhead=4, num_layers=12):
         super().__init__()
         self.resnet50 = models.resnet50(pretrained=True)
-        self.resnet50 = nn.Sequential(
-            *list(self.resnet50.children())[
-                :-2
-            ]  # Remove the last AdaptiveAvgPool2d and FC layer
-        )
+        self.resnet50 = nn.Sequential(*list(self.resnet50.children())[:-1])  # Remove the last FC layer
 
-        emb_size = 384
-        self.patch_embedding = PatchEmbedding(emb_size=emb_size)
+        emb_size = self.resnet50.fc.in_features
         self.positional_encoding = PositionalEncoding(emb_size)
         self.transformer = ImageTransformer(emb_size, nhead, num_layers)
+        self.conv = nn.Conv2d(emb_size, 1, kernel_size=1)  # 1x1 convolution to merge the features
 
-    def forward(self, x):
-        x = self.resnet50(x)
-        x = self.patch_embedding(x)
-        x = self.positional_encoding(x)
-        x = self.transformer(x)
+    def forward(self, drone_img, satellite_img):
+        drone_features = self.resnet50(drone_img)
+        satellite_features = self.resnet50(satellite_img)
 
-        return x
+        drone_features = self.positional_encoding(drone_features)
+        satellite_features = self.positional_encoding(satellite_features)
 
+        drone_transformer_features = self.transformer(drone_features)
+        satellite_transformer_features = self.transformer(satellite_features)
 
+        # concatenate the features along the channel dimension
+        concat_features = torch.cat((drone_transformer_features, satellite_transformer_features), dim=1)
+
+        # pass the concatenated features through the 1x1 conv layer to generate the heatmap
+        heatmap = self.conv(concat_features)
+
+        return heatmap
 class BalanceLoss(nn.Module):
     def __init__(self, w_neg=1.0, R=1):
         super(BalanceLoss, self).__init__()
         self.w_neg = w_neg
         self.R = R
 
-    def forward(self, map, label):
-        # Step 1: generate the 0,1 matrix as shown in Fig. 5(B)
+    def forward(self, heatmap, label):
+        # Step 1: generate the 0,1 matrix
         t = (label >= self.R).float()
 
         # Step 2: copy t to w
         w = t.clone()
 
         # Step 3 and 4: num of the positive and negative samples
-        N_pos = self.R**2
-        N_neg = map.numel() - N_pos
+        N_pos = (self.R ** 2)
+        N_neg = heatmap.numel() - N_pos
 
         # Step 5 and 6: weight of the positive and negative samples
         W_pos = 1.0 / N_pos
@@ -111,7 +115,7 @@ class BalanceLoss(nn.Module):
         w = w / torch.sum(w)
 
         # Step 8: map normalization
-        p = torch.sigmoid(map)
+        p = torch.sigmoid(heatmap)
 
         # Step 9: balance loss
         loss = -torch.sum((t * torch.log(p) + (1 - t) * torch.log(1 - p)) * w)
