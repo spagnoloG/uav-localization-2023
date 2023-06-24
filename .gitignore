@@ -2,3 +2,4 @@ sat/tiles/
 sat/metadata*
 drone/
 .venv/
+__pycache__/

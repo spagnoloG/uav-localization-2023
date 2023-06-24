@@ -62,12 +62,16 @@ class CustomResNetDeiT(nn.Module):
     def __init__(self, nhead=4, num_layers=12):
         super().__init__()
         self.resnet50 = models.resnet50(pretrained=True)
-        self.resnet50 = nn.Sequential(*list(self.resnet50.children())[:-1])  # Remove the last FC layer
+        self.resnet50 = nn.Sequential(
+            *list(self.resnet50.children())[:-1]
+        )  # Remove the last FC layer
 
         emb_size = self.resnet50.fc.in_features
         self.positional_encoding = PositionalEncoding(emb_size)
         self.transformer = ImageTransformer(emb_size, nhead, num_layers)
-        self.conv = nn.Conv2d(emb_size, 1, kernel_size=1)  # 1x1 convolution to merge the features
+        self.conv = nn.Conv2d(
+            emb_size, 1, kernel_size=1
+        )  # 1x1 convolution to merge the features
 
     def forward(self, drone_img, satellite_img):
         drone_features = self.resnet50(drone_img)
@@ -80,12 +84,16 @@ class CustomResNetDeiT(nn.Module):
         satellite_transformer_features = self.transformer(satellite_features)
 
         # concatenate the features along the channel dimension
-        concat_features = torch.cat((drone_transformer_features, satellite_transformer_features), dim=1)
+        concat_features = torch.cat(
+            (drone_transformer_features, satellite_transformer_features), dim=1
+        )
 
         # pass the concatenated features through the 1x1 conv layer to generate the heatmap
         heatmap = self.conv(concat_features)
 
         return heatmap
+
+
 class BalanceLoss(nn.Module):
     def __init__(self, w_neg=1.0, R=1):
         super(BalanceLoss, self).__init__()
@@ -100,7 +108,7 @@ class BalanceLoss(nn.Module):
         w = t.clone()
 
         # Step 3 and 4: num of the positive and negative samples
-        N_pos = (self.R ** 2)
+        N_pos = self.R**2
         N_neg = heatmap.numel() - N_pos
 
         # Step 5 and 6: weight of the positive and negative samples
