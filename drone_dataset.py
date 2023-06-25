@@ -85,7 +85,7 @@ class DroneDataset(Dataset):
         )
 
 
-def main():
+def test():
     dataloader = torch.utils.data.DataLoader(
         DroneDataset(root_dir="./drone/"), batch_size=10, shuffle=True
     )
@@ -103,4 +103,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()

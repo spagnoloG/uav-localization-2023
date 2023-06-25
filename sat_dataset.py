@@ -89,8 +89,8 @@ class SatDataset(Dataset):
             if self.is_coord_in_a_tile(lat, lng, tile):
                 ix = self.image_paths.index(path)
                 return self.__getitem__(ix)
-            else:
-                raise ValueError("No tile found for the given coordinates: ", lat, lng)
+        else:
+            raise ValueError("No tile found for the given coordinates: ", lat, lng)
 
     def is_coord_in_a_tile(self, lat, lng, tile):
         bbox = mercantile.bounds(tile)
@@ -216,7 +216,7 @@ class MapUtils:
         plt.show()
 
 
-def main():
+def test():
     dataloader = torch.utils.data.DataLoader(
         SatDataset(root_dir="./sat/"), batch_size=10, shuffle=True
     )
@@ -244,4 +244,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()

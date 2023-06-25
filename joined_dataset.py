@@ -27,7 +27,7 @@ class JoinedDataset(Dataset):
         return drone_image, drone_info, sat_image, sat_info
 
 
-def main():
+def test():
     dataloader = DataLoader(
         JoinedDataset(drone_dir="./drone/", sat_dir="./sat/"),
         batch_size=10,
@@ -42,13 +42,13 @@ def main():
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
 
         # Plot drone image
-        drone_image = drone_images[i].permute(1, 2, 0).numpy()
+        drone_image = drone_images[i].numpy()
         ax1.imshow(drone_image)
         ax1.set_title(f"Drone Image {i+1}")
         ax1.axis("off")
 
         # Plot satellite image
-        sat_image = sat_images[i].permute(1, 2, 0).numpy()
+        sat_image = sat_images[i].numpy()
         ax2.imshow(sat_image)
         ax2.set_title(f"Satellite Image {i+1}")
         ax2.axis("off")
@@ -57,4 +57,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test()

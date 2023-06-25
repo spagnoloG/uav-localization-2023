@@ -1,66 +1,116 @@
 import torch
-import torch.optim as optim
+import torch.nn as nn
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import StepLR
+from tqdm import tqdm
 from model import CustomResNetDeiT
-from model import BalanceLoss
+from criterion import BalanceLoss
+from joined_dataset import JoinedDataset
+from torch.utils.data import DataLoader
 
-# Assuming you have the DataLoader objects `train_loader` and `val_loader`
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+class CrossViewTrainer:
+    """Trainer class for cross-view (UAV and satellite) image learning"""
 
-# Initialize the model
-model = CustomResNetDeiT().to(device)
+    def __init__(
+        self, backbone, dataloader, device, criterion, lr=3e-4, weight_decay=5e-4
+    ):
+        """
+        Initialize the CrossViewTrainer.
 
-# Define the optimizer
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+        backbone: the pretrained DeiT-S model, with its classifier removed
+        dataloader: the dataloaders for the UAV and satellite view images, respectively
+        device: the device to train on
+        criterion: the loss function to use
+        lr: learning rate
+        weight_decay: weight decay for the optimizer
+        """
+        self.model = backbone
+        self.dataloader = dataloader
+        self.device = device
+        self.criterion = criterion
 
-# Define the loss function
-loss_fn = BalanceLoss()
+        self.model.to(self.device)
 
-# Number of training epochs
-num_epochs = 10
+        self.optimizer = AdamW(
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
+        self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
 
-# Training loop
-for epoch in range(num_epochs):
-    model.train()  # Set the model to training mode
-    train_loss = 0
+    def train(self, epochs):
+        """
+        Train the model for a specified number of epochs.
 
-    for drone_imgs, satellite_imgs, labels in train_loader:
-        # Move the images and labels to the GPU if available
-        drone_imgs = drone_imgs.to(device)
-        satellite_imgs = satellite_imgs.to(device)
-        labels = labels.to(device)
+        epochs: the number of epochs to train for
+        """
+        for epoch in range(epochs):
+            self.train_epoch()
+            self.save_checkpoint()
 
-        # Forward propagation
-        outputs = model(drone_imgs, satellite_imgs)
+            # reduce learning rate for the 10th and 14th epochs
+            if epoch in [9, 13]:
+                self.scheduler.step()
 
-        # Calculate the loss
-        loss = loss_fn(outputs, labels)
+    def train_epoch(self):
+        """
+        Perform one epoch of training.
+        """
+        self.model.train()
+        running_loss = 0.0
+        for i, (drone_images, drone_infos, sat_images, sat_infos) in tqdm(
+            enumerate(self.dataloader)
+        ):
+            drone_images = drone_images.to(self.device)
+            sat_images = sat_images.to(self.device)
 
-        # Backward propagation and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Zero out the gradients
+            self.optimizer.zero_grad()
+            # Forward pass
+            outputs = self.model(drone_images, sat_images)
+            # Calculate loss
+            loss = self.criterion(
+                outputs, outputs
+            )  # TODO: implement ground truth labels
+            # Backward pass and optimize
+            loss.backward()
+            self.optimizer.step()
 
-        train_loss += loss.item() * drone_imgs.size(0)
+            running_loss += loss.item() * drone_images.size(0)
 
-    # Calculate average losses
-    train_loss = train_loss / len(train_loader.dataset)
+        epoch_loss = running_loss / len(self.dataloader.dataset)
+        print("Training Loss: {:.4f}".format(epoch_loss))
 
-    # Print loss statistics
-    print("Epoch: {}/{}, Train Loss: {:.4f}".format(epoch + 1, num_epochs, train_loss))
+    def save_checkpoint(self):
+        """
+        Save the current state of the model to a checkpoint file.
+        """
+        # TODO
 
-    # Validation phase
-    model.eval()  # Set the model to evaluation mode
-    with torch.no_grad():
-        val_loss = 0
-        for drone_imgs, satellite_imgs, labels in val_loader:
-            drone_imgs = drone_imgs.to(device)
-            satellite_imgs = satellite_imgs.to(device)
-            labels = labels.to(device)
+    def load_checkpoint(self, checkpoint_path):
+        """
+        Load the model state from a checkpoint file.
 
-            outputs = model(drone_imgs, satellite_imgs)
-            loss = loss_fn(outputs, labels)
-            val_loss += loss.item() * drone_imgs.size(0)
+        checkpoint_path: the path to the checkpoint file to load
+        """
+        # TODO
 
-        val_loss = val_loss / len(val_loader.dataset)
-        print("Val Loss: {:.4f}".format(val_loss))
+
+def test():
+    model = CustomResNetDeiT()
+    model = torch.nn.DataParallel(model)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    dataloader = DataLoader(
+        JoinedDataset(drone_dir="./drone/", sat_dir="./sat"),
+        batch_size=16,
+        shuffle=True,
+        num_workers=16,
+    )
+    loss_fn = BalanceLoss()
+
+    trainer = CrossViewTrainer(model, dataloader, device, loss_fn)
+
+    trainer.train(epochs=15)
+
+
+if __name__ == "__main__":
+    test()
