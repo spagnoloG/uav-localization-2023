@@ -58,7 +58,8 @@ class CrossViewTrainer:
         self.model.train()
         running_loss = 0.0
         for i, (drone_images, drone_infos, sat_images, sat_infos) in tqdm(
-            enumerate(self.dataloader)
+            enumerate(self.dataloader),
+            total=len(self.dataloader),
         ):
             drone_images = drone_images.to(self.device)
             sat_images = sat_images.to(self.device)

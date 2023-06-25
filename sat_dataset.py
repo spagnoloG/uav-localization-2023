@@ -14,7 +14,7 @@ from sat.bounding_boxes import bboxes
 
 class SatDataset(Dataset):
     # Original file size -> 512 x 512
-    def __init__(self, root_dir="./sat/", patch_w=200, patch_h=200, zoom_level=16):
+    def __init__(self, root_dir="./sat/", patch_w=224, patch_h=224, zoom_level=16):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h

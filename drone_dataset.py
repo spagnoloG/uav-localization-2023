@@ -9,7 +9,7 @@ import torch
 
 
 class DroneDataset(Dataset):
-    def __init__(self, root_dir="./drone/", patch_w=100, patch_h=100):
+    def __init__(self, root_dir="./drone/", patch_w=224, patch_h=224):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h
