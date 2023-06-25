@@ -101,7 +101,7 @@ def test():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     dataloader = DataLoader(
         JoinedDataset(drone_dir="./drone/", sat_dir="./sat"),
-        batch_size=8,
+        batch_size=2,
         shuffle=True,
         num_workers=16,
     )

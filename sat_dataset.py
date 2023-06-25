@@ -13,7 +13,8 @@ from sat.bounding_boxes import bboxes
 
 
 class SatDataset(Dataset):
-    def __init__(self, root_dir="./sat/", patch_w=512, patch_h=512, zoom_level=16):
+    # Original file size -> 512 x 512
+    def __init__(self, root_dir="./sat/", patch_w=200, patch_h=200, zoom_level=16):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h
@@ -46,12 +47,17 @@ class SatDataset(Dataset):
         image_path = self.image_paths[idx]
         metadata = self.metadata_dict[image_path]
         image = Image.open(image_path)
+        image = self.downsample(image, self.patch_w, self.patch_h)
 
         image = np.array(image, dtype=np.float32)
         image = image / 255.0
         image = torch.from_numpy(image)
 
         return image, (metadata.x, metadata.y, metadata.z)  # return as integers
+
+    def downsample(self, image, new_width, new_height):
+        resized_image = image.resize((new_width, new_height), Image.LANCZOS)
+        return resized_image
 
     def extract_info_from_filename(self, filename):
         # 16_35582_23023.jpg -> z, x, y

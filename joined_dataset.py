@@ -18,11 +18,8 @@ class JoinedDataset(Dataset):
         lat = drone_info["coordinate"]["latitude"]
         lon = drone_info["coordinate"]["longitude"]
 
-        print(lat, lon)
-
         # Get corresponding satellite image
         sat_image, sat_info = self.sat_dataset.find_tile(lat, lon)
-        print(sat_info)
 
         return drone_image, drone_info, sat_image, sat_info
 

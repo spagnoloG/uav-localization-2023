@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import torch.nn.functional as F
+from logger import logger
 
 
 class PositionalEncoding(nn.Module):
@@ -35,12 +36,11 @@ class PatchEmbedding(nn.Module):
             # using a conv layer instead of a linear one -> performance gains
             nn.Conv2d(in_channels, emb_size, kernel_size=patch_size, stride=patch_size),
             nn.Flatten(2),
-            nn.Transpose(1, 2),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.projection(x)
-        return x
+        return x.transpose(1, 2)
 
 
 class ImageTransformer(nn.Module):
@@ -63,11 +63,15 @@ class CustomResNetDeiT(nn.Module):
         super().__init__()
         resnet50 = models.resnet50(pretrained=True)
 
-        emb_size = resnet50.fc.in_features  # Get the number of in_features from fc layer
+        emb_size = (
+            resnet50.fc.in_features
+        )  # Get the number of in_features from fc layer
 
         self.resnet50 = nn.Sequential(
             *list(resnet50.children())[:-1]
         )  # Remove the last FC layer
+
+        self.patch_embedding = PatchEmbedding(emb_size=emb_size)
 
         self.positional_encoding = PositionalEncoding(emb_size)
         self.transformer = ImageTransformer(emb_size, nhead, num_layers)
@@ -76,12 +80,25 @@ class CustomResNetDeiT(nn.Module):
         )  # 1x1 convolution to merge the features
 
     def forward(self, drone_img, satellite_img):
-        # Permute the tensors
+        # Pytorch: [batch_size, channels, height, width]
+        # numpy: [height, width, channels]
+        # [batch_size, height, width, channels] -> [batch_size, channels, height, width]
         drone_img = drone_img.permute(0, 3, 1, 2)
         satellite_img = satellite_img.permute(0, 3, 1, 2)
 
+        logger.info(f"Starting forward pass")
+        logger.info(f"drone_img shape: {drone_img.shape}")
+        logger.info(f"satellite_img shape: {satellite_img.shape}")
+
         drone_features = self.resnet50(drone_img)
         satellite_features = self.resnet50(satellite_img)
+        logger.info(f"drone_features shape: {drone_features.shape}")
+        logger.info(f"satellite_features shape: {satellite_features.shape}")
+
+        drone_features = self.patch_embedding(drone_features)
+        satellite_features = self.patch_embedding(satellite_features)
+        logger.info(f"drone_features shape: {drone_features.shape}")
+        logger.info(f"satellite_features shape: {satellite_features.shape}")
 
         drone_features = self.positional_encoding(drone_features)
         satellite_features = self.positional_encoding(satellite_features)

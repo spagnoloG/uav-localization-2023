@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import resource
-import logging
-
-
-logging.basicConfig(level=logging.INFO)
-
+from logger import logger
 
 # -------------
 # MEMORY SAFETY
@@ -29,6 +25,7 @@ args = parser.parse_args()
 
 
 def main():
+    logger.info("Test log!")
     pass
 
 
