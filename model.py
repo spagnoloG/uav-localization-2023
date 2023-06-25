@@ -61,12 +61,14 @@ class ImageTransformer(nn.Module):
 class CustomResNetDeiT(nn.Module):
     def __init__(self, nhead=4, num_layers=12):
         super().__init__()
-        self.resnet50 = models.resnet50(pretrained=True)
+        resnet50 = models.resnet50(pretrained=True)
+
+        emb_size = resnet50.fc.in_features  # Get the number of in_features from fc layer
+
         self.resnet50 = nn.Sequential(
-            *list(self.resnet50.children())[:-1]
+            *list(resnet50.children())[:-1]
         )  # Remove the last FC layer
 
-        emb_size = self.resnet50.fc.in_features
         self.positional_encoding = PositionalEncoding(emb_size)
         self.transformer = ImageTransformer(emb_size, nhead, num_layers)
         self.conv = nn.Conv2d(
@@ -74,6 +76,10 @@ class CustomResNetDeiT(nn.Module):
         )  # 1x1 convolution to merge the features
 
     def forward(self, drone_img, satellite_img):
+        # Permute the tensors
+        drone_img = drone_img.permute(0, 3, 1, 2)
+        satellite_img = satellite_img.permute(0, 3, 1, 2)
+
         drone_features = self.resnet50(drone_img)
         satellite_features = self.resnet50(satellite_img)
 
@@ -92,40 +98,3 @@ class CustomResNetDeiT(nn.Module):
         heatmap = self.conv(concat_features)
 
         return heatmap
-
-
-class BalanceLoss(nn.Module):
-    def __init__(self, w_neg=1.0, R=1):
-        super(BalanceLoss, self).__init__()
-        self.w_neg = w_neg
-        self.R = R
-
-    def forward(self, heatmap, label):
-        # Step 1: generate the 0,1 matrix
-        t = (label >= self.R).float()
-
-        # Step 2: copy t to w
-        w = t.clone()
-
-        # Step 3 and 4: num of the positive and negative samples
-        N_pos = self.R**2
-        N_neg = heatmap.numel() - N_pos
-
-        # Step 5 and 6: weight of the positive and negative samples
-        W_pos = 1.0 / N_pos
-        W_neg = (1.0 / N_neg) * self.w_neg
-
-        # Assign weights to w
-        w[t == 1] = W_pos
-        w[t == 0] = W_neg
-
-        # Step 7: weight normalization
-        w = w / torch.sum(w)
-
-        # Step 8: map normalization
-        p = torch.sigmoid(heatmap)
-
-        # Step 9: balance loss
-        loss = -torch.sum((t * torch.log(p) + (1 - t) * torch.log(1 - p)) * w)
-
-        return loss

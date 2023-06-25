@@ -1,5 +1,5 @@
+#!/usr/bin/env python3
 import torch
-import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
@@ -101,7 +101,7 @@ def test():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     dataloader = DataLoader(
         JoinedDataset(drone_dir="./drone/", sat_dir="./sat"),
-        batch_size=16,
+        batch_size=8,
         shuffle=True,
         num_workers=16,
     )
