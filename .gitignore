@@ -3,3 +3,4 @@ sat/metadata*
 drone/
 .venv/
 __pycache__/
+checkpoints/*

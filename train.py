@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from logger import logger
 import hashlib
 import datetime
+import os
 
 
 class CrossViewTrainer:
@@ -27,6 +28,7 @@ class CrossViewTrainer:
         num_epochs=16,
         shuffle_dataset=True,
         checkpoint_hash=None,
+        subset_size=None,
     ):
         """
         Initialize the CrossViewTrainer.
@@ -52,24 +54,45 @@ class CrossViewTrainer:
         self.num_epochs = num_epochs
         self.shuffle_dataset = shuffle_dataset
         self.checkpoint_hash = checkpoint_hash
+        self.subset_size = subset_size
         self.current_epoch = 0
 
-        self.train_dataloader = DataLoader(
-            JoinedDataset(
-                dataset="train",
-            ),
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=shuffle_dataset,
-        )
-        self.val_dataloader = DataLoader(
-            JoinedDataset(
-                dataset="test",
-            ),
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=shuffle_dataset,
-        )
+        if self.subset_size is not None:
+            logger.info(f"Using subset of size {self.subset_size}")
+            self.train_dataloader = DataLoader(
+                torch.utils.data.Subset(
+                    JoinedDataset(dataset="train"), indices=range(self.subset_size)
+                ),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                shuffle=shuffle_dataset,
+            )
+            self.val_dataloader = DataLoader(
+                torch.utils.data.Subset(
+                    JoinedDataset(dataset="test"), indices=range(self.subset_size)
+                ),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                shuffle=shuffle_dataset,
+            )
+        else:
+            self.train_dataloader = DataLoader(
+                JoinedDataset(
+                    dataset="train",
+                ),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                shuffle=shuffle_dataset,
+            )
+
+            self.val_dataloader = DataLoader(
+                JoinedDataset(
+                    dataset="test",
+                ),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                shuffle=shuffle_dataset,
+            )
 
         self.optimizer = AdamW(
             self.model.parameters(), lr=lr, weight_decay=weight_decay
@@ -103,7 +126,7 @@ class CrossViewTrainer:
         for epoch in range(self.current_epoch, self.num_epochs):
             logger.info(f"Epoch {epoch + 1}")
             self.train_epoch()
-            self.save_checkpoint()
+            self.save_checkpoint(epoch=epoch)
 
             # reduce learning rate for the 10th and 14th epochs
             if epoch in [9, 13]:
@@ -141,8 +164,8 @@ class CrossViewTrainer:
 
             running_loss += loss.item() * drone_images.size(0)
 
-        epoch_loss = running_loss / len(self.dataloader.dataset)
-        logger.log("Training Loss: {:.4f}".format(epoch_loss))
+        epoch_loss = running_loss / len(self.train_dataloader)
+        logger.info("Training Loss: {:.4f}".format(epoch_loss))
 
     def validate(self):
         """
@@ -172,17 +195,20 @@ class CrossViewTrainer:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
-        epoch_loss = running_loss / len(self.val_dataloader.dataset)
-        logger.log("Validation Loss: {:.4f}".format(epoch_loss))
+        epoch_loss = running_loss / len(self.val_dataloader)
+        logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
-    def save_checkpoint(self, epoch, dir_path="./chekpoints/"):
+    def save_checkpoint(self, epoch, dir_path="./checkpoints/"):
         """
         Save the current state of the model to a checkpoint file.
 
         epoch: current epoch number
         dir_path: the directory to save the checkpoint to
         """
-        save_path = f"{dir_path}checkpoint-{self.checkpoint_hash}-{epoch}.pt"
+        os.makedirs(dir_path, exist_ok=True)
+        train_dir = f"{dir_path}/{self.checkpoint_hash}/"
+        os.makedirs(train_dir, exist_ok=True)
+        save_path = f"{train_dir}/checkpoint-{epoch}.pt"
 
         torch.save(
             {
@@ -194,13 +220,14 @@ class CrossViewTrainer:
             save_path,
         )
 
-    def load_checkpoint(self, dir_path="./chekpoints/"):
+    def load_checkpoint(self, dir_path="./checkpoints/", epoch=0):
         """
         Load the model state from a checkpoint file.
 
         dir_path: the directory to load the checkpoint from
+        epoch: the epoch to load the checkpoint from
         """
-        checkpoint_path = f"{dir_path}checkpoint-{self.checkpoint_hash}.pt"
+        checkpoint_path = f"{dir_path}/{self.checkpoint_hash}/checkpoint-{epoch}.pt"
         checkpoint = torch.load(checkpoint_path)
 
         self.model.load_state_dict(checkpoint["model_state_dict"])
@@ -224,6 +251,7 @@ def test():
         num_workers=16,
         shuffle_dataset=True,
         num_epochs=15,
+        subset_size=10,
     )
 
     trainer.train()
