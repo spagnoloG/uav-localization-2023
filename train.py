@@ -59,39 +59,24 @@ class CrossViewTrainer:
         """
         self.model.train()
         running_loss = 0.0
-        for i, (drone_images, drone_infos, sat_images, sat_infos) in tqdm(
+        for i, (drone_images, drone_infos, sat_images, sat_infos, heatmap_gt) in tqdm(
             enumerate(self.dataloader),
             total=len(self.dataloader),
         ):
             drone_images = drone_images.to(self.device)
             sat_images = sat_images.to(self.device)
+            heatmap_gt = heatmap_gt.to(self.device)
 
             # Zero out the gradients
             self.optimizer.zero_grad()
             # Forward pass
             outputs = self.model(drone_images, sat_images)
-
-            for output in outputs:
-                output = output.detach().cpu().numpy()
-                # Convert the tensor to a NumPy array
-                output = output.squeeze()
-                size = int(np.sqrt(output.size))
-
-                output_2d = np.reshape(output, (size, size))
-
-                # Plot as an image
-                plt.imshow(output_2d, cmap="viridis")  # viridis is a color map
-                print(output_2d)
-                plt.colorbar()
-                plt.show()
-
-                exit()
-
             # Calculate loss
             loss = self.criterion(
-                outputs, outputs
+                outputs, heatmap_gt
             )  # TODO: implement ground truth labels
             # Backward pass and optimize
+
             loss.backward()
             self.optimizer.step()
 
@@ -121,7 +106,7 @@ def test():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     dataloader = DataLoader(
         JoinedDataset(drone_dir="./drone/", sat_dir="./sat"),
-        batch_size=2,
+        batch_size=4,
         shuffle=True,
         num_workers=16,
     )
