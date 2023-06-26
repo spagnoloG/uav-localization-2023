@@ -7,6 +7,8 @@ from model import CustomResNetDeiT
 from criterion import BalanceLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 class CrossViewTrainer:
@@ -68,6 +70,23 @@ class CrossViewTrainer:
             self.optimizer.zero_grad()
             # Forward pass
             outputs = self.model(drone_images, sat_images)
+
+            for output in outputs:
+                output = output.detach().cpu().numpy()
+                # Convert the tensor to a NumPy array
+                output = output.squeeze()
+                size = int(np.sqrt(output.size))
+
+                output_2d = np.reshape(output, (size, size))
+
+                # Plot as an image
+                plt.imshow(output_2d, cmap="viridis")  # viridis is a color map
+                print(output_2d)
+                plt.colorbar()
+                plt.show()
+
+                exit()
+
             # Calculate loss
             loss = self.criterion(
                 outputs, outputs

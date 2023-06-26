@@ -48,4 +48,4 @@ class CustomResNetDeiT(nn.Module):
 
         # logger.info(f"Heatmap shape: {heatmap.shape}")
 
-        return heatmap.squeeze()
+        return heatmap

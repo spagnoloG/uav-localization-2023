@@ -1,5 +1,6 @@
 from drone_dataset import DroneDataset
 from sat_dataset import SatDataset
+from sat_dataset import MapUtils
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 
@@ -21,6 +22,10 @@ class JoinedDataset(Dataset):
         # Get corresponding satellite image
         sat_image, sat_info = self.sat_dataset.find_tile(lat, lon)
 
+        heatmap = MapUtils().generate_heatmap(
+            lat, lon, sat_image, sat_info[0], sat_info[1], sat_info[2]
+        )
+
         return drone_image, drone_info, sat_image, sat_info
 
 
@@ -34,23 +39,23 @@ def test():
     # Fetch one batch of data
     drone_images, drone_infos, sat_images, sat_infos = next(iter(dataloader))
 
-    # Plot first 5 pairs of images
+    ## Plot first 5 pairs of images
     for i in range(5):
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        # fig, (ax1, ax2) = plt.subplots(1, 3, figsize=(10, 5))
 
         # Plot drone image
         drone_image = drone_images[i].numpy()
-        ax1.imshow(drone_image)
-        ax1.set_title(f"Drone Image {i+1}")
-        ax1.axis("off")
+        # ax1.imshow(drone_image)
+        # ax1.set_title(f"Drone Image {i+1}")
+        # ax1.axis("off")
 
         # Plot satellite image
         sat_image = sat_images[i].numpy()
-        ax2.imshow(sat_image)
-        ax2.set_title(f"Satellite Image {i+1}")
-        ax2.axis("off")
+        # ax2.imshow(sat_image)
+        # ax2.set_title(f"Satellite Image {i+1}")
+        # ax2.axis("off")
 
-        plt.show()
+        # plt.show()
 
 
 if __name__ == "__main__":

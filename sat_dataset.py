@@ -10,11 +10,12 @@ from tqdm import tqdm
 import requests
 import time
 from sat.bounding_boxes import bboxes
+from matplotlib.colors import LinearSegmentedColormap
 
 
 class SatDataset(Dataset):
     # Original file size -> 512 x 512
-    def __init__(self, root_dir="./sat/", patch_w=224, patch_h=224, zoom_level=16):
+    def __init__(self, root_dir="./sat/", patch_w=512, patch_h=512, zoom_level=16):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h
@@ -180,7 +181,19 @@ class SatDataset(Dataset):
 
 class MapUtils:
     def __init__(self):
-        pass
+        self.heatmap_colors = [
+            "darkblue",
+            "blue",
+            "lightblue",
+            "green",
+            "lightgreen",
+            "yellow",
+            "gold",
+            "orange",
+            "darkorange",
+            "red",
+            "darkred",
+        ]
 
     def pixel_to_coord(self, x, y, tile, image_width, image_height):
         bbox = mercantile.bounds(tile)
@@ -211,8 +224,9 @@ class MapUtils:
         return lat >= min_lat and lat <= max_lat and lng >= min_lng and lng <= max_lng
 
     def find_and_plot(self, lat, lng, tile, map_image):
+        print("lat, lng, tile", lat, lng, tile)
         x, y = self.coord_to_pixel(
-            lat, lng, tile, map_image.shape[1], map_image.shape[0]
+            lat, lng, tile, map_image.shape[0], map_image.shape[1]
         )
         x, y = int(x), int(y)
 
@@ -220,6 +234,47 @@ class MapUtils:
         ax.imshow(map_image)
         ax.scatter(x, y, color="red")
         plt.show()
+
+    def generate_heatmap(self, lat, lng, sat_image, x, y, z):
+        tile = mercantile.Tile(x=x, y=y, z=z)
+        x_map, y_map = self.coord_to_pixel(
+            lat, lng, tile, sat_image.shape[0], sat_image.shape[1]
+        )
+
+        x_map, y_map = int(x_map), int(y_map)
+
+        heatmap = np.zeros((sat_image.shape[0], sat_image.shape[1]))
+        heatmap[y_map, x_map] = 1
+
+        return heatmap
+
+    def plot_heatmap(self, lat, lng, sat_image, x, y, z):
+        tile = mercantile.Tile(x=x, y=y, z=z)
+        x_map, y_map = self.coord_to_pixel(
+            lat, lng, tile, sat_image.shape[0], sat_image.shape[1]
+        )
+        x_map, y_map = int(x_map), int(y_map)
+
+        std_dev = 20
+        heatmap = self.create_2d_gaussian(
+            sat_image.shape[1], sat_image.shape[0], std_dev, center=[x_map, y_map]
+        )
+        heatmap /= np.max(heatmap)
+        fig, ax = plt.subplots()
+        ax.imshow(sat_image)
+        cmap = LinearSegmentedColormap.from_list("heatmap", self.heatmap_colors)
+        ax.imshow(heatmap, cmap=cmap, alpha=0.5)
+        plt.show()
+
+    def create_2d_gaussian(self, dim1, dim2, sigma=1, center=None):
+        if center is None:
+            center = [dim1 // 2, dim2 // 2]
+        x = np.arange(0, dim1, 1, dtype=np.float32)
+        y = np.arange(0, dim2, 1, dtype=np.float32)
+        x, y = np.meshgrid(x, y)
+        return np.exp(
+            -4 * np.log(2) * ((x - center[0]) ** 2 + (y - center[1]) ** 2) / sigma**2
+        )
 
 
 def test():
