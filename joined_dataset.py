@@ -7,9 +7,13 @@ import torch
 
 class JoinedDataset(Dataset):
     def __init__(
-        self, drone_dir="./drone/", sat_dir="./sat/", transformer_input_size=384
+        self,
+        drone_dir="./drone/",
+        sat_dir="./sat/",
+        transformer_input_size=384,
+        dataset="train",
     ):
-        self.drone_dataset = DroneDataset(root_dir=drone_dir)
+        self.drone_dataset = DroneDataset(root_dir=drone_dir, dataset=dataset)
         self.sat_dataset = SatDataset(root_dir=sat_dir)
         self.transformer_input_size = transformer_input_size
 

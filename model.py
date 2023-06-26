@@ -16,15 +16,26 @@ class CustomResNetDeiT(nn.Module):
     def __init__(self):
         super().__init__()
 
-        deit_model = timm.create_model(
+        deit_model_satellite = timm.create_model(
             "deit3_small_patch16_384.fb_in22k_ft_in1k", pretrained=True
         )
 
-        self.deit_backbone = nn.Sequential(*list(deit_model.children())[:-2])
+        deit_model_drone = timm.create_model(
+            "deit3_small_patch16_384.fb_in22k_ft_in1k", pretrained=True
+        )
 
-        emb_size = deit_model.embed_dim
+        self.deit_backbone_satellite = nn.Sequential(
+            *list(deit_model_satellite.children())[:-2]
+        )
+        self.deit_backbone_drone = nn.Sequential(
+            *list(deit_model_drone.children())[:-2]
+        )
 
-        self.conv = nn.Conv2d(in_channels=(2 * emb_size), out_channels=3, kernel_size=1)
+        self.emb_size = deit_model_satellite.embed_dim
+
+        self.conv = nn.Conv2d(
+            in_channels=(2 * self.emb_size), out_channels=3, kernel_size=1
+        )
         self.upscale_heatmap = nn.ConvTranspose2d(
             in_channels=3, out_channels=1, kernel_size=6, stride=22
         )
@@ -33,8 +44,8 @@ class CustomResNetDeiT(nn.Module):
         drone_img = drone_img.permute(0, 3, 1, 2)
         satellite_img = satellite_img.permute(0, 3, 1, 2)
 
-        drone_features = self.deit_backbone(drone_img)
-        satellite_features = self.deit_backbone(satellite_img)
+        drone_features = self.deit_backbone_drone(drone_img)
+        satellite_features = self.deit_backbone_satellite(satellite_img)
         # print("drone_features.shape", drone_features.shape)
         # print("satellite_features.shape", satellite_features.shape)
 

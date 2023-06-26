@@ -9,14 +9,13 @@ from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 import numpy as np
+from logger import logger
 
 
 class CrossViewTrainer:
     """Trainer class for cross-view (UAV and satellite) image learning"""
 
-    def __init__(
-        self, backbone, dataloader, device, criterion, lr=3e-4, weight_decay=5e-4
-    ):
+    def __init__(self, backbone, device, criterion, lr=3e-4, weight_decay=5e-4):
         """
         Initialize the CrossViewTrainer.
 
@@ -28,7 +27,16 @@ class CrossViewTrainer:
         weight_decay: weight decay for the optimizer
         """
         self.model = backbone
-        self.dataloader = dataloader
+        self.train_dataloader = DataLoader(
+            JoinedDataset(
+                dataset="train",
+            )
+        )
+        self.val_dataloader = DataLoader(
+            JoinedDataset(
+                dataset="test",
+            )
+        )
         self.device = device
         self.criterion = criterion
 
@@ -45,13 +53,20 @@ class CrossViewTrainer:
 
         epochs: the number of epochs to train for
         """
+        logger.info("Starting training...")
         for epoch in range(epochs):
+            logger.info(f"Epoch {epoch + 1}")
             self.train_epoch()
             self.save_checkpoint()
 
             # reduce learning rate for the 10th and 14th epochs
             if epoch in [9, 13]:
                 self.scheduler.step()
+
+            # Validate every 2 epochs
+            if epoch % 2 == 0:
+                logger.info("Validating...")
+                self.validate()
 
     def train_epoch(self):
         """
@@ -60,8 +75,8 @@ class CrossViewTrainer:
         self.model.train()
         running_loss = 0.0
         for i, (drone_images, drone_infos, sat_images, sat_infos, heatmap_gt) in tqdm(
-            enumerate(self.dataloader),
-            total=len(self.dataloader),
+            enumerate(self.train_dataloader),
+            total=len(self.train_dataloader),
         ):
             drone_images = drone_images.to(self.device)
             sat_images = sat_images.to(self.device)
@@ -83,7 +98,38 @@ class CrossViewTrainer:
             running_loss += loss.item() * drone_images.size(0)
 
         epoch_loss = running_loss / len(self.dataloader.dataset)
-        print("Training Loss: {:.4f}".format(epoch_loss))
+        logger.log("Training Loss: {:.4f}".format(epoch_loss))
+
+    def validate(self):
+        """
+        Perform one epoch of validation.
+        """
+        self.model.eval()
+        running_loss = 0.0
+        with torch.no_grad():
+            for i, (
+                drone_images,
+                drone_infos,
+                sat_images,
+                sat_infos,
+                heatmap_gt,
+            ) in tqdm(
+                enumerate(self.val_dataloader),
+                total=len(self.val_dataloader),
+            ):
+                drone_images = drone_images.to(self.device)
+                sat_images = sat_images.to(self.device)
+                heatmap_gt = heatmap_gt.to(self.device)
+
+                # Forward pass
+                outputs = self.model(drone_images, sat_images)
+                # Calculate loss
+                loss = self.criterion(outputs, heatmap_gt)
+                # Accumulate the loss
+                running_loss += loss.item() * drone_images.size(0)
+
+        epoch_loss = running_loss / len(self.val_dataloader.dataset)
+        logger.log("Validation Loss: {:.4f}".format(epoch_loss))
 
     def save_checkpoint(self):
         """
@@ -104,15 +150,9 @@ def test():
     model = CustomResNetDeiT()
     model = torch.nn.DataParallel(model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    dataloader = DataLoader(
-        JoinedDataset(drone_dir="./drone/", sat_dir="./sat"),
-        batch_size=4,
-        shuffle=True,
-        num_workers=16,
-    )
     loss_fn = BalanceLoss()
 
-    trainer = CrossViewTrainer(model, dataloader, device, loss_fn)
+    trainer = CrossViewTrainer(model, device, loss_fn)
 
     trainer.train(epochs=15)
 

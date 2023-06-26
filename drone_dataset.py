@@ -9,11 +9,12 @@ import torch
 
 
 class DroneDataset(Dataset):
-    def __init__(self, root_dir="./drone/", patch_w=600, patch_h=600):
+    def __init__(self, root_dir="./drone/", patch_w=600, patch_h=600, dataset="train"):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h
         self.metadata_dict = {}
+        self.dataset = dataset
         self.image_paths = self.get_entry_paths(self.root_dir)
 
     def get_entry_paths(self, path):
@@ -23,10 +24,16 @@ class DroneDataset(Dataset):
             entry_path = path + "/" + entry
             if os.path.isdir(entry_path):
                 entry_paths += self.get_entry_paths(entry_path + "/")
-            if entry_path.endswith(".jpeg"):
-                entry_paths.append(entry_path)
-            if entry_path.endswith(".json"):
-                self.get_metadata(entry_path)
+            if self.dataset == "train" and "Train" in entry_path:
+                if entry_path.endswith(".jpeg"):
+                    entry_paths.append(entry_path)
+                if entry_path.endswith(".json"):
+                    self.get_metadata(entry_path)
+            elif self.dataset == "test" and "Test" in entry_path:
+                if entry_path.endswith(".jpeg"):
+                    entry_paths.append(entry_path)
+                if entry_path.endswith(".json"):
+                    self.get_metadata(entry_path)
         return entry_paths
 
     def get_metadata(self, path):
