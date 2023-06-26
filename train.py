@@ -8,51 +8,99 @@ from criterion import BalanceLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
 from logger import logger
+import hashlib
+import datetime
 
 
 class CrossViewTrainer:
     """Trainer class for cross-view (UAV and satellite) image learning"""
 
-    def __init__(self, backbone, device, criterion, lr=3e-4, weight_decay=5e-4):
+    def __init__(
+        self,
+        backbone,
+        device,
+        criterion,
+        lr=3e-4,
+        weight_decay=5e-4,
+        batch_size=2,
+        num_workers=4,
+        num_epochs=16,
+        shuffle_dataset=True,
+        checkpoint_hash=None,
+    ):
         """
         Initialize the CrossViewTrainer.
 
         backbone: the pretrained DeiT-S model, with its classifier removed
-        dataloader: the dataloaders for the UAV and satellite view images, respectively
         device: the device to train on
         criterion: the loss function to use
         lr: learning rate
-        weight_decay: weight decay for the optimizer
+        weight_decay: weight decay
+        batch_size: batch size
+        num_workers: number of threads to use for the dataloader
+        num_epochs: number of epochs to train for
+        shuffle_dataset: whether to shuffle the dataset
+        checkpoint_hash: the hash of the checkpoint to load
         """
         self.model = backbone
+        self.device = device
+        self.criterion = criterion
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.num_epochs = num_epochs
+        self.shuffle_dataset = shuffle_dataset
+        self.checkpoint_hash = checkpoint_hash
+        self.current_epoch = 0
+
         self.train_dataloader = DataLoader(
             JoinedDataset(
                 dataset="train",
-            )
+            ),
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=shuffle_dataset,
         )
         self.val_dataloader = DataLoader(
             JoinedDataset(
                 dataset="test",
-            )
+            ),
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=shuffle_dataset,
         )
-        self.device = device
-        self.criterion = criterion
-
-        self.model.to(self.device)
 
         self.optimizer = AdamW(
             self.model.parameters(), lr=lr, weight_decay=weight_decay
         )
+
         self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
 
-    def train(self, epochs):
+        self.model.to(self.device)
+
+        if self.checkpoint_hash is not None:
+            try:
+                self.current_epoch = self.load_checkpoint(self.checkpoint_hash)
+            except FileNotFoundError:
+                logger.error(
+                    f"Checkpoint with hash {self.checkpoint_hash} not found. Starting from scratch."
+                )
+
+        else:
+            now = datetime.datetime.now()
+            now_str = now.strftime("%Y-%m-%d-%H-%M-%S")
+            now_hash = hashlib.sha1(now_str.encode()).hexdigest()
+            self.checkpoint_hash = now_hash
+
+    def train(self):
         """
         Train the model for a specified number of epochs.
 
         epochs: the number of epochs to train for
         """
         logger.info("Starting training...")
-        for epoch in range(epochs):
+        for epoch in range(self.current_epoch, self.num_epochs):
             logger.info(f"Epoch {epoch + 1}")
             self.train_epoch()
             self.save_checkpoint()
@@ -127,19 +175,39 @@ class CrossViewTrainer:
         epoch_loss = running_loss / len(self.val_dataloader.dataset)
         logger.log("Validation Loss: {:.4f}".format(epoch_loss))
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, epoch, dir_path="./chekpoints/"):
         """
         Save the current state of the model to a checkpoint file.
-        """
-        # TODO
 
-    def load_checkpoint(self, checkpoint_path):
+        epoch: current epoch number
+        dir_path: the directory to save the checkpoint to
+        """
+        save_path = f"{dir_path}checkpoint-{self.checkpoint_hash}-{epoch}.pt"
+
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.scheduler.state_dict(),
+            },
+            save_path,
+        )
+
+    def load_checkpoint(self, dir_path="./chekpoints/"):
         """
         Load the model state from a checkpoint file.
 
-        checkpoint_path: the path to the checkpoint file to load
+        dir_path: the directory to load the checkpoint from
         """
-        # TODO
+        checkpoint_path = f"{dir_path}checkpoint-{self.checkpoint_hash}.pt"
+        checkpoint = torch.load(checkpoint_path)
+
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        return checkpoint["epoch"]
 
 
 def test():
@@ -148,9 +216,17 @@ def test():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     loss_fn = BalanceLoss()
 
-    trainer = CrossViewTrainer(model, device, loss_fn)
+    trainer = CrossViewTrainer(
+        model,
+        device,
+        loss_fn,
+        batch_size=2,
+        num_workers=16,
+        shuffle_dataset=True,
+        num_epochs=15,
+    )
 
-    trainer.train(epochs=15)
+    trainer.train()
 
 
 if __name__ == "__main__":

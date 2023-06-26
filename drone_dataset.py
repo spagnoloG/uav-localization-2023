@@ -15,7 +15,7 @@ class DroneDataset(Dataset):
         patch_w=600,
         patch_h=600,
         dataset="train",
-        rotation_deg=90,
+        rotation_deg=360,
     ):
         self.root_dir = root_dir
         self.patch_w = patch_w
