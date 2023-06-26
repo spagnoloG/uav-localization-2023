@@ -7,14 +7,15 @@
 import torch
 import torch.nn as nn
 import timm
-import torch.nn.functional as F
-from logger import logger
 import numpy as np
 
 
 class CustomResNetDeiT(nn.Module):
-    def __init__(self):
+    def __init__(self, train_backbone=True, train_convolutions=True):
         super().__init__()
+
+        self.train_backbone = train_backbone
+        self.train_convolutions = train_convolutions
 
         deit_model_satellite = timm.create_model(
             "deit3_small_patch16_384.fb_in22k_ft_in1k", pretrained=True
@@ -33,12 +34,26 @@ class CustomResNetDeiT(nn.Module):
 
         self.emb_size = deit_model_satellite.embed_dim
 
+        # If not training backbone, freeze its parameters
+        if not self.train_backbone:
+            for param in self.deit_backbone_satellite.parameters():
+                param.requires_grad = False
+            for param in self.deit_backbone_drone.parameters():
+                param.requires_grad = False
+
         self.conv = nn.Conv2d(
             in_channels=(2 * self.emb_size), out_channels=3, kernel_size=1
         )
         self.upscale_heatmap = nn.ConvTranspose2d(
             in_channels=3, out_channels=1, kernel_size=6, stride=22
         )
+
+        # If not training convolutions, freeze their parameters
+        if not self.train_convolutions:
+            for param in self.conv.parameters():
+                param.requires_grad = False
+            for param in self.upscale_heatmap.parameters():
+                param.requires_grad = False
 
     def forward(self, drone_img, satellite_img):
         drone_img = drone_img.permute(0, 3, 1, 2)

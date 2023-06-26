@@ -9,12 +9,23 @@ import torch
 
 
 class DroneDataset(Dataset):
-    def __init__(self, root_dir="./drone/", patch_w=600, patch_h=600, dataset="train"):
+    def __init__(
+        self,
+        root_dir="./drone/",
+        patch_w=600,
+        patch_h=600,
+        dataset="train",
+        rotation_deg=90,
+    ):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h
         self.metadata_dict = {}
         self.dataset = dataset
+        self.rotation_deg = rotation_deg
+        self.rotations_per_image = (
+            360 // rotation_deg
+        )  # Number of rotations for each image
         self.image_paths = self.get_entry_paths(self.root_dir)
 
     def get_entry_paths(self, path):
@@ -44,17 +55,17 @@ class DroneDataset(Dataset):
             self.metadata_dict[path] = json_dict["cameraFrames"]
 
     def __len__(self):
-        return len(self.image_paths) * 18
+        return len(self.image_paths) * self.rotations_per_image
 
     def __getitem__(self, idx):
-        image_path = self.image_paths[idx // 18]
+        image_path = self.image_paths[idx // self.rotations_per_image]
         image = Image.open(image_path)
 
         lookup_str, file_number = self.extract_info_from_filename(image_path)
         img_info = self.metadata_dict[lookup_str][file_number]
         img_info["filename"] = image_path
 
-        rotation_angle = (idx % 18) * 20
+        rotation_angle = (idx % self.rotations_per_image) * self.rotation_deg
         img_info["angle"] = rotation_angle
 
         image = image.rotate(rotation_angle)

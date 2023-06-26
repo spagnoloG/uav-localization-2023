@@ -7,8 +7,6 @@ from model import CustomResNetDeiT
 from criterion import BalanceLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
-from matplotlib import pyplot as plt
-import numpy as np
 from logger import logger
 
 
@@ -87,11 +85,9 @@ class CrossViewTrainer:
             # Forward pass
             outputs = self.model(drone_images, sat_images)
             # Calculate loss
-            loss = self.criterion(
-                outputs, heatmap_gt
-            )  # TODO: implement ground truth labels
-            # Backward pass and optimize
+            loss = self.criterion(outputs, heatmap_gt)
 
+            # Backward pass and optimize
             loss.backward()
             self.optimizer.step()
 
@@ -147,7 +143,7 @@ class CrossViewTrainer:
 
 
 def test():
-    model = CustomResNetDeiT()
+    model = CustomResNetDeiT(train_backbone=True, train_convolutions=True)
     model = torch.nn.DataParallel(model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     loss_fn = BalanceLoss()
