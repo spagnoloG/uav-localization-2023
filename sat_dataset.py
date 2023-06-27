@@ -11,6 +11,7 @@ import requests
 import time
 from sat.bounding_boxes import bboxes
 from matplotlib.colors import LinearSegmentedColormap
+from logger import logger
 
 
 class SatDataset(Dataset):
@@ -70,7 +71,7 @@ class SatDataset(Dataset):
             if z < 1:
                 raise ValueError
         except ValueError:
-            print(
+            logger.error(
                 "Invalid zoom level or error extracting info from the filename in sat images: ",
                 filename,
             )
@@ -79,7 +80,7 @@ class SatDataset(Dataset):
         try:
             tile = mercantile.Tile(x, y, z)
         except ValueError:
-            print(
+            logger.error(
                 "Invalid tile or error extracting info from the filename in sat images: ",
                 filename,
             )
@@ -97,6 +98,7 @@ class SatDataset(Dataset):
                 ix = self.image_paths.index(path)
                 return self.__getitem__(ix)
         else:
+            logger.error("No tile found for the given coordinates: ", lat, lng)
             raise ValueError("No tile found for the given coordinates: ", lat, lng)
 
     def is_coord_in_a_tile(self, lat, lng, tile):
@@ -132,7 +134,7 @@ class SatDataset(Dataset):
         os.makedirs(f"{self.root_dir}/tiles", exist_ok=True)
 
         for r_name, bbox in bboxes.items():
-            print("Downloading maps for region: ", r_name)
+            logger.info(f"Downloading maps for region: {r_name}")
             for tile in tqdm(
                 mercantile.tiles(bbox[0], bbox[1], bbox[2], bbox[3], self.zoom_level)
             ):
@@ -161,13 +163,13 @@ class SatDataset(Dataset):
                             if (
                                 attempt < max_attempts - 1
                             ):  # i.e., if it's not the final attempt
-                                print(
+                                logger.warn(
                                     f"An error occurred: {e}. Trying again in 5 seconds..."
                                 )
                                 time.sleep(5)  # wait for 5 seconds before trying again
                                 continue
                             else:
-                                print(
+                                logger.error(
                                     f"Failed to download after {max_attempts} attempts. Skipping this tile."
                                 )
                                 break
@@ -176,7 +178,7 @@ class SatDataset(Dataset):
                                 f.write(response.content)
                             break
                     else:
-                        print(f"Error downloading {file_path}")
+                        logger.error(f"Error downloading {file_path}")
 
 
 class MapUtils:
