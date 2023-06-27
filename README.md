@@ -1,7 +1,6 @@
-# CustomResNetDeiT for Multi-View Image Fusion
+# Custom Twins transformer for Multi-View Image Fusion
 This repository contains code for a custom implementation of a Vision Transformer model which uses a pretrained ResNet50 for feature extraction 
-and a Transformer for fusing features from UAV and satellite view images. The model uses a novel loss function called Balance Loss, 
-designed to handle imbalanced datasets by adjusting the weights of positive and negative samples.
+and a weighted convolution for fusing features from UAV and satellite view images.
 
 ## Deps 
 
