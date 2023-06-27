@@ -3,7 +3,6 @@ import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
-from model import CustomResNetDeiT
 from criterion import BalanceLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
@@ -11,6 +10,8 @@ from logger import logger
 import hashlib
 import datetime
 import os
+import matplotlib.pyplot as plt
+from model import CrossViewLocalizationModel
 
 
 class CrossViewTrainer:
@@ -28,7 +29,8 @@ class CrossViewTrainer:
         num_epochs=16,
         shuffle_dataset=True,
         checkpoint_hash=None,
-        subset_size=None,
+        train_subset_size=None,
+        val_subset_size=None,
     ):
         """
         Initialize the CrossViewTrainer.
@@ -54,22 +56,16 @@ class CrossViewTrainer:
         self.num_epochs = num_epochs
         self.shuffle_dataset = shuffle_dataset
         self.checkpoint_hash = checkpoint_hash
-        self.subset_size = subset_size
+        self.train_subset_size = train_subset_size
+        self.val_subset_size = val_subset_size
         self.current_epoch = 0
 
-        if self.subset_size is not None:
-            logger.info(f"Using subset of size {self.subset_size}")
+        if self.train_subset_size is not None:
+            logger.info(f"Using train subset of size {self.train_subset_size}")
             self.train_dataloader = DataLoader(
                 torch.utils.data.Subset(
-                    JoinedDataset(dataset="train"), indices=range(self.subset_size)
-                ),
-                batch_size=batch_size,
-                num_workers=num_workers,
-                shuffle=shuffle_dataset,
-            )
-            self.val_dataloader = DataLoader(
-                torch.utils.data.Subset(
-                    JoinedDataset(dataset="test"), indices=range(self.subset_size)
+                    JoinedDataset(dataset="train"),
+                    indices=range(self.train_subset_size),
                 ),
                 batch_size=batch_size,
                 num_workers=num_workers,
@@ -85,6 +81,17 @@ class CrossViewTrainer:
                 shuffle=shuffle_dataset,
             )
 
+        if self.val_subset_size is not None:
+            logger.info(f"Using val subset of size {self.val_subset_size}")
+            self.val_dataloader = DataLoader(
+                torch.utils.data.Subset(
+                    JoinedDataset(dataset="test"), indices=range(self.val_subset_size)
+                ),
+                batch_size=batch_size,
+                num_workers=num_workers,
+                shuffle=shuffle_dataset,
+            )
+        else:
             self.val_dataloader = DataLoader(
                 JoinedDataset(
                     dataset="test",
@@ -195,8 +202,28 @@ class CrossViewTrainer:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
+                self.plot(outputs, heatmap_gt, drone_images, sat_images)
+
         epoch_loss = running_loss / len(self.val_dataloader)
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
+
+    def plot(self, outputs, heatmap_gt, drone_images, sat_images):
+        """
+        Plot the outputs of the model and the ground truth.
+        """
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        ax[0].imshow(outputs[0].cpu().numpy(), cmap="hot")
+        ax[0].set_title("Predicted Heatmap")
+        ax[1].imshow(heatmap_gt[0].cpu().numpy(), cmap="hot")
+        ax[1].set_title("Ground Truth Heatmap")
+        plt.show()
+
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        ax[0].imshow(drone_images[0].cpu().numpy())
+        ax[0].set_title("Drone Image")
+        ax[1].imshow(sat_images[0].cpu().numpy())
+        ax[1].set_title("Satellite Image")
+        plt.show()
 
     def save_checkpoint(self, epoch, dir_path="./checkpoints/"):
         """
@@ -238,7 +265,7 @@ class CrossViewTrainer:
 
 
 def test():
-    model = CustomResNetDeiT(train_backbone=True, train_convolutions=True)
+    model = CrossViewLocalizationModel()
     model = torch.nn.DataParallel(model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     loss_fn = BalanceLoss()
@@ -251,7 +278,8 @@ def test():
         num_workers=16,
         shuffle_dataset=True,
         num_epochs=15,
-        subset_size=10,
+        train_subset_size=1000,
+        val_subset_size=10,
     )
 
     trainer.train()

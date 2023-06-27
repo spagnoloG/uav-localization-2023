@@ -4,101 +4,136 @@
 # numpy: [height, width, channels]
 # [batch_size, height, width, channels] -> [batch_size, channels, height, width]
 
-import torch
 import torch.nn as nn
 import timm
-import numpy as np
+import torch
+import torch.nn.functional as F
 
 
-class CustomResNetDeiT(nn.Module):
-    def __init__(self, train_backbone=True, train_convolutions=True):
-        super().__init__()
+class WAMF(nn.Module):
+    def __init__(self, in_channels):
+        super(WAMF, self).__init__()
+        self.weight = nn.Parameter(torch.ones(3, 1, 1, 1))
+        self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=1)
 
-        self.train_backbone = train_backbone
-        self.train_convolutions = train_convolutions
+    def forward(self, x_UAV, x_satellite):
+        # Compute similarity
+        similarity_maps = []
+        for feature_UAV, feature_satellite in zip(x_UAV, x_satellite):
+            print("Shape of feature_UAV: ", feature_UAV.shape)
+            print("Shape of feature_satellite: ", feature_satellite.shape)
+            feature_UAV = feature_UAV.unsqueeze(0)
+            feature_satellite = feature_satellite.unsqueeze(0)
+            print("Shape of feature_UAV after unsqueeze: ", feature_UAV.shape)
+            print("Shape of feature_satellite after unsqueeze: ", feature_satellite.shape)
+            feature_UAV = F.interpolate(feature_UAV, size=feature_satellite.shape[2:], mode='bilinear', align_corners=False)
+            similarity_map = self.conv(feature_UAV * feature_satellite)
+            similarity_maps.append(similarity_map)
 
-        deit_model_satellite = timm.create_model(
-            "deit3_small_patch16_384.fb_in22k_ft_in1k", pretrained=True
+        # Weighted fusion
+        fusion = sum(w * heatmap for w, heatmap in zip(self.weight, similarity_maps))
+        return fusion
+
+
+class SaveLayerFeatures(nn.Module):
+    def __init__(self):
+        super(SaveLayerFeatures, self).__init__()
+        self.outputs = []
+
+    def forward(self, x, shape):
+        output = x.clone()
+        output = output.reshape(x.shape[0], x.shape[2], shape[0], shape[1])
+        self.outputs.append(output)
+        return x
+
+    def clear(self):
+        self.outputs = []
+
+
+class ModifiedPCPVT(nn.Module):
+    def __init__(self, original_model):
+        super(ModifiedPCPVT, self).__init__()
+
+        # Change the structure of the PCPVT model
+        self.model = original_model
+        self.model.blocks = original_model.blocks[:3]  # Only use the first 3 blocks
+        self.model.norm = nn.Identity()  # Remove the normalization layer
+        self.model.head = nn.Identity()  # Remove the head layer
+        self.model.patch_embeds[
+            3
+        ] = nn.Identity()  # Remove the last patch embedding layer
+        self.model.pos_block[
+            3
+        ] = nn.Identity()  # Remove the last position embedding layer
+
+        # Add the save_features layer to the first 3 blocks
+        self.save_features = SaveLayerFeatures()
+        self.model.blocks[0].add_module("save_features", self.save_features)
+        self.model.blocks[1].add_module("save_features", self.save_features)
+        self.model.blocks[2].add_module("save_features", self.save_features)
+
+    def forward(self, x):
+        _ = self.model(x)
+        features = self.save_features.outputs.copy()
+        self.save_features.clear()
+        return features
+
+
+class CrossViewLocalizationModel(nn.Module):
+    def __init__(self):
+        super(CrossViewLocalizationModel, self).__init__()
+
+        # Feature extraction module
+        self.backbone_UAV = timm.create_model("twins_pcpvt_small", pretrained=True)
+        self.feature_extractor_UAV = ModifiedPCPVT(self.backbone_UAV)
+
+        self.backbone_satellite = timm.create_model(
+            "twins_pcpvt_small", pretrained=True
         )
 
-        deit_model_drone = timm.create_model(
-            "deit3_small_patch16_384.fb_in22k_ft_in1k", pretrained=True
-        )
+        self.feature_extractor_satellite = ModifiedPCPVT(self.backbone_satellite)
 
-        self.deit_backbone_satellite = nn.Sequential(
-            *list(deit_model_satellite.children())[:-2]
-        )
-        self.deit_backbone_drone = nn.Sequential(
-            *list(deit_model_drone.children())[:-2]
-        )
+        # Weight-Adaptive Multi-Feature fusion module
+        self.wamf = WAMF(64)
 
-        self.emb_size = deit_model_satellite.embed_dim
+        # Upsampling module
+        self.upsample = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
 
-        # If not training backbone, freeze its parameters
-        if not self.train_backbone:
-            for param in self.deit_backbone_satellite.parameters():
-                param.requires_grad = False
-            for param in self.deit_backbone_drone.parameters():
-                param.requires_grad = False
+    def forward(self, x_UAV, x_satellite):
+        # Pytorch: [batch_size, channels, height, width]
+        # numpy: [height, width, channels]
+        print("Shape of x_UAV before permute: ", x_UAV.shape)
+        print("Shape of x_satellite before permute: ", x_satellite.shape)
+        x_UAV = x_UAV.permute(0, 3, 1, 2)
+        x_satellite = x_satellite.permute(0, 3, 1, 2)
+        print("Shape of x_UAV after permute: ", x_UAV.shape)
+        print("Shape of x_satellite after permute: ", x_satellite.shape)
+        feature_pyramid_UAV = self.feature_extractor_UAV(x_UAV)
+        feature_pyramid_satellite = self.feature_extractor_satellite(x_satellite)
 
-        self.conv = nn.Conv2d(
-            in_channels=(2 * self.emb_size), out_channels=3, kernel_size=1
-        )
-        self.upscale_heatmap = nn.ConvTranspose2d(
-            in_channels=3, out_channels=1, kernel_size=6, stride=22
-        )
+        print("Printing the shape of feature_pyramid_UAV: ")
+        for feature in feature_pyramid_UAV:
+            print(feature.shape)
 
-        # If not training convolutions, freeze their parameters
-        if not self.train_convolutions:
-            for param in self.conv.parameters():
-                param.requires_grad = False
-            for param in self.upscale_heatmap.parameters():
-                param.requires_grad = False
+        print("Printing the shape of feature_pyramid_satellite: ")
+        for feature in feature_pyramid_satellite:
+            print(feature.shape)
 
-    def forward(self, drone_img, satellite_img):
-        drone_img = drone_img.permute(0, 3, 1, 2)
-        satellite_img = satellite_img.permute(0, 3, 1, 2)
+        last_sat_feature = feature_pyramid_satellite[-1]
 
-        drone_features = self.deit_backbone_drone(drone_img)
-        satellite_features = self.deit_backbone_satellite(satellite_img)
-        # print("drone_features.shape", drone_features.shape)
-        # print("satellite_features.shape", satellite_features.shape)
+         # Calculate similarity and perform weighted fusion
+        heatmaps = []
+        for uav_feature in feature_pyramid_UAV:
+            heatmap = self.wamf(uav_feature, last_sat_feature)
+            heatmaps.append(heatmap)
 
-        # logger.info(f"Drone features shape after backbone: {drone_features.shape}")
-        # logger.info(f"Sattelite features shape after backbone: {satellite_features.shape}")
+        print("Printing the shape of heatmaps: ")
 
-        # drone_features = drone_features.flatten(start_dim=2).permute(0, 2, 1)
-        # satellite_features = satellite_features.flatten(start_dim=2).permute(0, 2, 1)
+        # Upsample heatmaps to the same size
+        heatmaps = [self.upsample(heatmap) for heatmap in heatmaps]
 
-        # print("After flatten")
-        # print("drone_features.shape", drone_features.shape)
-        # print("satellite_features.shape", satellite_features.shape)
-        # logger.info(f"Drone features shape after flatten: {drone_features.shape}")
-        # logger.info(f"Sattelite features shape after flatten: {satellite_features.shape}")
+        # Sum the heatmaps to get the final heatmap
+        final_heatmap = sum(heatmaps)
 
-        fused_features = torch.cat((drone_features, satellite_features), dim=2)
-        # print("After concat")
-        # print("fused_features.shape", fused_features.shape)
-        fused_features = fused_features.permute(0, 2, 1)
 
-        # logger.info(f"Concat features shape: {fused_features.shape}")
-        # Make sure that the tensor is 4D: [batch_size, channels, height, width]
-        fused_features = fused_features.unsqueeze(-1)
-
-        # logger.info(f"Concat features shape after unsqueeze: {fused_features.shape}")
-        fused_features = self.conv(fused_features)
-        # logger.info(f"Heatmap shape: {heatmap.shape}")
-        # print("After conv")
-        # print("heatmap.shape", fused_features.shape)
-
-        two_d_dim = np.rint(np.sqrt(fused_features.shape[2])).astype(int)
-
-        # print("two_d_dim", two_d_dim)
-        fused_features = fused_features.reshape(-1, 3, two_d_dim, two_d_dim)
-
-        # print("After reshape")
-        # print("fused_features.shape", fused_features.shape)
-
-        heatmap = self.upscale_heatmap(fused_features)
-
-        return heatmap.squeeze()
+        exit()

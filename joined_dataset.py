@@ -35,8 +35,8 @@ class JoinedDataset(Dataset):
             )
         )
 
-        drone_image = self.prepare_image_for_transformer(drone_image)
-        sat_image = self.prepare_image_for_transformer(sat_image)
+        # drone_image = self.prepare_image_for_transformer(drone_image)
+        # sat_image = self.prepare_image_for_transformer(sat_image)
 
         return drone_image, drone_info, sat_image, sat_info, heatmap
 

@@ -12,8 +12,8 @@ class DroneDataset(Dataset):
     def __init__(
         self,
         root_dir="./drone/",
-        patch_w=600,
-        patch_h=600,
+        patch_w=128,
+        patch_h=128,
         dataset="train",
         rotation_deg=360,
     ):
