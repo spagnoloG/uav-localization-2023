@@ -16,7 +16,7 @@ from logger import logger
 
 class SatDataset(Dataset):
     # Original file size -> 512 x 512
-    def __init__(self, root_dir="./sat/", patch_w=400, patch_h=400, zoom_level=16):
+    def __init__(self, root_dir="./sat/", patch_w=512, patch_h=512, zoom_level=16):
         self.root_dir = root_dir
         self.patch_w = patch_w
         self.patch_h = patch_h

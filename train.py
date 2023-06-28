@@ -19,7 +19,6 @@ class CrossViewTrainer:
 
     def __init__(
         self,
-        backbone,
         device,
         criterion,
         lr=3e-4,
@@ -46,7 +45,6 @@ class CrossViewTrainer:
         shuffle_dataset: whether to shuffle the dataset
         checkpoint_hash: the hash of the checkpoint to load
         """
-        self.model = backbone
         self.device = device
         self.criterion = criterion
         self.lr = lr
@@ -62,20 +60,22 @@ class CrossViewTrainer:
 
         if self.train_subset_size is not None:
             logger.info(f"Using train subset of size {self.train_subset_size}")
+            subset_dataset = torch.utils.data.Subset(
+                JoinedDataset(dataset="train"),
+                indices=range(self.train_subset_size),
+            )
             self.train_dataloader = DataLoader(
-                torch.utils.data.Subset(
-                    JoinedDataset(dataset="train"),
-                    indices=range(self.train_subset_size),
-                ),
+                subset_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,
                 shuffle=shuffle_dataset,
             )
         else:
+            subset_dataset = JoinedDataset(
+                dataset="train",
+            )
             self.train_dataloader = DataLoader(
-                JoinedDataset(
-                    dataset="train",
-                ),
+                subset_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,
                 shuffle=shuffle_dataset,
@@ -83,23 +83,32 @@ class CrossViewTrainer:
 
         if self.val_subset_size is not None:
             logger.info(f"Using val subset of size {self.val_subset_size}")
+            subset_dataset = torch.utils.data.Subset(
+                JoinedDataset(dataset="test"), indices=range(self.val_subset_size)
+            )
             self.val_dataloader = DataLoader(
-                torch.utils.data.Subset(
-                    JoinedDataset(dataset="test"), indices=range(self.val_subset_size)
-                ),
+                subset_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,
                 shuffle=shuffle_dataset,
             )
         else:
+            subset_dataset = JoinedDataset(
+                dataset="test",
+            )
             self.val_dataloader = DataLoader(
-                JoinedDataset(
-                    dataset="test",
-                ),
+                subset_dataset,
                 batch_size=batch_size,
                 num_workers=num_workers,
                 shuffle=shuffle_dataset,
             )
+
+        self.model = torch.nn.DataParallel(
+            CrossViewLocalizationModel(
+                drone_resolution=self.train_dataloader.dataset.dataset.drone_resolution,
+                satellite_resolution=self.train_dataloader.dataset.dataset.satellite_resolution,
+            )
+        )
 
         self.optimizer = AdamW(
             self.model.parameters(), lr=lr, weight_decay=weight_decay
@@ -265,13 +274,10 @@ class CrossViewTrainer:
 
 
 def test():
-    model = CrossViewLocalizationModel()
-    model = torch.nn.DataParallel(model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     loss_fn = BalanceLoss()
 
     trainer = CrossViewTrainer(
-        model,
         device,
         loss_fn,
         batch_size=2,

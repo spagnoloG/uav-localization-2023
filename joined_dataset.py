@@ -16,6 +16,8 @@ class JoinedDataset(Dataset):
         self.drone_dataset = DroneDataset(root_dir=drone_dir, dataset=dataset)
         self.sat_dataset = SatDataset(root_dir=sat_dir)
         self.transformer_input_size = transformer_input_size
+        self.drone_resolution = (self.drone_dataset.patch_w, self.drone_dataset.patch_h)
+        self.satellite_resolution = (self.sat_dataset.patch_w, self.sat_dataset.patch_h)
 
     def __len__(self):
         return len(self.drone_dataset)

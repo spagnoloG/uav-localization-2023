@@ -11,8 +11,10 @@ import torch.nn.functional as F
 
 
 class FusionModule(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, upsample_size):
         super(FusionModule, self).__init__()
+        self.upsample_size = upsample_size
+
         self.conv1 = nn.Conv2d(
             in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
         )
@@ -35,7 +37,6 @@ class FusionModule(nn.Module):
         drone2 = self.conv2(drone2)
         drone3 = self.conv3(drone3)
 
-        # Upsample drone features to match the size of the satellite features
         drone2_up = F.interpolate(
             drone2, size=drone1.shape[2:], mode="bilinear", align_corners=False
         )
@@ -60,18 +61,20 @@ class FusionModule(nn.Module):
         )
 
         A1 = F.cosine_similarity(satellite, drone1_up, dim=1).unsqueeze(1)
+        A2 = F.cosine_similarity(satellite, drone2_up, dim=1).unsqueeze(1)
+        A3 = F.cosine_similarity(satellite, drone3_up, dim=1).unsqueeze(1)
 
         # Weighted fusion
-        fusion = (
-            A1 * self.weights[0]
-            + drone2_up * self.weights[1]
-            + drone3_up * self.weights[2]
-        )
+        fusion = A1 * self.weights[0] + A2 * self.weights[1] + A3 * self.weights[2]
 
         self.weights.data = self.weights.data / self.weights.data.sum()
 
         # Sum along the channel dimension to get the final fused feature map
         fusion = fusion.sum(dim=1, keepdim=True)
+
+        fusion = F.interpolate(
+            fusion, size=self.upsample_size, mode="bilinear", align_corners=False
+        )
 
         return fusion
 
@@ -121,8 +124,11 @@ class ModifiedPCPVT(nn.Module):
 
 
 class CrossViewLocalizationModel(nn.Module):
-    def __init__(self):
+    def __init__(self, drone_resolution, satellite_resolution):
         super(CrossViewLocalizationModel, self).__init__()
+
+        self.drone_resolution = drone_resolution
+        self.satellite_resolution = satellite_resolution
 
         # Feature extraction module
         self.backbone_UAV = timm.create_model("twins_pcpvt_small", pretrained=True)
@@ -135,7 +141,11 @@ class CrossViewLocalizationModel(nn.Module):
         self.feature_extractor_satellite = ModifiedPCPVT(self.backbone_satellite)
 
         # Weight-Adaptive Multi-Feature fusion module
-        self.fusion = FusionModule(in_channels=[64, 128, 320], out_channels=64)
+        self.fusion = FusionModule(
+            in_channels=[64, 128, 320],
+            out_channels=64,
+            upsample_size=self.satellite_resolution,
+        )
 
         # Upsampling module
         self.upsample = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
@@ -143,53 +153,14 @@ class CrossViewLocalizationModel(nn.Module):
     def forward(self, x_UAV, x_satellite):
         # Pytorch: [batch_size, channels, height, width]
         # numpy: [height, width, channels]
-        print("Shape of x_UAV before permute: ", x_UAV.shape)
-        print("Shape of x_satellite before permute: ", x_satellite.shape)
         x_UAV = x_UAV.permute(0, 3, 1, 2)
         x_satellite = x_satellite.permute(0, 3, 1, 2)
-        print("Shape of x_UAV after permute: ", x_UAV.shape)
-        print("Shape of x_satellite after permute: ", x_satellite.shape)
+
         feature_pyramid_UAV = self.feature_extractor_UAV(x_UAV)
         feature_pyramid_satellite = self.feature_extractor_satellite(x_satellite)
+        last_sat_feature = feature_pyramid_satellite[0]
 
-        print("Printing the shape of feature_pyramid_UAV: ")
-        for feature in feature_pyramid_UAV:
-            print(feature.shape)
-
-        print("Printing the shape of feature_pyramid_satellite: ")
-        for feature in feature_pyramid_satellite:
-            print(feature.shape)
-
-        last_sat_feature = feature_pyramid_satellite[-1]
+        fused_map = self.fusion(*feature_pyramid_UAV, last_sat_feature)
+        print(fused_map.shape)
 
         exit()
-
-        # Calculate similarity and perform weighted fusion
-        heatmaps = []
-        for uav_feature in feature_pyramid_UAV:
-            heatmap = self.wamf(uav_feature, last_sat_feature)
-            heatmaps.append(heatmap)
-
-        print("Printing the shape of heatmaps: ")
-
-        # Upsample heatmaps to the same size
-        heatmaps = [self.upsample(heatmap) for heatmap in heatmaps]
-
-        # Sum the heatmaps to get the final heatmap
-        final_heatmap = sum(heatmaps)
-
-        exit()
-
-
-def test():
-    fusion_module = FusionModule(in_channels=[64, 128, 320], out_channels=64)
-    satellite = torch.randn(2, 64, 100, 100)  # S3
-    drone1 = torch.randn(2, 64, 32, 32)  # U1
-    drone2 = torch.randn(2, 128, 16, 16)  # U2
-    drone3 = torch.randn(2, 320, 8, 8)  # U3
-    fusion = fusion_module(drone1, drone2, drone3, satellite)
-    print(fusion.shape)
-
-
-if __name__ == "__main__":
-    test()

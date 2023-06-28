@@ -11,7 +11,7 @@ pip install -r requirements.txt
 
 
 ### Twins Backbone
-```bash
+```python
 >>> import torch
 >>> from timm import create_model
 >>>
@@ -293,7 +293,7 @@ Twins(
 )
 ```
 
-```
+```bash
   File "/timm/models/twins.py", line 407, in forward_features
     zip(self.patch_embeds, self.pos_drops, self.blocks, self.pos_block)):
 TypeError: 'Identity' object is not iterable
