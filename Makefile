@@ -2,6 +2,7 @@ push-ml-node:
 	rsync -rav --progress \
 	--exclude='.venv/' \
 	--exclude='.git/' \
+	--exclude='checkpoints/' \
 	--exclude='__pycache__/' \
 	--include='*/' \
 	--include='*.py' \

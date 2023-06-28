@@ -105,8 +105,12 @@ class CrossViewTrainer:
 
         self.model = torch.nn.DataParallel(
             CrossViewLocalizationModel(
-                drone_resolution=self.train_dataloader.dataset.dataset.drone_resolution,
-                satellite_resolution=self.train_dataloader.dataset.dataset.satellite_resolution,
+                drone_resolution=self.train_dataloader.dataset.drone_resolution
+                if self.train_subset_size is None
+                else self.train_dataloader.dataset.dataset.drone_resolution,
+                satellite_resolution=self.train_dataloader.dataset.satellite_resolution
+                if self.train_subset_size is None
+                else self.train_dataloader.dataset.dataset.satellite_resolution,
             )
         )
 
@@ -284,8 +288,7 @@ def test():
         num_workers=16,
         shuffle_dataset=True,
         num_epochs=15,
-        train_subset_size=10,
-        val_subset_size=10,
+        train_subset_size=100,
     )
 
     trainer.train()
