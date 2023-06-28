@@ -150,6 +150,9 @@ class CrossViewLocalizationModel(nn.Module):
         # Upsampling module
         self.upsample = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
 
+        # add relu to avoid negative values
+        self.relu = nn.ReLU(inplace=True)
+
     def forward(self, x_UAV, x_satellite):
         # Pytorch: [batch_size, channels, height, width]
         # numpy: [height, width, channels]
@@ -161,5 +164,7 @@ class CrossViewLocalizationModel(nn.Module):
         last_sat_feature = feature_pyramid_satellite[0]
 
         fused_map = self.fusion(*feature_pyramid_UAV, last_sat_feature)
+
+        fused_map = self.relu(fused_map)
 
         return fused_map

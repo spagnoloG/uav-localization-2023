@@ -30,6 +30,7 @@ class CrossViewTrainer:
         checkpoint_hash=None,
         train_subset_size=None,
         val_subset_size=None,
+        plot=False,
     ):
         """
         Initialize the CrossViewTrainer.
@@ -56,6 +57,7 @@ class CrossViewTrainer:
         self.checkpoint_hash = checkpoint_hash
         self.train_subset_size = train_subset_size
         self.val_subset_size = val_subset_size
+        self.plot = plot
         self.current_epoch = 0
 
         if self.train_subset_size is not None:
@@ -215,12 +217,13 @@ class CrossViewTrainer:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
-                # self.plot(outputs, heatmap_gt, drone_images, sat_images)
+                if self.plot:
+                    self.plot_res(outputs, heatmap_gt, drone_images, sat_images)
 
         epoch_loss = running_loss / len(self.val_dataloader)
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
-    def plot(self, outputs, heatmap_gt, drone_images, sat_images):
+    def plot_res(self, outputs, heatmap_gt, drone_images, sat_images):
         """
         Plot the outputs of the model and the ground truth.
         """
@@ -284,11 +287,13 @@ def test():
     trainer = CrossViewTrainer(
         device,
         loss_fn,
-        batch_size=2,
+        batch_size=4,
         num_workers=16,
         shuffle_dataset=True,
         num_epochs=15,
-        train_subset_size=100,
+        val_subset_size=10,
+        train_subset_size=2000,
+        plot=True,
     )
 
     trainer.train()

@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from matplotlib import pyplot as plt
 
 
 class BalanceLoss(nn.Module):
@@ -48,27 +49,25 @@ class BalanceLoss(nn.Module):
 
 
 class HanningLoss(nn.Module):
-    def __init__(self, center_r=33, negative_weight=1.0, device="cuda"):
+    def __init__(self, center_r=33, negative_weight=1, device="cuda"):
         super(HanningLoss, self).__init__()
         self.Center_R = center_r
         self.NG = negative_weight
         self.device = device
 
-        self.positive_weight = self.compute_positive_weight()
-
-    def compute_positive_weight(self):
-        hann1d = torch.hann_window(self.Center_R).to(self.device)
-        hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
-        return hanning_window.mean()  # single weight for all positive samples
-
     def forward(self, preds, target):
-        positive_samples = target == 1
+        positive_samples = target > 0
         negative_samples = target == 0
 
-        NN = negative_samples.sum()
-        NW = positive_samples.sum()
+        num_negative_samples = negative_samples.sum()
+        num_positive_samples = positive_samples.sum()
 
-        negative_weights = self.NG / (NN * (NW + 1))
+        i_negative_weight = num_negative_samples / (
+            num_positive_samples + num_negative_samples
+        )
+
+        negative_weights = self.NG / (i_negative_weight + 1)
+        positive_weights = 1 / num_positive_samples
 
         preds = preds.squeeze(1)
 
@@ -77,9 +76,11 @@ class HanningLoss(nn.Module):
             * (preds[negative_samples] - target[negative_samples]).pow(2).sum()
         )
 
-        loss += (
-            self.positive_weight
-            * (preds[positive_samples] - target[positive_samples]).pow(2)
-        ).sum()
+        loss2 = (
+            positive_weights
+            * (preds[positive_samples] - target[positive_samples]).pow(2).sum()
+        )
 
-        return loss
+        l = loss + loss2
+
+        return l
