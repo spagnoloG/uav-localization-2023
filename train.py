@@ -12,6 +12,7 @@ import datetime
 import os
 import matplotlib.pyplot as plt
 from model import CrossViewLocalizationModel
+import yaml
 
 
 class CrossViewTrainer:
@@ -31,6 +32,7 @@ class CrossViewTrainer:
         train_subset_size=None,
         val_subset_size=None,
         plot=False,
+        config=None,
     ):
         """
         Initialize the CrossViewTrainer.
@@ -63,7 +65,7 @@ class CrossViewTrainer:
         if self.train_subset_size is not None:
             logger.info(f"Using train subset of size {self.train_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(dataset="train"),
+                JoinedDataset(dataset="train", config=config),
                 indices=range(self.train_subset_size),
             )
             self.train_dataloader = DataLoader(
@@ -75,6 +77,7 @@ class CrossViewTrainer:
         else:
             subset_dataset = JoinedDataset(
                 dataset="train",
+                config=config,
             )
             self.train_dataloader = DataLoader(
                 subset_dataset,
@@ -86,7 +89,8 @@ class CrossViewTrainer:
         if self.val_subset_size is not None:
             logger.info(f"Using val subset of size {self.val_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(dataset="test"), indices=range(self.val_subset_size)
+                JoinedDataset(dataset="test", config=config),
+                indices=range(self.val_subset_size),
             )
             self.val_dataloader = DataLoader(
                 subset_dataset,
@@ -95,9 +99,7 @@ class CrossViewTrainer:
                 shuffle=shuffle_dataset,
             )
         else:
-            subset_dataset = JoinedDataset(
-                dataset="test",
-            )
+            subset_dataset = JoinedDataset(dataset="test", config=config)
             self.val_dataloader = DataLoader(
                 subset_dataset,
                 batch_size=batch_size,
@@ -280,24 +282,35 @@ class CrossViewTrainer:
         return checkpoint["epoch"]
 
 
-def test():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+def load_config(config_path):
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    return config
+
+
+def main():
+    config = load_config("./conf/configuration.yaml")
+
+    train_config = config["train"]
+
+    device = torch.device(train_config["device"])
     loss_fn = HanningLoss(negative_weight=0.5, center_r=33, device=device)
 
     trainer = CrossViewTrainer(
         device,
         loss_fn,
-        batch_size=4,
-        num_workers=16,
-        shuffle_dataset=True,
-        num_epochs=15,
-        val_subset_size=10,
-        train_subset_size=2000,
-        plot=True,
+        batch_size=train_config["batch_size"],
+        num_workers=train_config["num_workers"],
+        shuffle_dataset=train_config["shuffle_dataset"],
+        num_epochs=train_config["num_epochs"],
+        val_subset_size=train_config["val_subset_size"],
+        train_subset_size=train_config["train_subset_size"],
+        plot=train_config["plot"],
+        config=config,
     )
 
     trainer.train()
 
 
 if __name__ == "__main__":
-    test()
+    main()

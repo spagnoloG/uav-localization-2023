@@ -18,11 +18,11 @@ from functools import lru_cache
 
 class SatDataset(Dataset):
     # Original file size -> 512 x 512
-    def __init__(self, root_dir="./sat/", patch_w=512, patch_h=512, zoom_level=16):
-        self.root_dir = root_dir
-        self.patch_w = patch_w
-        self.patch_h = patch_h
-        self.zoom_level = zoom_level
+    def __init__(self, config):
+        self.root_dir = config["root_dir"]
+        self.patch_w = config["patch_w"]
+        self.patch_h = config["patch_h"]
+        self.zoom_level = config["zoom_level"]
         self.metadata_dict = {}
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.download_maps()

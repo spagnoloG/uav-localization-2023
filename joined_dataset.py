@@ -12,9 +12,12 @@ class JoinedDataset(Dataset):
         sat_dir="./sat/",
         transformer_input_size=384,
         dataset="train",
+        config=None,
     ):
-        self.drone_dataset = DroneDataset(root_dir=drone_dir, dataset=dataset)
-        self.sat_dataset = SatDataset(root_dir=sat_dir)
+        self.drone_dataset = DroneDataset(
+            dataset=dataset, config=config["drone_dataset"]
+        )
+        self.sat_dataset = SatDataset(config=config["sat_dataset"])
         self.transformer_input_size = transformer_input_size
         self.drone_resolution = (self.drone_dataset.patch_w, self.drone_dataset.patch_h)
         self.satellite_resolution = (self.sat_dataset.patch_w, self.sat_dataset.patch_h)

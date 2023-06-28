@@ -1,0 +1,31 @@
+train:
+  device: "cuda:0"
+  lr: 0.0003  # learning rate
+  weight_decay: 0.0005  # weight decay for optimizer
+  batch_size: 2  # batch size
+  num_workers: 4  # number of worker threads for dataloading
+  num_epochs: 16  # number of training epochs
+  shuffle_dataset: true  # shuffle dataset for each epoch
+  
+  # Dataset parameters
+  train_subset_size: 2000  # size of training subset. Set to null to use full dataset
+  val_subset_size: 10  # size of validation subset. Set to null to use full dataset
+  
+  # Miscellaneous
+  plot: false  # whether to plot the outputs and ground truth during validation
+  
+  # Checkpoint parameters
+  checkpoint_hash: null  # the hash of the checkpoint
+
+# must be divisible by 4 becouse of the Twins model architecture
+sat_dataset:
+  patch_w: 512
+  patch_h: 512
+  zoom_level: 16 # satellite dataset zoom level
+  root_dir: "./sat"
+
+drone_dataset:
+  patch_w: 128
+  patch_h: 128
+  root_dir: "./drone"
+  rotation_deg: 360 # 360 means no rotation, 180 means 2 rotations, etc.

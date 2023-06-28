@@ -11,20 +11,17 @@ import torch
 class DroneDataset(Dataset):
     def __init__(
         self,
-        root_dir="./drone/",
-        patch_w=128,
-        patch_h=128,
         dataset="train",
-        rotation_deg=360,
+        config=None,
     ):
-        self.root_dir = root_dir
-        self.patch_w = patch_w
-        self.patch_h = patch_h
+        self.root_dir = config["root_dir"]
+        self.patch_w = config["patch_w"]
+        self.patch_h = config["patch_h"]
         self.metadata_dict = {}
         self.dataset = dataset
-        self.rotation_deg = rotation_deg
+        self.rotation_deg = config["rotation_deg"]
         self.rotations_per_image = (
-            360 // rotation_deg
+            360 // self.rotation_deg
         )  # Number of rotations for each image
         self.image_paths = self.get_entry_paths(self.root_dir)
 
