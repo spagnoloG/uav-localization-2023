@@ -2,11 +2,15 @@
 This repository contains code for a custom implementation of a Vision Transformer model which uses a pretrained ResNet50 for feature extraction 
 and a weighted convolution for fusing features from UAV and satellite view images.
 
-## Deps 
 
+## Training the network
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 pip install -r requirements.txt
+python train.py # change the conf/configuration.yml for hypertuning
 ```
+
 ## Model Architecture
 
 
