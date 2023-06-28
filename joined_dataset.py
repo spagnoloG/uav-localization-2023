@@ -31,10 +31,8 @@ class JoinedDataset(Dataset):
         # Get corresponding satellite image
         sat_image, sat_info = self.sat_dataset.find_tile(lat, lon)
 
-        heatmap = torch.tensor(
-            MapUtils().generate_heatmap(
-                lat, lon, sat_image, sat_info[0], sat_info[1], sat_info[2]
-            )
+        heatmap = MapUtils().generate_heatmap(
+            lat, lon, sat_image, sat_info[0], sat_info[1], sat_info[2]
         )
 
         # drone_image = self.prepare_image_for_transformer(drone_image)

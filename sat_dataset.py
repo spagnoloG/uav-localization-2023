@@ -12,6 +12,8 @@ import time
 from sat.bounding_boxes import bboxes
 from matplotlib.colors import LinearSegmentedColormap
 from logger import logger
+import torch.nn.functional as F
+from functools import lru_cache
 
 
 class SatDataset(Dataset):
@@ -237,7 +239,7 @@ class MapUtils:
         ax.scatter(x, y, color="red")
         plt.show()
 
-    def generate_heatmap(self, lat, lng, sat_image, x, y, z):
+    def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = self.coord_to_pixel(
             lat, lng, tile, sat_image.shape[0], sat_image.shape[1]
@@ -245,9 +247,17 @@ class MapUtils:
 
         x_map, y_map = int(x_map), int(y_map)
 
-        heatmap = np.zeros((sat_image.shape[0], sat_image.shape[1]))
-        heatmap[y_map, x_map] = 1
+        height, width = sat_image.shape[0], sat_image.shape[1]
 
+        # Calculate the valid range for the heatmap region
+        start_x = max(0, x_map - square_size // 2)
+        end_x = min(width, x_map + square_size // 2 + 1)
+        start_y = max(0, y_map - square_size // 2)
+        end_y = min(height, y_map + square_size // 2 + 1)
+
+        heatmap = torch.zeros((height, width))
+        # Assign 1 to the valid region within the heatmap tensor
+        heatmap[start_y:end_y, start_x:end_x] = 1
         return heatmap
 
     def plot_heatmap(self, lat, lng, sat_image, x, y, z):
@@ -268,6 +278,7 @@ class MapUtils:
         ax.imshow(heatmap, cmap=cmap, alpha=0.5)
         plt.show()
 
+    @lru_cache(maxsize=None)
     def create_2d_gaussian(self, dim1, dim2, sigma=1, center=None):
         if center is None:
             center = [dim1 // 2, dim2 // 2]

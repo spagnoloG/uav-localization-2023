@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class BalanceLoss(nn.Module):
@@ -47,29 +48,38 @@ class BalanceLoss(nn.Module):
 
 
 class HanningLoss(nn.Module):
-    def __init__(self, negative_weight):
+    def __init__(self, center_r=33, negative_weight=1.0, device="cuda"):
         super(HanningLoss, self).__init__()
-        self.negative_weight = negative_weight
+        self.Center_R = center_r
+        self.NG = negative_weight
+        self.device = device
 
-    def forward(self, prediction, target):
-        positive_mask = target == 1
-        negative_mask = target == 0
-        num_positive = positive_mask.sum()
-        num_negative = negative_mask.sum()
+        self.positive_weight = self.compute_positive_weight()
 
-        # Compute Hanning weights for positive samples
-        positive_weights = self.hanning(torch.arange(num_positive), num_positive)
+    def compute_positive_weight(self):
+        hann1d = torch.hann_window(self.Center_R).to(self.device)
+        hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
+        return hanning_window.mean()  # single weight for all positive samples
 
-        # Compute weights for negative samples
-        negative_weights = self.negative_weight / num_negative
+    def forward(self, preds, target):
+        positive_samples = target == 1
+        negative_samples = target == 0
 
-        # Calculate the loss
-        loss = -(positive_weights * torch.log(prediction[positive_mask])).sum() \
-               - (negative_weights * torch.log(1 - prediction[negative_mask])).sum()
+        NN = negative_samples.sum()
+        NW = positive_samples.sum()
 
-        normalized_loss = loss / (num_positive + num_negative)
+        negative_weights = self.NG / (NN * (NW + 1))
 
-        return normalized_loss
+        preds = preds.squeeze(1)
 
-    def hanning(self, n, M):
-        return 0.5 + 0.5 * torch.cos(2 * torch.pi * n / (M - 1))
+        loss = (
+            negative_weights
+            * (preds[negative_samples] - target[negative_samples]).pow(2).sum()
+        )
+
+        loss += (
+            self.positive_weight
+            * (preds[positive_samples] - target[positive_samples]).pow(2)
+        ).sum()
+
+        return loss

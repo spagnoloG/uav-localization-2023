@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
-from criterion import BalanceLoss
+from criterion import HanningLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
 from logger import logger
@@ -211,7 +211,7 @@ class CrossViewTrainer:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
-                self.plot(outputs, heatmap_gt, drone_images, sat_images)
+                # self.plot(outputs, heatmap_gt, drone_images, sat_images)
 
         epoch_loss = running_loss / len(self.val_dataloader)
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
@@ -221,16 +221,16 @@ class CrossViewTrainer:
         Plot the outputs of the model and the ground truth.
         """
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(outputs[0].cpu().numpy(), cmap="hot")
+        ax[0].imshow(outputs[0].cpu().squeeze().numpy(), cmap="hot")
         ax[0].set_title("Predicted Heatmap")
-        ax[1].imshow(heatmap_gt[0].cpu().numpy(), cmap="hot")
+        ax[1].imshow(heatmap_gt[0].cpu().squeeze().numpy(), cmap="hot")
         ax[1].set_title("Ground Truth Heatmap")
         plt.show()
 
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(drone_images[0].cpu().numpy())
+        ax[0].imshow(drone_images[0].cpu().squeeze().numpy())
         ax[0].set_title("Drone Image")
-        ax[1].imshow(sat_images[0].cpu().numpy())
+        ax[1].imshow(sat_images[0].cpu().squeeze().numpy())
         ax[1].set_title("Satellite Image")
         plt.show()
 
@@ -275,7 +275,7 @@ class CrossViewTrainer:
 
 def test():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    loss_fn = BalanceLoss()
+    loss_fn = HanningLoss(negative_weight=0.5, center_r=33, device=device)
 
     trainer = CrossViewTrainer(
         device,
@@ -284,7 +284,7 @@ def test():
         num_workers=16,
         shuffle_dataset=True,
         num_epochs=15,
-        train_subset_size=1000,
+        train_subset_size=10,
         val_subset_size=10,
     )
 

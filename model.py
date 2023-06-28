@@ -161,6 +161,5 @@ class CrossViewLocalizationModel(nn.Module):
         last_sat_feature = feature_pyramid_satellite[0]
 
         fused_map = self.fusion(*feature_pyramid_UAV, last_sat_feature)
-        print(fused_map.shape)
 
-        exit()
+        return fused_map
