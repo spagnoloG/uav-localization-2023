@@ -45,13 +45,31 @@ class BalanceLoss(nn.Module):
 
         return loss
 
-    def upscale_generated_heatmap(self, heatmap):
-        """
-        Upscale the generated heatmap to the size of the satellite image.
-        """
-        return nn.functional.interpolate(
-            heatmap.unsqueeze(0),
-            size=(self.sat_image_size, self.sat_image_size),
-            mode="bilinear",
-            align_corners=False,
-        ).squeeze(0)
+
+class HanningLoss(nn.Module):
+    def __init__(self, negative_weight):
+        super(HanningLoss, self).__init__()
+        self.negative_weight = negative_weight
+
+    def forward(self, prediction, target):
+        positive_mask = target == 1
+        negative_mask = target == 0
+        num_positive = positive_mask.sum()
+        num_negative = negative_mask.sum()
+
+        # Compute Hanning weights for positive samples
+        positive_weights = self.hanning(torch.arange(num_positive), num_positive)
+
+        # Compute weights for negative samples
+        negative_weights = self.negative_weight / num_negative
+
+        # Calculate the loss
+        loss = -(positive_weights * torch.log(prediction[positive_mask])).sum() \
+               - (negative_weights * torch.log(1 - prediction[negative_mask])).sum()
+
+        normalized_loss = loss / (num_positive + num_negative)
+
+        return normalized_loss
+
+    def hanning(self, n, M):
+        return 0.5 + 0.5 * torch.cos(2 * torch.pi * n / (M - 1))
