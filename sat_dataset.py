@@ -14,6 +14,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from logger import logger
 import torch.nn.functional as F
 from functools import lru_cache
+import rtree
 
 
 class SatDataset(Dataset):
@@ -24,8 +25,10 @@ class SatDataset(Dataset):
         self.patch_h = config["patch_h"]
         self.zoom_level = config["zoom_level"]
         self.metadata_dict = {}
+        self.image_indices = {}
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.download_dataset = download_dataset
+        self.rtree_index = rtree.index.Index()
 
         if self.download_dataset:
             self.download_maps()
@@ -33,9 +36,11 @@ class SatDataset(Dataset):
         self.fill_metadata_dict()
 
     def fill_metadata_dict(self):
-        for image_path in self.image_paths:
+        for idx, image_path in enumerate(self.image_paths):
             img_info = self.extract_info_from_filename(image_path)
             self.metadata_dict[image_path] = img_info
+            self.image_indices[image_path] = idx
+            self.rtree_index.insert(idx, mercantile.bounds(img_info))
 
     def get_entry_paths(self, path):
         entry_paths = []
@@ -99,13 +104,14 @@ class SatDataset(Dataset):
         ### -------------------------- ###
 
     def find_tile(self, lat, lng):
-        for path, tile in self.metadata_dict.items():
+        possible_indices = list(self.rtree_index.intersection((lng, lat, lng, lat)))
+        for idx in possible_indices:
+            path = self.image_paths[idx]
+            tile = self.metadata_dict[path]
             if self.is_coord_in_a_tile(lat, lng, tile):
-                ix = self.image_paths.index(path)
-                return self.__getitem__(ix)
-        else:
-            logger.error("No tile found for the given coordinates: ", lat, lng)
-            raise ValueError("No tile found for the given coordinates: ", lat, lng)
+                return self.__getitem__(idx)
+        logger.error("No tile found for the given coordinates: ", lat, lng)
+        raise ValueError("No tile found for the given coordinates: ", lat, lng)
 
     def is_coord_in_a_tile(self, lat, lng, tile):
         bbox = mercantile.bounds(tile)
@@ -315,8 +321,14 @@ class MapUtils:
 
 
 def test():
+    import yaml
+
+    with open("./conf/configuration.yaml", "r") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+        config = config["sat_dataset"]
+
     dataloader = torch.utils.data.DataLoader(
-        SatDataset(root_dir="./sat/"), batch_size=10, shuffle=True
+        SatDataset(config=config), batch_size=10, shuffle=True
     )
     map_utils = MapUtils()
 
