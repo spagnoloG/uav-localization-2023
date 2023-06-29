@@ -27,7 +27,7 @@ class DroneDataset(Dataset):
         self.transforms = transforms.Compose(
             [
                 transforms.ToTensor(),
-                # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                transforms.Normalize(mean=config["mean"], std=config["std"]),
             ]
         )
 
@@ -93,6 +93,26 @@ class DroneDataset(Dataset):
         return info, number
 
 
+def calculate_mean_and_std(dataset):
+    loader = DataLoader(
+        dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count()
+    )
+
+    mean = 0.0
+    std = 0.0
+    nb_samples = 0.0
+    for data, _ in loader:
+        batch_samples = data.size(0)
+        data = data.view(batch_samples, data.size(1), -1)
+        mean += data.mean(2).sum(0)
+        std += data.std(2).sum(0)
+        nb_samples += batch_samples
+
+    mean /= nb_samples
+    std /= nb_samples
+    return mean.tolist(), std.tolist()
+
+
 def test():
     import yaml
 
@@ -100,13 +120,18 @@ def test():
         config = yaml.load(f, Loader=yaml.FullLoader)
         config = config["drone_dataset"]
 
-    dataloader = DataLoader(DroneDataset(config=config), batch_size=10, shuffle=True)
+    dataset = DroneDataset(config=config)
+    # print(calculate_mean_and_std(dataset))
+
+    dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
     for batch_idx, (images, infos) in enumerate(dataloader):
         fig, axs = plt.subplots(2, 5, figsize=(15, 6))
         axs = axs.ravel()
 
         for i, (image, angle) in enumerate(zip(images, infos["angle"])):
+            if i >= 10:
+                break
             axs[i].imshow(image.permute(1, 2, 0).numpy())
             axs[i].set_title(f"Image {i+1}: {angle.item()}")
             axs[i].axis("off")

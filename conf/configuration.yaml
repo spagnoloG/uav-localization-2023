@@ -27,10 +27,12 @@ sat_dataset:
   root_dir: "./sat"
 
 drone_dataset:
+  mean: [0.4267638027667999, 0.414572536945343, 0.3964271545410156] 
+  std: [0.18804077804088593, 0.16794145107269287, 0.1553739458322525]
   patch_w: 128
   patch_h: 128
   root_dir: "./drone"
-  rotation_deg: 360 # 360 means no rotation, 180 means 2 rotations, etc.
+  rotation_deg: 45 # 360 means no rotation, 180 means 2 rotations, etc.
 
 val:
   device: "cuda:0"
