@@ -36,11 +36,13 @@ class SatDataset(Dataset):
         self.fill_metadata_dict()
 
     def fill_metadata_dict(self):
+        logger.info("Building rtree index...")
         for idx, image_path in enumerate(self.image_paths):
             img_info = self.extract_info_from_filename(image_path)
             self.metadata_dict[image_path] = img_info
             self.image_indices[image_path] = idx
             self.rtree_index.insert(idx, mercantile.bounds(img_info))
+        logger.info("Finished building rtree index.")
 
     def get_entry_paths(self, path):
         entry_paths = []

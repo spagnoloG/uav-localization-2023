@@ -84,3 +84,12 @@ class HanningLoss(nn.Module):
         l = loss + loss2
 
         return l
+
+
+class MSLELoss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.mse = torch.nn.MSELoss()
+
+    def forward(self, pred, true):
+        return self.mse(torch.log1p(pred), torch.log1p(true))

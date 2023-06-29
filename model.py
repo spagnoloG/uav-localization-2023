@@ -156,7 +156,6 @@ class CrossViewLocalizationModel(nn.Module):
     def forward(self, x_UAV, x_satellite):
         # Pytorch: [batch_size, channels, height, width]
         # numpy: [height, width, channels]
-        x_UAV = x_UAV.permute(0, 3, 1, 2)
         x_satellite = x_satellite.permute(0, 3, 1, 2)
 
         feature_pyramid_UAV = self.feature_extractor_UAV(x_UAV)
@@ -166,5 +165,7 @@ class CrossViewLocalizationModel(nn.Module):
         fused_map = self.fusion(*feature_pyramid_UAV, last_sat_feature)
 
         fused_map = self.relu(fused_map)
+
+        fused_map = fused_map.squeeze(1)  # remove the unnecessary channel dimension
 
         return fused_map

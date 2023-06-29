@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
-from criterion import HanningLoss
+from criterion import MSLELoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
 from logger import logger
@@ -329,7 +329,7 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = HanningLoss(negative_weight=0.5, center_r=33, device=device)
+    loss_fn = MSLELoss()
 
     trainer = CrossViewTrainer(
         device,
