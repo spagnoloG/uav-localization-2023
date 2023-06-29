@@ -3,9 +3,9 @@ import json
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import os
-import numpy as np
 import matplotlib.pyplot as plt
-import torch
+from torchvision import transforms
+from torchvision.transforms import functional as F
 
 
 class DroneDataset(Dataset):
@@ -24,6 +24,12 @@ class DroneDataset(Dataset):
             360 // self.rotation_deg
         )  # Number of rotations for each image
         self.image_paths = self.get_entry_paths(self.root_dir)
+        self.transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+            ]
+        )
 
     def get_entry_paths(self, path):
         entry_paths = []
@@ -56,7 +62,7 @@ class DroneDataset(Dataset):
 
     def __getitem__(self, idx):
         image_path = self.image_paths[idx // self.rotations_per_image]
-        image = Image.open(image_path)
+        image = Image.open(image_path).convert("RGB")  # Ensure 3-channel image
 
         lookup_str, file_number = self.extract_info_from_filename(image_path)
         img_info = self.metadata_dict[lookup_str][file_number]
@@ -65,12 +71,10 @@ class DroneDataset(Dataset):
         rotation_angle = (idx % self.rotations_per_image) * self.rotation_deg
         img_info["angle"] = rotation_angle
 
-        image = image.rotate(rotation_angle)
-        image = self.crop_center(image, self.patch_w, self.patch_h)
-
-        image = np.array(image, dtype=np.float32)
-        image = image / 255.0
-        image = torch.from_numpy(image)  # Convert to PyTorch tensor
+        # Rotate crop center and transform image
+        image = F.rotate(image, rotation_angle)
+        image = F.center_crop(image, (self.patch_h, self.patch_w))
+        image = self.transforms(image)
 
         return image, img_info
 
@@ -88,29 +92,22 @@ class DroneDataset(Dataset):
 
         return info, number
 
-    def crop_center(self, img, crop_width, crop_height):
-        img_width, img_height = img.size
-        return img.crop(
-            (
-                (img_width - crop_width) // 2,
-                (img_height - crop_height) // 2,
-                (img_width + crop_width) // 2,
-                (img_height + crop_height) // 2,
-            )
-        )
-
 
 def test():
-    dataloader = torch.utils.data.DataLoader(
-        DroneDataset(root_dir="./drone/"), batch_size=10, shuffle=True
-    )
+    import yaml
+
+    with open("./conf/configuration.yaml", "r") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+        config = config["drone_dataset"]
+
+    dataloader = DataLoader(DroneDataset(config=config), batch_size=10, shuffle=True)
 
     for batch_idx, (images, infos) in enumerate(dataloader):
         fig, axs = plt.subplots(2, 5, figsize=(15, 6))
         axs = axs.ravel()
 
         for i, (image, angle) in enumerate(zip(images, infos["angle"])):
-            axs[i].imshow(image)
+            axs[i].imshow(image.permute(1, 2, 0).numpy())
             axs[i].set_title(f"Image {i+1}: {angle.item()}")
             axs[i].axis("off")
 
