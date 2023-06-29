@@ -13,6 +13,7 @@ import os
 import matplotlib.pyplot as plt
 from model import CrossViewLocalizationModel
 import yaml
+import argparse
 
 
 class CrossViewTrainer:
@@ -29,6 +30,7 @@ class CrossViewTrainer:
         num_epochs=16,
         shuffle_dataset=True,
         checkpoint_hash=None,
+        checkpoint_epoch=None,
         train_subset_size=None,
         val_subset_size=None,
         plot=False,
@@ -47,6 +49,11 @@ class CrossViewTrainer:
         num_epochs: number of epochs to train for
         shuffle_dataset: whether to shuffle the dataset
         checkpoint_hash: the hash of the checkpoint to load
+        checkpoint_epoch: the epoch of the checkpoint to load
+        train_subset_size: the size of the train subset to use
+        val_subset_size: the size of the val subset to use
+        plot: whether to plot the intermediate results of the model
+        config: the confguration file
         """
         self.device = device
         self.criterion = criterion
@@ -57,6 +64,7 @@ class CrossViewTrainer:
         self.num_epochs = num_epochs
         self.shuffle_dataset = shuffle_dataset
         self.checkpoint_hash = checkpoint_hash
+        self.checkpoing_epoch = checkpoint_epoch
         self.train_subset_size = train_subset_size
         self.val_subset_size = val_subset_size
         self.plot = plot
@@ -126,9 +134,11 @@ class CrossViewTrainer:
 
         self.model.to(self.device)
 
-        if self.checkpoint_hash is not None:
+        if self.checkpoint_hash is not None and self.checkpoint_epoch is not None:
             try:
-                self.current_epoch = self.load_checkpoint(self.checkpoint_hash)
+                self.current_epoch = self.load_checkpoint(
+                    self.checkpoint_hash, self.checkpoint_epoch
+                )
             except FileNotFoundError:
                 logger.error(
                     f"Checkpoint with hash {self.checkpoint_hash} not found. Starting from scratch."
@@ -289,7 +299,20 @@ def load_config(config_path):
 
 
 def main():
-    config = load_config("./conf/configuration.yaml")
+    parser = argparse.ArgumentParser(
+        description="Modified twins model for cross-view localization training script"
+    )
+
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="configuration",
+        help="Path to the configuration file",
+    )
+
+    args = parser.parse_args()
+
+    config = load_config(f"./conf/{args.config}.yaml")
 
     train_config = config["train"]
 
@@ -306,6 +329,8 @@ def main():
         val_subset_size=train_config["val_subset_size"],
         train_subset_size=train_config["train_subset_size"],
         plot=train_config["plot"],
+        checkpoint_hash=train_config["checkpoint_hash"],
+        checkpoint_epoch=train_config["checkpoint_epoch"],
         config=config,
     )
 

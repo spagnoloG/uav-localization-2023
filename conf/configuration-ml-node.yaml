@@ -16,6 +16,7 @@ train:
   
   # Checkpoint parameters
   checkpoint_hash: null  # the hash of the checkpoint
+  checkpoint_epoch: null
 
 # must be divisible by 4 becouse of the Twins model architecture
 sat_dataset:

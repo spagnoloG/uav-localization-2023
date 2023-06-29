@@ -15,7 +15,8 @@ train:
   plot: false  # whether to plot the outputs and ground truth during validation
   
   # Checkpoint parameters
-  checkpoint_hash: null  # the hash of the checkpoint
+  checkpoint_hash: e3dd9cb6e0e7ceacd1d2a051ea7155be0e457b3c  # the hash of the checkpoint
+  checkpoint_epoch: 23
 
 # must be divisible by 4 becouse of the Twins model architecture
 sat_dataset:
