@@ -93,3 +93,16 @@ class MSLELoss(torch.nn.Module):
 
     def forward(self, pred, true):
         return self.mse(torch.log1p(pred), torch.log1p(true))
+
+
+class DiceLoss(nn.Module):
+    def __init__(self, eps=1e-7):
+        super().__init__()
+        self.eps = eps
+
+    def forward(self, logits, labels):
+        logits = torch.sigmoid(logits)
+        intersection = torch.sum(logits * labels)
+        union = torch.sum(logits) + torch.sum(labels)
+        dice_coeff = (2.0 * intersection + self.eps) / (union + self.eps)
+        return 1 - dice_coeff

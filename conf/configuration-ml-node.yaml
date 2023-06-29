@@ -32,7 +32,7 @@ drone_dataset:
   patch_w: 128
   patch_h: 128
   root_dir: "./drone"
-  rotation_deg: 45 # 360 means no rotation, 180 means 2 rotations, etc.
+  rotation_deg: 360 # 360 means no rotation, 180 means 2 rotations, etc.
 
 val:
   device: "cuda:0"

@@ -3,7 +3,7 @@ import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
-from criterion import MSLELoss
+from criterion import DiceLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
 from logger import logger
@@ -162,6 +162,10 @@ class CrossViewTrainer:
             now_hash = hashlib.sha1(now_str.encode()).hexdigest()
             self.checkpoint_hash = now_hash
 
+        logger.info(
+            f"Using chekpoint hash {self.checkpoint_hash}, starting from epoch {self.current_epoch}"
+        )
+
     def train(self):
         """
         Train the model for a specified number of epochs.
@@ -259,7 +263,7 @@ class CrossViewTrainer:
         plt.show()
 
         fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(drone_images[0].cpu().squeeze().numpy())
+        ax[0].imshow(drone_images[0].permute(1, 2, 0).cpu().squeeze().numpy())
         ax[0].set_title("Drone Image")
         ax[1].imshow(sat_images[0].cpu().squeeze().numpy())
         ax[1].set_title("Satellite Image")
@@ -329,7 +333,7 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = MSLELoss()
+    loss_fn = DiceLoss()
 
     trainer = CrossViewTrainer(
         device,
