@@ -6,6 +6,7 @@ train:
   num_workers: 4  # number of worker threads for dataloading
   num_epochs: 16  # number of training epochs
   shuffle_dataset: true  # shuffle dataset for each epoch
+  download_dataset: false # wether to download the dataset
   
   # Dataset parameters
   train_subset_size: 2000  # size of training subset. Set to null to use full dataset
@@ -38,4 +39,5 @@ val:
   val_subset_size: null  # size of validation subset. Set to null to use full dataset
   batch_size: 2  # batch size
   num_workers: 4  # number of worker threads for dataloading
+  download_dataset: false # wether to download the dataset
   plot: false 

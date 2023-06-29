@@ -32,12 +32,17 @@ class CrossViewValidator:
         self.plot = self.config["val"]["plot"]
         self.val_hash = self.config["val"]["checkpoint_hash"]
         self.val_subset_size = self.config["val"]["val_subset_size"]
+        self.download_dataset = self.config["val"]["download_dataset"]
         self.config = config
 
         if self.val_subset_size is not None:
             logger.info(f"Using val subset of size {self.val_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(dataset="test", config=self.config),
+                JoinedDataset(
+                    dataset="test",
+                    config=self.config,
+                    download_dataset=self.download_dataset,
+                ),
                 indices=range(self.val_subset_size),
             )
             self.val_dataloader = DataLoader(
@@ -47,7 +52,9 @@ class CrossViewValidator:
                 shuffle=False,
             )
         else:
-            subset_dataset = JoinedDataset(dataset="test", config=config)
+            subset_dataset = JoinedDataset(
+                dataset="test", config=config, download_dataset=self.download_dataset
+            )
             self.val_dataloader = DataLoader(
                 subset_dataset,
                 batch_size=self.batch_size,

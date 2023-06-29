@@ -69,11 +69,16 @@ class CrossViewTrainer:
         self.val_subset_size = val_subset_size
         self.plot = plot
         self.current_epoch = 0
+        self.download_dataset = config["train"]["download_dataset"]
 
         if self.train_subset_size is not None:
             logger.info(f"Using train subset of size {self.train_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(dataset="train", config=config),
+                JoinedDataset(
+                    dataset="train",
+                    config=config,
+                    download_dataset=self.download_dataset,
+                ),
                 indices=range(self.train_subset_size),
             )
             self.train_dataloader = DataLoader(
@@ -86,6 +91,7 @@ class CrossViewTrainer:
             subset_dataset = JoinedDataset(
                 dataset="train",
                 config=config,
+                download_dataset=self.download_dataset,
             )
             self.train_dataloader = DataLoader(
                 subset_dataset,
@@ -97,7 +103,11 @@ class CrossViewTrainer:
         if self.val_subset_size is not None:
             logger.info(f"Using val subset of size {self.val_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(dataset="test", config=config),
+                JoinedDataset(
+                    dataset="test",
+                    config=config,
+                    download_dataset=self.download_dataset,
+                ),
                 indices=range(self.val_subset_size),
             )
             self.val_dataloader = DataLoader(
@@ -107,7 +117,9 @@ class CrossViewTrainer:
                 shuffle=shuffle_dataset,
             )
         else:
-            subset_dataset = JoinedDataset(dataset="test", config=config)
+            subset_dataset = JoinedDataset(
+                dataset="test", config=config, download_dataset=self.download_dataset
+            )
             self.val_dataloader = DataLoader(
                 subset_dataset,
                 batch_size=batch_size,
