@@ -9,6 +9,7 @@ from tqdm import tqdm
 from criterion import HanningLoss
 import yaml
 import argparse
+from torchviz import make_dot
 
 
 class CrossViewValidator:
@@ -137,6 +138,17 @@ class CrossViewValidator:
         epoch_loss = running_loss / len(self.val_dataloader)
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
+    def visualize_model(self):
+        tensor_uav = torch.randn(1, 128, 128, 3)
+        tensor_sat = torch.randn(1, 512, 512, 3)
+
+        fused_heatmap = self.model(tensor_uav, tensor_sat)
+
+        dot = make_dot(fused_heatmap, params=dict(self.model.named_parameters()))
+        dot.format = "png"
+        os.makedirs("./vis", exist_ok=True)
+        dot.render("model", "./vis", view=True)
+
 
 def load_config(config_path):
     with open(config_path, "r") as f:
@@ -162,7 +174,8 @@ def main():
 
     validator = CrossViewValidator(config=config)
 
-    validator.run_validation()
+    # validator.run_validation()
+    validator.visualize_model()
 
 
 if __name__ == "__main__":

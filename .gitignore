@@ -1,5 +1,6 @@
 sat/tiles/
 sat/metadata*
+vis/*
 drone/
 .venv/
 __pycache__/

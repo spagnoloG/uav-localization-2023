@@ -13,6 +13,9 @@ push-ml-node:
 		--exclude='*' \
 		. ml-node:/home/ml-node/Documents/uav-localization-2023
 
+val:
+	python3 val.py
+
 train:
 	python3 train.py
 

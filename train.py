@@ -64,7 +64,7 @@ class CrossViewTrainer:
         self.num_epochs = num_epochs
         self.shuffle_dataset = shuffle_dataset
         self.checkpoint_hash = checkpoint_hash
-        self.checkpoing_epoch = checkpoint_epoch
+        self.checkpoint_epoch = checkpoint_epoch
         self.train_subset_size = train_subset_size
         self.val_subset_size = val_subset_size
         self.plot = plot
