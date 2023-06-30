@@ -31,7 +31,7 @@ sat_dataset:
   patch_h: 512
   zoom_level: 16 # satellite dataset zoom level
   root_dir: "./sat"
-  kernel_size: 60 # kernel size for the hanning window
+  kernel_size: 70 # kernel size for the hanning window
 
 drone_dataset:
   mean: [0.485, 0.456, 0.406] 

@@ -106,3 +106,21 @@ class DiceLoss(nn.Module):
         union = torch.sum(logits) + torch.sum(labels)
         dice_coeff = (2.0 * intersection + self.eps) / (union + self.eps)
         return 1 - dice_coeff
+
+
+class AdaptiveWingLoss(nn.Module):
+    def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
+        super(AdaptiveWingLoss, self).__init__()
+        self.omega = omega
+        self.theta = theta
+        self.epsilon = epsilon
+        self.alpha = alpha
+
+    def forward(self, pred, target):
+        y = target
+        y_hat = pred
+        delta_y = (y - y_hat).abs()
+        C = self.theta * self.omega
+        A = self.omega / (1 + torch.exp(-(y - self.epsilon) / self.alpha))
+        diffs = A * (torch.log(1 + (delta_y / C).pow(self.alpha)))
+        return diffs.mean()
