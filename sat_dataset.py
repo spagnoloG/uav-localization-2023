@@ -29,11 +29,13 @@ class SatDataset(Dataset):
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.download_dataset = download_dataset
         self.rtree_index = rtree.index.Index()
+        self.hanning_kernel_size = config["kernel_size"]
 
         if self.download_dataset:
             self.download_maps()
 
         self.fill_metadata_dict()
+        self.prepare_hanning_window()
 
         self.transforms = transforms.Compose(
             [
@@ -49,6 +51,10 @@ class SatDataset(Dataset):
             )
         else:
             self.downsample_images = False
+
+    def prepare_hanning_window(self):
+        hann1d = torch.hann_window(self.hanning_kernel_size)
+        self.hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
 
     def fill_metadata_dict(self):
         logger.info("Building rtree index...")
@@ -209,6 +215,41 @@ class SatDataset(Dataset):
                     else:
                         logger.error(f"Error downloading {file_path}")
 
+    def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        tile = mercantile.Tile(x=x, y=y, z=z)
+        x_map, y_map = MapUtils().coord_to_pixel(
+            lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
+        )
+
+        x_map, y_map = int(x_map), int(y_map)
+
+        height, width = sat_image.shape[1], sat_image.shape[2]
+
+        heatmap = torch.zeros((height, width))
+
+        # Compute half size of the hanning window
+        half_size = self.hanning_window.shape[0] // 2
+
+        # Calculate the valid range for the hanning window
+        start_x = max(0, x_map - half_size)
+        end_x = min(width, start_x + self.hanning_window.shape[1])
+        start_y = max(0, y_map - half_size)
+        end_y = min(height, start_y + self.hanning_window.shape[0])
+
+        # If the hanning window doesn't fit at the current position, move its start position
+        if end_x - start_x < self.hanning_window.shape[1]:
+            start_x = end_x - self.hanning_window.shape[1]
+
+        if end_y - start_y < self.hanning_window.shape[0]:
+            start_y = end_y - self.hanning_window.shape[0]
+
+        # Assign the hanning window to the valid region within the heatmap tensor
+        heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[
+            : end_y - start_y, : end_x - start_x
+        ]
+
+        return heatmap
+
 
 class MapUtils:
     def __init__(self):
@@ -225,12 +266,6 @@ class MapUtils:
             "red",
             "darkred",
         ]
-        self.Center_R = 33
-        self.prepare_hanning_window()
-
-    def prepare_hanning_window(self):
-        hann1d = torch.hann_window(self.Center_R)
-        self.hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
 
     def pixel_to_coord(self, x, y, tile, image_width, image_height):
         bbox = mercantile.bounds(tile)
@@ -271,41 +306,6 @@ class MapUtils:
         ax.imshow(map_image)
         ax.scatter(x, y, color="red")
         plt.show()
-
-    def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
-        tile = mercantile.Tile(x=x, y=y, z=z)
-        x_map, y_map = self.coord_to_pixel(
-            lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
-        )
-
-        x_map, y_map = int(x_map), int(y_map)
-
-        height, width = sat_image.shape[1], sat_image.shape[2]
-
-        heatmap = torch.zeros((height, width))
-
-        # Compute half size of the hanning window
-        half_size = self.hanning_window.shape[0] // 2
-
-        # Calculate the valid range for the hanning window
-        start_x = max(0, x_map - half_size)
-        end_x = min(width, start_x + self.hanning_window.shape[1])
-        start_y = max(0, y_map - half_size)
-        end_y = min(height, start_y + self.hanning_window.shape[0])
-
-        # If the hanning window doesn't fit at the current position, move its start position
-        if end_x - start_x < self.hanning_window.shape[1]:
-            start_x = end_x - self.hanning_window.shape[1]
-
-        if end_y - start_y < self.hanning_window.shape[0]:
-            start_y = end_y - self.hanning_window.shape[0]
-
-        # Assign the hanning window to the valid region within the heatmap tensor
-        heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[
-            : end_y - start_y, : end_x - start_x
-        ]
-
-        return heatmap
 
     def plot_heatmap(self, lat, lng, sat_image, x, y, z):
         tile = mercantile.Tile(x=x, y=y, z=z)
