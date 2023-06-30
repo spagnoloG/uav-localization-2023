@@ -6,10 +6,11 @@ from torch.utils.data import DataLoader
 from model import CrossViewLocalizationModel
 import os
 from tqdm import tqdm
-from criterion import HanningLoss
+from criterion import DiceLoss
 import yaml
 import argparse
 from torchviz import make_dot
+from matplotlib import pyplot as plt
 
 
 class CrossViewValidator:
@@ -62,9 +63,7 @@ class CrossViewValidator:
                 shuffle=False,
             )
 
-        self.criterion = HanningLoss(
-            negative_weight=0.5, center_r=33, device=self.device
-        )
+        self.criterion = DiceLoss()
 
         self.load_model()
 
@@ -142,6 +141,11 @@ class CrossViewValidator:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
+                if self.plot:
+                    self.plot_results(
+                        drone_images[0], sat_images[0], heatmap_gt[0], outputs[0], i
+                    )
+
         epoch_loss = running_loss / len(self.val_dataloader)
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
@@ -155,6 +159,43 @@ class CrossViewValidator:
         dot.format = "png"
         os.makedirs("./vis", exist_ok=True)
         dot.render("model", "./vis", view=True)
+
+    def plot_results(self, drone_image, sat_image, heatmap_gt, heatmap_pred, i):
+        """
+        Plot the validation results.
+
+        This function will plot the validation results for the specified number
+        of epochs.
+        """
+
+        # Plot them on the same figure
+        fig = plt.figure(figsize=(15, 15))
+        ax = fig.add_subplot(1, 4, 1)
+        ax.imshow(drone_image.permute(1, 2, 0).cpu().numpy())
+        ax.set_title("Drone Image")
+        ax.axis("off")
+
+        ax = fig.add_subplot(1, 4, 2)
+        ax.imshow(sat_image.cpu().numpy())
+        ax.set_title("Satellite Image")
+        ax.axis("off")
+
+        ax = fig.add_subplot(1, 4, 3)
+        ax.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="gray")
+        ax.set_title("Ground Truth Heatmap")
+        ax.axis("off")
+
+        ax = fig.add_subplot(1, 4, 4)
+        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="gray")
+        ax.set_title("Predicted Heatmap")
+        ax.axis("off")
+
+        os.makedirs(f"./vis/{self.val_hash}", exist_ok=True)
+
+        plt.savefig(f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}.png")
+
+        plt.close()
+        plt.clf()
 
 
 def load_config(config_path):
@@ -181,8 +222,8 @@ def main():
 
     validator = CrossViewValidator(config=config)
 
-    # validator.run_validation()
-    validator.visualize_model()
+    validator.run_validation()
+    # validator.visualize_model()
 
 
 if __name__ == "__main__":
