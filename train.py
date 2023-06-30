@@ -364,7 +364,7 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = torch.nn.MSELoss(reduction="sum")
+    loss_fn = torch.nn.MSELoss(reduction="mean")
 
     trainer = CrossViewTrainer(
         device,
