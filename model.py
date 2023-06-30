@@ -156,7 +156,6 @@ class CrossViewLocalizationModel(nn.Module):
     def forward(self, x_UAV, x_satellite):
         # Pytorch: [batch_size, channels, height, width]
         # numpy: [height, width, channels]
-        x_satellite = x_satellite.permute(0, 3, 1, 2)
 
         feature_pyramid_UAV = self.feature_extractor_UAV(x_UAV)
         feature_pyramid_satellite = self.feature_extractor_satellite(x_satellite)

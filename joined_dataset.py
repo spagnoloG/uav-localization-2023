@@ -10,7 +10,6 @@ class JoinedDataset(Dataset):
         self,
         drone_dir="./drone/",
         sat_dir="./sat/",
-        transformer_input_size=384,
         dataset="train",
         download_dataset=False,
         config=None,
@@ -22,7 +21,6 @@ class JoinedDataset(Dataset):
         self.sat_dataset = SatDataset(
             config=config["sat_dataset"], download_dataset=download_dataset
         )
-        self.transformer_input_size = transformer_input_size
         self.drone_resolution = (self.drone_dataset.patch_w, self.drone_dataset.patch_h)
         self.satellite_resolution = (self.sat_dataset.patch_w, self.sat_dataset.patch_h)
 
@@ -42,25 +40,7 @@ class JoinedDataset(Dataset):
             lat, lon, sat_image, sat_info[0], sat_info[1], sat_info[2]
         )
 
-        # drone_image = self.prepare_image_for_transformer(drone_image)
-        # sat_image = self.prepare_image_for_transformer(sat_image)
-
         return drone_image, drone_info, sat_image, sat_info, heatmap
-
-    def prepare_image_for_transformer(self, image):
-        # Ensure your tensor is in the correct format (C, H, W)
-        image = image.permute(2, 0, 1).unsqueeze(0)
-
-        image = torch.nn.functional.interpolate(
-            image,
-            size=(self.transformer_input_size, self.transformer_input_size),
-            mode="bilinear",
-            align_corners=False,
-        )
-
-        image = image.squeeze(0).permute(1, 2, 0)
-
-        return image
 
 
 def test():

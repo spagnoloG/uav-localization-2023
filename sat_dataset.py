@@ -12,9 +12,9 @@ import time
 from sat.bounding_boxes import bboxes
 from matplotlib.colors import LinearSegmentedColormap
 from logger import logger
-import torch.nn.functional as F
 from functools import lru_cache
 import rtree
+from torchvision import transforms
 
 
 class SatDataset(Dataset):
@@ -34,6 +34,21 @@ class SatDataset(Dataset):
             self.download_maps()
 
         self.fill_metadata_dict()
+
+        self.transforms = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=config["mean"], std=config["std"]),
+            ]
+        )
+
+        if self.patch_w != 512 or self.patch_h != 512:
+            self.downsample_images = True
+            logger.info(
+                "Downsampling images to {}x{}".format(self.patch_w, self.patch_h)
+            )
+        else:
+            self.downsample_images = False
 
     def fill_metadata_dict(self):
         logger.info("Building rtree index...")
@@ -62,11 +77,11 @@ class SatDataset(Dataset):
         image_path = self.image_paths[idx]
         metadata = self.metadata_dict[image_path]
         image = Image.open(image_path)
-        image = self.downsample(image, self.patch_w, self.patch_h)
 
-        image = np.array(image, dtype=np.float32)
-        image = image / 255.0
-        image = torch.from_numpy(image)
+        if self.downsample_images:
+            image = self.downsample(image, self.patch_w, self.patch_h)
+
+        image = self.transforms(image)
 
         return image, (metadata.x, metadata.y, metadata.z)  # return as integers
 
@@ -265,7 +280,7 @@ class MapUtils:
 
         x_map, y_map = int(x_map), int(y_map)
 
-        height, width = sat_image.shape[0], sat_image.shape[1]
+        height, width = sat_image.shape[1], sat_image.shape[2]
 
         heatmap = torch.zeros((height, width))
 
@@ -284,6 +299,13 @@ class MapUtils:
 
         if end_y - start_y < self.hanning_window.shape[0]:
             start_y = end_y - self.hanning_window.shape[0]
+
+        # If the hanning window exceeds the end limit, move its end position
+        if (end_x - start_x) != self.hanning_window.shape[1]:
+            end_x = start_x + self.hanning_window.shape[1]
+
+        if (end_y - start_y) != self.hanning_window.shape[0]:
+            end_y = start_y + self.hanning_window.shape[0]
 
         # Assign the hanning window to the valid region within the heatmap tensor
         heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[

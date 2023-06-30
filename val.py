@@ -176,7 +176,7 @@ class CrossViewValidator:
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 2)
-        ax.imshow(sat_image.cpu().numpy())
+        ax.imshow(sat_image.permute(1, 2, 0).cpu().numpy())
         ax.set_title("Satellite Image")
         ax.axis("off")
 
