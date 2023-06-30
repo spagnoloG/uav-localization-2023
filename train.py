@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import torch
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import MultiStepLR
 from tqdm import tqdm
 from criterion import DiceLoss
 from joined_dataset import JoinedDataset
@@ -57,7 +57,8 @@ class CrossViewTrainer:
         """
         self.device = device
         self.criterion = criterion
-        self.lr = lr
+        self.lr_backbone = lr
+        self.lr_fusion = lr * 1.5
         self.weight_decay = weight_decay
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -70,6 +71,7 @@ class CrossViewTrainer:
         self.plot = plot
         self.current_epoch = 0
         self.download_dataset = config["train"]["download_dataset"]
+        self.milestones = config["train"]["milestones"]
 
         if self.train_subset_size is not None:
             logger.info(f"Using train subset of size {self.train_subset_size}")
@@ -138,11 +140,22 @@ class CrossViewTrainer:
             )
         )
 
+        self.params_to_update_backbone = list(
+            self.model.module.feature_extractor_UAV.parameters()
+        ) + list(self.model.module.feature_extractor_satellite.parameters())
+        self.params_to_update_fusion = list(self.model.module.fusion.parameters())
+
         self.optimizer = AdamW(
-            self.model.parameters(), lr=lr, weight_decay=weight_decay
+            [
+                {"params": self.params_to_update_backbone, "lr": self.lr_backbone},
+                {"params": self.params_to_update_fusion, "lr": self.lr_fusion},
+            ],
+            lr=self.lr_backbone,
         )
 
-        self.scheduler = StepLR(self.optimizer, step_size=1, gamma=0.1)
+        self.scheduler = MultiStepLR(
+            self.optimizer, milestones=self.milestones, gamma=0.1
+        )
 
         self.model.to(self.device)
 
@@ -246,27 +259,45 @@ class CrossViewTrainer:
                 running_loss += loss.item() * drone_images.size(0)
 
                 if self.plot:
-                    self.plot_res(outputs, heatmap_gt, drone_images, sat_images)
+                    self.plot_results(
+                        drone_images[0], sat_images[0], heatmap_gt[0], outputs[0]
+                    )
 
         epoch_loss = running_loss / len(self.val_dataloader)
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
-    def plot_res(self, outputs, heatmap_gt, drone_images, sat_images):
+    def plot_results(
+        self,
+        drone_image,
+        sat_image,
+        heatmap_gt,
+        heatmap_pred,
+    ):
         """
         Plot the outputs of the model and the ground truth.
         """
-        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(outputs[0].cpu().squeeze().numpy(), cmap="hot")
-        ax[0].set_title("Predicted Heatmap")
-        ax[1].imshow(heatmap_gt[0].cpu().squeeze().numpy(), cmap="hot")
-        ax[1].set_title("Ground Truth Heatmap")
-        plt.show()
+        # Plot them on the same figure
+        fig = plt.figure(figsize=(15, 15))
+        ax = fig.add_subplot(1, 4, 1)
+        ax.imshow(drone_image.permute(1, 2, 0).cpu().numpy())
+        ax.set_title("Drone Image")
+        ax.axis("off")
 
-        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(drone_images[0].permute(1, 2, 0).cpu().squeeze().numpy())
-        ax[0].set_title("Drone Image")
-        ax[1].imshow(sat_images[0].cpu().squeeze().numpy())
-        ax[1].set_title("Satellite Image")
+        ax = fig.add_subplot(1, 4, 2)
+        ax.imshow(sat_image.permute(1, 2, 0).cpu().numpy())
+        ax.set_title("Satellite Image")
+        ax.axis("off")
+
+        ax = fig.add_subplot(1, 4, 3)
+        ax.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
+        ax.set_title("Ground Truth Heatmap")
+        ax.axis("off")
+
+        ax = fig.add_subplot(1, 4, 4)
+        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
+        ax.set_title("Predicted Heatmap")
+        ax.axis("off")
+
         plt.show()
 
     def save_checkpoint(self, epoch, dir_path="./checkpoints/"):
@@ -333,7 +364,7 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = DiceLoss()
+    loss_fn = torch.nn.MSELoss(reduction="sum")
 
     trainer = CrossViewTrainer(
         device,

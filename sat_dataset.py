@@ -275,7 +275,7 @@ class MapUtils:
     def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = self.coord_to_pixel(
-            lat, lng, tile, sat_image.shape[0], sat_image.shape[1]
+            lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
         )
 
         x_map, y_map = int(x_map), int(y_map)
@@ -299,13 +299,6 @@ class MapUtils:
 
         if end_y - start_y < self.hanning_window.shape[0]:
             start_y = end_y - self.hanning_window.shape[0]
-
-        # If the hanning window exceeds the end limit, move its end position
-        if (end_x - start_x) != self.hanning_window.shape[1]:
-            end_x = start_x + self.hanning_window.shape[1]
-
-        if (end_y - start_y) != self.hanning_window.shape[0]:
-            end_y = start_y + self.hanning_window.shape[0]
 
         # Assign the hanning window to the valid region within the heatmap tensor
         heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[

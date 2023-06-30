@@ -181,12 +181,12 @@ class CrossViewValidator:
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 3)
-        ax.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="gray")
+        ax.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
         ax.set_title("Ground Truth Heatmap")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 4)
-        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="gray")
+        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
         ax.set_title("Predicted Heatmap")
         ax.axis("off")
 
