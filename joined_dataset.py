@@ -13,10 +13,16 @@ class JoinedDataset(Dataset):
         dataset="train",
         download_dataset=False,
         config=None,
+        heatmap_kernel_size=110,
+        drone_view_patch_size=128,
     ):
+        self.heatmap_kernel_size = heatmap_kernel_size
         self.download_dataset = download_dataset
         self.drone_dataset = DroneDataset(
-            dataset=dataset, config=config["drone_dataset"]
+            dataset=dataset,
+            config=config["drone_dataset"],
+            patch_h=drone_view_patch_size,
+            patch_w=drone_view_patch_size,
         )
         self.sat_dataset = SatDataset(
             config=config["sat_dataset"], download_dataset=download_dataset
@@ -37,7 +43,13 @@ class JoinedDataset(Dataset):
         sat_image, sat_info = self.sat_dataset.find_tile(lat, lon)
 
         heatmap = self.sat_dataset.generate_heatmap(
-            lat, lon, sat_image, sat_info[0], sat_info[1], sat_info[2]
+            lat,
+            lon,
+            sat_image,
+            sat_info[0],
+            sat_info[1],
+            sat_info[2],
+            self.heatmap_kernel_size,
         )
 
         return drone_image, drone_info, sat_image, sat_info, heatmap

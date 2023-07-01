@@ -124,10 +124,9 @@ class ModifiedPCPVT(nn.Module):
 
 
 class CrossViewLocalizationModel(nn.Module):
-    def __init__(self, drone_resolution, satellite_resolution):
+    def __init__(self, satellite_resolution):
         super(CrossViewLocalizationModel, self).__init__()
 
-        self.drone_resolution = drone_resolution
         self.satellite_resolution = satellite_resolution
 
         # Feature extraction module

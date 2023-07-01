@@ -13,10 +13,12 @@ class DroneDataset(Dataset):
         self,
         dataset="train",
         config=None,
+        patch_h=None,
+        patch_w=None,
     ):
         self.root_dir = config["root_dir"]
-        self.patch_w = config["patch_w"]
-        self.patch_h = config["patch_h"]
+        self.patch_w = patch_w if patch_w else config["patch_w"]
+        self.patch_h = patch_h if patch_h else config["patch_h"]
         self.metadata_dict = {}
         self.dataset = dataset
         self.rotation_deg = config["rotation_deg"]

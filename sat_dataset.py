@@ -217,7 +217,6 @@ class SatDataset(Dataset):
                         logger.error(f"Error downloading {file_path}")
 
     def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
-
         if self.heatmap_kernel_type == "hanning":
             return self.generate_hanning_heatmap(
                 lat, lng, sat_image, x, y, z, square_size=square_size

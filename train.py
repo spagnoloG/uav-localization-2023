@@ -25,7 +25,7 @@ class CrossViewTrainer:
         criterion,
         lr=3e-4,
         weight_decay=5e-4,
-        batch_size=2,
+        batch_sizes=[2],
         num_workers=4,
         num_epochs=16,
         shuffle_dataset=True,
@@ -55,88 +55,36 @@ class CrossViewTrainer:
         plot: whether to plot the intermediate results of the model
         config: the confguration file
         """
-        self.device = device
+        self.device = config["train"]["device"]
         self.criterion = criterion
-        self.lr_backbone = lr
-        self.lr_fusion = lr * 1.5
-        self.weight_decay = weight_decay
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.num_epochs = num_epochs
-        self.shuffle_dataset = shuffle_dataset
-        self.checkpoint_hash = checkpoint_hash
-        self.checkpoint_epoch = checkpoint_epoch
-        self.train_subset_size = train_subset_size
-        self.val_subset_size = val_subset_size
-        self.plot = plot
+        self.lr_backbone = config["train"]["lr_backbone"]
+        self.lr_fusion = self.lr_backbone * 1.5
+        self.weight_decay = config["train"]["weight_decay"]
+        self.num_workers = config["train"]["num_workers"]
+        self.num_epochs = config["train"]["num_epochs"]
+        self.shuffle_dataset = config["train"]["shuffle_dataset"]
+        self.checkpoint_hash = config["train"]["checkpoint_hash"]
+        self.checkpoint_epoch = config["train"]["checkpoint_epoch"]
+        self.train_subset_size = config["train"]["train_subset_size"]
+        self.val_subset_size = config["train"]["val_subset_size"]
+        self.plot = config["train"]["plot"]
         self.current_epoch = 0
         self.download_dataset = config["train"]["download_dataset"]
         self.milestones = config["train"]["milestones"]
+        self.batch_sizes = config["train"]["batch_sizes"]
+        self.heatmap_kernel_sizes = config["train"]["heatmap_kernel_sizes"]
+        self.drone_view_patch_sizes = config["train"]["drone_view_patch_sizes"]
+        self.train_dataloaders = []
+        self.val_dataloaders = []
 
-        if self.train_subset_size is not None:
-            logger.info(f"Using train subset of size {self.train_subset_size}")
-            subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(
-                    dataset="train",
-                    config=config,
-                    download_dataset=self.download_dataset,
-                ),
-                indices=range(self.train_subset_size),
-            )
-            self.train_dataloader = DataLoader(
-                subset_dataset,
-                batch_size=batch_size,
-                num_workers=num_workers,
-                shuffle=shuffle_dataset,
-            )
-        else:
-            subset_dataset = JoinedDataset(
-                dataset="train",
-                config=config,
-                download_dataset=self.download_dataset,
-            )
-            self.train_dataloader = DataLoader(
-                subset_dataset,
-                batch_size=batch_size,
-                num_workers=num_workers,
-                shuffle=shuffle_dataset,
-            )
-
-        if self.val_subset_size is not None:
-            logger.info(f"Using val subset of size {self.val_subset_size}")
-            subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(
-                    dataset="test",
-                    config=config,
-                    download_dataset=self.download_dataset,
-                ),
-                indices=range(self.val_subset_size),
-            )
-            self.val_dataloader = DataLoader(
-                subset_dataset,
-                batch_size=batch_size,
-                num_workers=num_workers,
-                shuffle=shuffle_dataset,
-            )
-        else:
-            subset_dataset = JoinedDataset(
-                dataset="test", config=config, download_dataset=self.download_dataset
-            )
-            self.val_dataloader = DataLoader(
-                subset_dataset,
-                batch_size=batch_size,
-                num_workers=num_workers,
-                shuffle=shuffle_dataset,
-            )
+        self.prepare_dataloaders(config)
 
         self.model = torch.nn.DataParallel(
             CrossViewLocalizationModel(
-                drone_resolution=self.train_dataloader.dataset.drone_resolution
-                if self.train_subset_size is None
-                else self.train_dataloader.dataset.dataset.drone_resolution,
-                satellite_resolution=self.train_dataloader.dataset.satellite_resolution
-                if self.train_subset_size is None
-                else self.train_dataloader.dataset.dataset.satellite_resolution,
+                satellite_resolution=(
+                    config["sat_dataset"]["patch_w"],
+                    config["sat_dataset"]["patch_h"],
+                ),
             )
         )
 
@@ -179,6 +127,84 @@ class CrossViewTrainer:
             f"Using chekpoint hash {self.checkpoint_hash}, starting from epoch {self.current_epoch}"
         )
 
+    def prepare_dataloaders(self, config):
+        for batch_size, heatmap_kernel_size, drone_view_patch_size in zip(
+            self.batch_sizes, self.heatmap_kernel_sizes, self.drone_view_patch_sizes
+        ):
+            if self.train_subset_size is not None:
+                logger.info(f"Using train subset of size {self.train_subset_size}")
+                subset_dataset = torch.utils.data.Subset(
+                    JoinedDataset(
+                        dataset="train",
+                        config=config,
+                        download_dataset=self.download_dataset,
+                        heatmap_kernel_size=heatmap_kernel_size,
+                        drone_view_patch_size=drone_view_patch_size,
+                    ),
+                    indices=range(self.train_subset_size),
+                )
+                self.train_dataloaders.append(
+                    DataLoader(
+                        subset_dataset,
+                        batch_size=batch_size,
+                        num_workers=self.num_workers,
+                        shuffle=self.shuffle_dataset,
+                    )
+                )
+            else:
+                subset_dataset = JoinedDataset(
+                    dataset="train",
+                    config=config,
+                    download_dataset=self.download_dataset,
+                    heatmap_kernel_size=heatmap_kernel_size,
+                    drone_view_patch_size=drone_view_patch_size,
+                )
+                self.train_dataloaders.append(
+                    DataLoader(
+                        subset_dataset,
+                        batch_size=batch_size,
+                        num_workers=self.num_workers,
+                        shuffle=self.shuffle_dataset,
+                    )
+                )
+
+            if self.val_subset_size is not None:
+                logger.info(f"Using val subset of size {self.val_subset_size}")
+                subset_dataset = torch.utils.data.Subset(
+                    JoinedDataset(
+                        dataset="test",
+                        config=config,
+                        download_dataset=self.download_dataset,
+                        heatmap_kernel_size=heatmap_kernel_size,
+                        drone_view_patch_size=drone_view_patch_size,
+                    ),
+                    indices=range(self.val_subset_size),
+                )
+                self.val_dataloaders.append(
+                    DataLoader(
+                        subset_dataset,
+                        batch_size=batch_size,
+                        num_workers=self.num_workers,
+                        shuffle=self.shuffle_dataset,
+                    )
+                )
+            else:
+                subset_dataset = JoinedDataset(
+                    dataset="test",
+                    config=config,
+                    download_dataset=self.download_dataset,
+                    heatmap_kernel_size=heatmap_kernel_size,
+                    drone_view_patch_size=drone_view_patch_size,
+                )
+                self.val_dataloaders.append(
+                    DataLoader(
+                        subset_dataset,
+                        batch_size=batch_size,
+                        num_workers=self.num_workers,
+                        shuffle=self.shuffle_dataset,
+                    )
+                )
+
     def train(self):
         """
         Train the model for a specified number of epochs.
@@ -206,28 +232,44 @@ class CrossViewTrainer:
         """
         self.model.train()
         running_loss = 0.0
-        for i, (drone_images, drone_infos, sat_images, sat_infos, heatmap_gt) in tqdm(
-            enumerate(self.train_dataloader),
-            total=len(self.train_dataloader),
+        total_samples = 0
+        for dataloader, h_kernel_size, d_patch_size in zip(
+            self.train_dataloaders,
+            self.heatmap_kernel_sizes,
+            self.drone_view_patch_sizes,
         ):
-            drone_images = drone_images.to(self.device)
-            sat_images = sat_images.to(self.device)
-            heatmap_gt = heatmap_gt.to(self.device)
+            logger.info(
+                f"Training epoch with kernel size {h_kernel_size} and patch size {d_patch_size}"
+            )
+            for i, (
+                drone_images,
+                drone_infos,
+                sat_images,
+                sat_infos,
+                heatmap_gt,
+            ) in tqdm(
+                enumerate(dataloader),
+                total=len(dataloader),
+            ):
+                drone_images = drone_images.to(self.device)
+                sat_images = sat_images.to(self.device)
+                heatmap_gt = heatmap_gt.to(self.device)
 
-            # Zero out the gradients
-            self.optimizer.zero_grad()
-            # Forward pass
-            outputs = self.model(drone_images, sat_images)
-            # Calculate loss
-            loss = self.criterion(outputs, heatmap_gt)
+                # Zero out the gradients
+                self.optimizer.zero_grad()
+                # Forward pass
+                outputs = self.model(drone_images, sat_images)
+                # Calculate loss
+                loss = self.criterion(outputs, heatmap_gt)
 
-            # Backward pass and optimize
-            loss.backward()
-            self.optimizer.step()
+                # Backward pass and optimize
+                loss.backward()
+                self.optimizer.step()
 
-            running_loss += loss.item() * drone_images.size(0)
+                running_loss += loss.item() * drone_images.size(0)
+            total_samples += len(dataloader)
 
-        epoch_loss = running_loss / len(self.train_dataloader)
+        epoch_loss = running_loss / total_samples
         logger.info("Training Loss: {:.4f}".format(epoch_loss))
 
     def validate(self):
@@ -236,34 +278,43 @@ class CrossViewTrainer:
         """
         self.model.eval()
         running_loss = 0.0
+        total_samples = 0
         with torch.no_grad():
-            for i, (
-                drone_images,
-                drone_infos,
-                sat_images,
-                sat_infos,
-                heatmap_gt,
-            ) in tqdm(
-                enumerate(self.val_dataloader),
-                total=len(self.val_dataloader),
+            for dataloader, h_kernel_size, d_patch_size in zip(
+                self.val_dataloaders,
+                self.heatmap_kernel_sizes,
+                self.drone_view_patch_sizes,
             ):
-                drone_images = drone_images.to(self.device)
-                sat_images = sat_images.to(self.device)
-                heatmap_gt = heatmap_gt.to(self.device)
+                logger.info(
+                    f"Validating epoch with kernel size {h_kernel_size} and patch size {d_patch_size}"
+                )
+                for i, (
+                    drone_images,
+                    drone_infos,
+                    sat_images,
+                    sat_infos,
+                    heatmap_gt,
+                ) in tqdm(
+                    enumerate(dataloader),
+                    total=len(dataloader),
+                ):
+                    drone_images = drone_images.to(self.device)
+                    sat_images = sat_images.to(self.device)
+                    heatmap_gt = heatmap_gt.to(self.device)
+                    # Forward pass
+                    outputs = self.model(drone_images, sat_images)
+                    # Calculate loss
+                    loss = self.criterion(outputs, heatmap_gt)
+                    # Accumulate the loss
+                    running_loss += loss.item() * drone_images.size(0)
 
-                # Forward pass
-                outputs = self.model(drone_images, sat_images)
-                # Calculate loss
-                loss = self.criterion(outputs, heatmap_gt)
-                # Accumulate the loss
-                running_loss += loss.item() * drone_images.size(0)
+                    if self.plot:
+                        self.plot_results(
+                            drone_images[0], sat_images[0], heatmap_gt[0], outputs[0]
+                        )
+                total_samples += len(dataloader)
 
-                if self.plot:
-                    self.plot_results(
-                        drone_images[0], sat_images[0], heatmap_gt[0], outputs[0]
-                    )
-
-        epoch_loss = running_loss / len(self.val_dataloader)
+        epoch_loss = running_loss / total_samples
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
     def plot_results(
@@ -364,20 +415,11 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = torch.nn.L1Loss()
+    loss_fn = torch.nn.MSELoss()
 
     trainer = CrossViewTrainer(
         device,
         loss_fn,
-        batch_size=train_config["batch_size"],
-        num_workers=train_config["num_workers"],
-        shuffle_dataset=train_config["shuffle_dataset"],
-        num_epochs=train_config["num_epochs"],
-        val_subset_size=train_config["val_subset_size"],
-        train_subset_size=train_config["train_subset_size"],
-        plot=train_config["plot"],
-        checkpoint_hash=train_config["checkpoint_hash"],
-        checkpoint_epoch=train_config["checkpoint_epoch"],
         config=config,
     )
 
