@@ -163,7 +163,7 @@ class CrossViewLocalizationModel(nn.Module):
 
         fused_map = self.fusion(*feature_pyramid_UAV, last_sat_feature)
 
-        #fused_map = self.relu(fused_map)
+        # fused_map = self.relu(fused_map)
 
         fused_map = fused_map.squeeze(1)  # remove the unnecessary channel dimension
 

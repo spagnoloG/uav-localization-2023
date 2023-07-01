@@ -109,7 +109,7 @@ class DiceLoss(nn.Module):
 
 
 class AdaptiveWingLoss(nn.Module):
-    def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
+    def __init__(self, omega=14, theta=0.5, epsilon=1e-3, alpha=0.01):
         super(AdaptiveWingLoss, self).__init__()
         self.omega = omega
         self.theta = theta

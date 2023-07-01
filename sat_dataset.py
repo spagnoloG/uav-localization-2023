@@ -29,7 +29,8 @@ class SatDataset(Dataset):
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.download_dataset = download_dataset
         self.rtree_index = rtree.index.Index()
-        self.hanning_kernel_size = config["kernel_size"]
+        self.heatmap_kernel_type = config["heatmap_kernel_type"]
+        self.heatmap_kernel_size = config["heatmap_kernel_size"]
 
         if self.download_dataset:
             self.download_maps()
@@ -53,7 +54,7 @@ class SatDataset(Dataset):
             self.downsample_images = False
 
     def prepare_hanning_window(self):
-        hann1d = torch.hann_window(self.hanning_kernel_size)
+        hann1d = torch.hann_window(self.heatmap_kernel_size, periodic=False)
         self.hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
 
     def fill_metadata_dict(self):
@@ -216,6 +217,24 @@ class SatDataset(Dataset):
                         logger.error(f"Error downloading {file_path}")
 
     def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+
+        if self.heatmap_kernel_type == "hanning":
+            return self.generate_hanning_heatmap(
+                lat, lng, sat_image, x, y, z, square_size=square_size
+            )
+        elif self.heatmap_kernel_type == "gaussian":
+            return self.generate_gaussian_heatmap(
+                lat, lng, sat_image, x, y, z, square_size=square_size
+            )
+        elif self.heatmap_kernel_type == "square":
+            return self.generate_square_heatmap(
+                lat, lng, sat_image, x, y, z, square_size=square_size
+            )
+        else:
+            logger.error(f"Unknown gt_method: {self.gt_method}")
+            raise ValueError(f"Unknown gt_method: {self.gt_method}")
+
+    def generate_hanning_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = MapUtils().coord_to_pixel(
             lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
@@ -247,6 +266,64 @@ class SatDataset(Dataset):
         heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[
             : end_y - start_y, : end_x - start_x
         ]
+
+        return heatmap
+
+    def generate_gaussian_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        tile = mercantile.Tile(x=x, y=y, z=z)
+        x_map, y_map = MapUtils().coord_to_pixel(
+            lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
+        )
+
+        x_map, y_map = int(x_map), int(y_map)
+
+        height, width = sat_image.shape[1], sat_image.shape[2]
+
+        heatmap = torch.zeros((height, width))
+
+        # Define standard deviation and mean for Gaussian
+        sigma = square_size / 2  # it roughly covers 99% of the distribution
+        mean = torch.tensor([x_map, y_map])
+
+        # Create coordinates grid
+        x_cord = torch.arange(width)
+        y_cord = torch.arange(height)
+        xx, yy = torch.meshgrid(x_cord, y_cord, indexing="xy")
+        coords = torch.stack((xx, yy), dim=-1)
+
+        # Calculate the 2D Gaussian
+        gaussian = torch.exp(
+            -torch.sum((coords - mean) ** 2, dim=-1) / (2 * sigma**2)
+        )
+
+        # Normalize
+        gaussian /= torch.sum(gaussian)
+
+        heatmap[:, :] = gaussian
+
+        return heatmap
+
+    def generate_square_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        tile = mercantile.Tile(x=x, y=y, z=z)
+        x_map, y_map = MapUtils().coord_to_pixel(
+            lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
+        )
+
+        x_map, y_map = int(x_map), int(y_map)
+
+        height, width = sat_image.shape[1], sat_image.shape[2]
+
+        heatmap = torch.zeros((height, width))
+
+        half_size = square_size // 2
+
+        # Calculate the valid range for the square
+        start_x = max(0, x_map - half_size)
+        end_x = min(width, x_map + half_size)
+        start_y = max(0, y_map - half_size)
+        end_y = min(height, y_map + half_size)
+
+        heatmap[start_y:end_y, start_x:end_x] = 1
 
         return heatmap
 

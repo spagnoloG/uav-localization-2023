@@ -364,7 +364,7 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = AdaptiveWingLoss()
+    loss_fn = torch.nn.L1Loss()
 
     trainer = CrossViewTrainer(
         device,

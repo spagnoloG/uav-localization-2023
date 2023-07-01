@@ -3,9 +3,9 @@ train:
   lr: 0.0004  # learning rate
   weight_decay: 1.5 # weight decay factor for optimizer
   gamma: 0.2  # factor by which to reduce learning rate
-  milestones: [10, 14, 16]  # epoch at which to decay learning rate 
-  batch_size: 14  # batch size
-  num_workers: 24  # number of worker threads for dataloading
+  milestones: [10, 14, 16, 20]  # epoch at which to decay learning rate 
+  batch_size: 6  # batch size
+  num_workers: 12  # number of worker threads for dataloading
   num_epochs: 24  # number of training epochs
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
@@ -31,7 +31,9 @@ sat_dataset:
   patch_h: 512
   zoom_level: 16 # satellite dataset zoom level
   root_dir: "./sat"
-  kernel_size: 60 # kernel size for the hanning window
+  heatmap_kernel_type: "square" # "hanning", "gaussian", "square" kernel
+  heatmap_kernel_size: 110 # kernel size for the chosen kernel 
+
 
 drone_dataset:
   mean: [0.485, 0.456, 0.406] 
@@ -39,7 +41,7 @@ drone_dataset:
   patch_w: 128
   patch_h: 128
   root_dir: "./drone"
-  rotation_deg: 90 # 360 means no rotation, 180 means 2 rotations, etc.
+  rotation_deg: 30 # 360 means no rotation, 180 means 2 rotations, etc.
 
 val:
   device: "cuda:0"
