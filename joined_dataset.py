@@ -25,7 +25,9 @@ class JoinedDataset(Dataset):
             patch_w=drone_view_patch_size,
         )
         self.sat_dataset = SatDataset(
-            config=config["sat_dataset"], download_dataset=download_dataset
+            config=config["sat_dataset"],
+            download_dataset=download_dataset,
+            heatmap_kernel_size=heatmap_kernel_size,
         )
         self.drone_resolution = (self.drone_dataset.patch_w, self.drone_dataset.patch_h)
         self.satellite_resolution = (self.sat_dataset.patch_w, self.sat_dataset.patch_h)

@@ -19,7 +19,7 @@ from torchvision import transforms
 
 class SatDataset(Dataset):
     # Original file size -> 512 x 512
-    def __init__(self, config, download_dataset=False):
+    def __init__(self, config, download_dataset=False, heatmap_kernel_size=None):
         self.root_dir = config["root_dir"]
         self.patch_w = config["patch_w"]
         self.patch_h = config["patch_h"]
@@ -30,7 +30,11 @@ class SatDataset(Dataset):
         self.download_dataset = download_dataset
         self.rtree_index = rtree.index.Index()
         self.heatmap_kernel_type = config["heatmap_kernel_type"]
-        self.heatmap_kernel_size = config["heatmap_kernel_size"]
+        self.heatmap_kernel_size = (
+            heatmap_kernel_size
+            if heatmap_kernel_size
+            else config["heatmap_kernel_size"]
+        )
 
         if self.download_dataset:
             self.download_maps()
@@ -265,6 +269,8 @@ class SatDataset(Dataset):
         heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[
             : end_y - start_y, : end_x - start_x
         ]
+
+        heatmap = heatmap * 20
 
         return heatmap
 
