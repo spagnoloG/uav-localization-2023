@@ -13,6 +13,12 @@ push-ml-node:
 		--exclude='*' \
 		. ml-node:/home/ml-node/Documents/uav-localization-2023
 
+lint:
+	black *.py
+	black utils/*.py
+	black cnn_backbone/*.py
+	black sat/*.py
+
 val:
 	python3 val.py
 

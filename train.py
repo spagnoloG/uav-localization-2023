@@ -3,7 +3,6 @@ import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import MultiStepLR
 from tqdm import tqdm
-from criterion import AdaptiveWingLoss
 from joined_dataset import JoinedDataset
 from torch.utils.data import DataLoader
 from logger import logger
@@ -222,7 +221,7 @@ class CrossViewTrainer:
                 self.scheduler.step()
 
             # Validate every 2 epochs
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % 2 == 0:
                 logger.info("Validating...")
                 self.validate()
 

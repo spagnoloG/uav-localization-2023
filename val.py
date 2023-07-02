@@ -6,11 +6,11 @@ from torch.utils.data import DataLoader
 from model import CrossViewLocalizationModel
 import os
 from tqdm import tqdm
-from criterion import DiceLoss
 import yaml
 import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 class CrossViewValidator:
@@ -28,44 +28,63 @@ class CrossViewValidator:
 
         self.config = config
         self.device = self.config["val"]["device"]
-        self.batch_size = self.config["val"]["batch_size"]
         self.num_workers = self.config["val"]["num_workers"]
         self.plot = self.config["val"]["plot"]
         self.val_hash = self.config["val"]["checkpoint_hash"]
         self.val_subset_size = self.config["val"]["val_subset_size"]
         self.download_dataset = self.config["val"]["download_dataset"]
-        self.config = config
+        self.batch_sizes = self.config["val"]["batch_sizes"]
+        self.heatmap_kernel_sizes = self.config["val"]["heatmap_kernel_sizes"]
+        self.drone_view_patch_sizes = self.config["val"]["drone_view_patch_sizes"]
+        self.shuffle_dataset = self.config["val"]["shuffle_dataset"]
+        self.val_dataloaders = []
 
-        if self.val_subset_size is not None:
-            logger.info(f"Using val subset of size {self.val_subset_size}")
-            subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(
-                    dataset="test",
-                    config=self.config,
-                    download_dataset=self.download_dataset,
-                ),
-                indices=range(self.val_subset_size),
-            )
-            self.val_dataloader = DataLoader(
-                subset_dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                shuffle=False,
-            )
-        else:
-            subset_dataset = JoinedDataset(
-                dataset="test", config=config, download_dataset=self.download_dataset
-            )
-            self.val_dataloader = DataLoader(
-                subset_dataset,
-                batch_size=self.batch_size,
-                num_workers=self.num_workers,
-                shuffle=False,
-            )
+        self.criterion = torch.nn.MSELoss(reduction="sum")
 
-        self.criterion = DiceLoss()
+        self.prepare_dataloaders(config)
 
         self.load_model()
+
+    def prepare_dataloaders(self, config):
+        for batch_size, heatmap_kernel_size, drone_view_patch_size in zip(
+            self.batch_sizes, self.heatmap_kernel_sizes, self.drone_view_patch_sizes
+        ):
+            if self.val_subset_size is not None:
+                logger.info(f"Using val subset of size {self.val_subset_size}")
+                subset_dataset = torch.utils.data.Subset(
+                    JoinedDataset(
+                        dataset="test",
+                        config=config,
+                        download_dataset=self.download_dataset,
+                        heatmap_kernel_size=heatmap_kernel_size,
+                        drone_view_patch_size=drone_view_patch_size,
+                    ),
+                    indices=range(self.val_subset_size),
+                )
+                self.val_dataloaders.append(
+                    DataLoader(
+                        subset_dataset,
+                        batch_size=batch_size,
+                        num_workers=self.num_workers,
+                        shuffle=self.shuffle_dataset,
+                    )
+                )
+            else:
+                subset_dataset = JoinedDataset(
+                    dataset="test",
+                    config=config,
+                    download_dataset=self.download_dataset,
+                    heatmap_kernel_size=heatmap_kernel_size,
+                    drone_view_patch_size=drone_view_patch_size,
+                )
+                self.val_dataloaders.append(
+                    DataLoader(
+                        subset_dataset,
+                        batch_size=batch_size,
+                        num_workers=self.num_workers,
+                        shuffle=self.shuffle_dataset,
+                    )
+                )
 
     def load_model(self):
         """
@@ -88,8 +107,10 @@ class CrossViewValidator:
 
         self.model = torch.nn.DataParallel(
             CrossViewLocalizationModel(
-                drone_resolution=self.val_dataloader.dataset.drone_resolution,
-                satellite_resolution=self.val_dataloader.dataset.satellite_resolution,
+                satellite_resolution=(
+                    self.config["sat_dataset"]["patch_w"],
+                    self.config["sat_dataset"]["patch_h"],
+                ),
             )
         )
         # load the state dict into the model
@@ -119,34 +140,43 @@ class CrossViewValidator:
         """
         self.model.eval()
         running_loss = 0.0
+        total_samples = 0
         with torch.no_grad():
-            for i, (
-                drone_images,
-                drone_infos,
-                sat_images,
-                sat_infos,
-                heatmap_gt,
-            ) in tqdm(
-                enumerate(self.val_dataloader),
-                total=len(self.val_dataloader),
+            for dataloader, h_kernel_size, d_patch_size in zip(
+                self.val_dataloaders,
+                self.heatmap_kernel_sizes,
+                self.drone_view_patch_sizes,
             ):
-                drone_images = drone_images.to(self.device)
-                sat_images = sat_images.to(self.device)
-                heatmap_gt = heatmap_gt.to(self.device)
+                logger.info(
+                    f"Validating epoch with kernel size {h_kernel_size} and patch size {d_patch_size}"
+                )
+                for i, (
+                    drone_images,
+                    drone_infos,
+                    sat_images,
+                    sat_infos,
+                    heatmap_gt,
+                ) in tqdm(
+                    enumerate(dataloader),
+                    total=len(dataloader),
+                ):
+                    drone_images = drone_images.to(self.device)
+                    sat_images = sat_images.to(self.device)
+                    heatmap_gt = heatmap_gt.to(self.device)
+                    # Forward pass
+                    outputs = self.model(drone_images, sat_images)
+                    # Calculate loss
+                    loss = self.criterion(outputs, heatmap_gt)
+                    # Accumulate the loss
+                    running_loss += loss.item() * drone_images.size(0)
 
-                # Forward pass
-                outputs = self.model(drone_images, sat_images)
-                # Calculate loss
-                loss = self.criterion(outputs, heatmap_gt)
-                # Accumulate the loss
-                running_loss += loss.item() * drone_images.size(0)
+                    if self.plot:
+                        self.plot_results(
+                            drone_images[0], sat_images[0], heatmap_gt[0], outputs[0], i
+                        )
+                total_samples += len(dataloader)
 
-                if self.plot:
-                    self.plot_results(
-                        drone_images[0], sat_images[0], heatmap_gt[0], outputs[0], i
-                    )
-
-        epoch_loss = running_loss / len(self.val_dataloader)
+        epoch_loss = running_loss / total_samples
         logger.info("Validation Loss: {:.4f}".format(epoch_loss))
 
     def visualize_model(self):
@@ -171,22 +201,28 @@ class CrossViewValidator:
         # Plot them on the same figure
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(1, 4, 1)
-        ax.imshow(drone_image.permute(1, 2, 0).cpu().numpy())
+        img = drone_image.permute(1, 2, 0).cpu().numpy()
+        img = np.clip(img, 0, 1)  # Ensure all values are within [0, 1]
+        ax.imshow(img)
         ax.set_title("Drone Image")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 2)
-        ax.imshow(sat_image.permute(1, 2, 0).cpu().numpy())
+        img = sat_image.permute(1, 2, 0).cpu().numpy()
+        img = np.clip(img, 0, 1)
+        ax.imshow(img)
         ax.set_title("Satellite Image")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 3)
-        ax.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
+        heatmap = heatmap_gt.squeeze(0).cpu().numpy()
+        ax.imshow(heatmap, cmap="viridis")
         ax.set_title("Ground Truth Heatmap")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 4)
-        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
+        heatmap = heatmap_pred.squeeze(0).cpu().numpy()
+        ax.imshow(heatmap, cmap="viridis")
         ax.set_title("Predicted Heatmap")
         ax.axis("off")
 

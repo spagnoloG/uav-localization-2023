@@ -4,7 +4,7 @@ train:
   weight_decay: 1.5 # weight decay factor for optimizer
   gamma: 0.2  # factor by which to reduce learning rate
   milestones: [10, 14, 16]  # epoch at which to decay learning rate 
-  num_workers: 16  # number of worker threads for dataloading
+  num_workers: 24  # number of worker threads for dataloading
   num_epochs: 24  # number of training epochs
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
