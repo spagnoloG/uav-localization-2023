@@ -13,6 +13,9 @@ push-ml-node:
 		--exclude='*' \
 		. ml-node:/home/ml-node/Documents/uav-localization-2023
 
+install-requirements:
+	pip3 install -r requirements.txt
+
 lint:
 	black *.py
 	black utils/*.py

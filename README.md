@@ -1,15 +1,36 @@
 # Custom Twins transformer for Multi-View Image Fusion
-This repository contains code for a custom implementation of a Vision Transformer model which uses a pretrained ResNet50 for feature extraction 
-and a weighted convolution for fusing features from UAV and satellite view images.
+This repository contains a custom Vision Transformer model, designed to handle multi-view image fusion. 
+The model is tasked with merging the features from Unmanned Aerial Vehicle (UAV) and satellite images.
+The model uses a modified version of the PCPVT (pyramid vision transformer) model that has been pretrained on ResNet50 for feature extraction 
+from both UAV and satellite images. These extracted features are then combined using a custom fusion module. 
+This module operates in multiple stages and balances the contributions from each image source.
 
+## Getting Started
+Follow these steps to set up the environment and start training the model.
 
-## Training the network
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-python train.py # change the conf/configuration.yml for hypertuning
-```
+1. Create a Python virtual environment.
+    ```bash
+    python3 -m venv .venv
+    ```
+2. Activate the virtual environment.
+    ```bash
+    . .venv/bin/activate
+    ```
+3. Install the required dependencies.
+    ```bash
+    make install-requirements
+    ```
+4. Train the model.
+    ```bash
+    make train
+    ```
+5. Validate the model.
+    ```bash
+    make val
+    ```
+Note: You can modify the `conf/configuration.yml` file for hyperparameter tuning as per your requirement.
+Note: Drone dataset is currently unavailable.
+
 
 ## Model Architecture
 
