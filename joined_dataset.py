@@ -15,9 +15,11 @@ class JoinedDataset(Dataset):
         config=None,
         heatmap_kernel_size=110,
         drone_view_patch_size=128,
+        metadata_rtree_index=None,
     ):
         self.heatmap_kernel_size = heatmap_kernel_size
         self.download_dataset = download_dataset
+        self.metadata_rtree_index = metadata_rtree_index
         self.drone_dataset = DroneDataset(
             dataset=dataset,
             config=config["drone_dataset"],
@@ -28,9 +30,11 @@ class JoinedDataset(Dataset):
             config=config["sat_dataset"],
             download_dataset=download_dataset,
             heatmap_kernel_size=heatmap_kernel_size,
+            metadata_rtree_index=self.metadata_rtree_index,
         )
         self.drone_resolution = (self.drone_dataset.patch_w, self.drone_dataset.patch_h)
         self.satellite_resolution = (self.sat_dataset.patch_w, self.sat_dataset.patch_h)
+        self.metadata_rtree_index = self.sat_dataset.metadata_rtree_index
 
     def __len__(self):
         return len(self.drone_dataset)

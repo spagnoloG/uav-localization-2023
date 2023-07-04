@@ -19,7 +19,13 @@ from torchvision import transforms
 
 class SatDataset(Dataset):
     # Original file size -> 512 x 512
-    def __init__(self, config, download_dataset=False, heatmap_kernel_size=None):
+    def __init__(
+        self,
+        config,
+        download_dataset=False,
+        heatmap_kernel_size=None,
+        metadata_rtree_index=None,
+    ):
         self.root_dir = config["root_dir"]
         self.patch_w = config["patch_w"]
         self.patch_h = config["patch_h"]
@@ -28,7 +34,14 @@ class SatDataset(Dataset):
         self.image_indices = {}
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.download_dataset = download_dataset
-        self.rtree_index = rtree.index.Index()
+
+        if metadata_rtree_index:
+            self.metadata_rtree_index = metadata_rtree_index
+            self.build_index = False
+        else:
+            self.metadata_rtree_index = rtree.index.Index()
+            self.build_index = True
+
         self.heatmap_kernel_type = config["heatmap_kernel_type"]
         self.heatmap_kernel_size = (
             heatmap_kernel_size
@@ -67,7 +80,8 @@ class SatDataset(Dataset):
             img_info = self.extract_info_from_filename(image_path)
             self.metadata_dict[image_path] = img_info
             self.image_indices[image_path] = idx
-            self.rtree_index.insert(idx, mercantile.bounds(img_info))
+            if self.build_index:
+                self.metadata_rtree_index.insert(idx, mercantile.bounds(img_info))
         logger.info("Finished building rtree index.")
 
     def get_entry_paths(self, path):
@@ -132,7 +146,9 @@ class SatDataset(Dataset):
         ### -------------------------- ###
 
     def find_tile(self, lat, lng):
-        possible_indices = list(self.rtree_index.intersection((lng, lat, lng, lat)))
+        possible_indices = list(
+            self.metadata_rtree_index.intersection((lng, lat, lng, lat))
+        )
         for idx in possible_indices:
             path = self.image_paths[idx]
             tile = self.metadata_dict[path]
@@ -378,7 +394,6 @@ class MapUtils:
         return lat >= min_lat and lat <= max_lat and lng >= min_lng and lng <= max_lng
 
     def find_and_plot(self, lat, lng, tile, map_image):
-        print("lat, lng, tile", lat, lng, tile)
         x, y = self.coord_to_pixel(
             lat, lng, tile, map_image.shape[0], map_image.shape[1]
         )

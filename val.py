@@ -11,6 +11,7 @@ import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
 import numpy as np
+from criterion import WeightedLoss
 
 
 class CrossViewValidator:
@@ -39,13 +40,15 @@ class CrossViewValidator:
         self.shuffle_dataset = self.config["val"]["shuffle_dataset"]
         self.val_dataloaders = []
 
-        self.criterion = torch.nn.MSELoss(reduction="sum")
+        self.criterion = WeightedLoss()
 
         self.prepare_dataloaders(config)
 
         self.load_model()
 
     def prepare_dataloaders(self, config):
+        self.metadata_rtree_index = None
+
         for batch_size, heatmap_kernel_size, drone_view_patch_size in zip(
             self.batch_sizes, self.heatmap_kernel_sizes, self.drone_view_patch_sizes
         ):
@@ -58,6 +61,7 @@ class CrossViewValidator:
                         download_dataset=self.download_dataset,
                         heatmap_kernel_size=heatmap_kernel_size,
                         drone_view_patch_size=drone_view_patch_size,
+                        metadata_rtree_index=self.metadata_rtree_index,
                     ),
                     indices=range(self.val_subset_size),
                 )
@@ -76,6 +80,7 @@ class CrossViewValidator:
                     download_dataset=self.download_dataset,
                     heatmap_kernel_size=heatmap_kernel_size,
                     drone_view_patch_size=drone_view_patch_size,
+                    metadata_rtree_index=self.metadata_rtree_index,
                 )
                 self.val_dataloaders.append(
                     DataLoader(
@@ -85,6 +90,9 @@ class CrossViewValidator:
                         shuffle=self.shuffle_dataset,
                     )
                 )
+
+            if self.metadata_rtree_index is None:
+                self.metadata_rtree_index = subset_dataset.dataset.metadata_rtree_index
 
     def load_model(self):
         """

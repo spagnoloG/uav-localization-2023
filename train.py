@@ -128,6 +128,8 @@ class CrossViewTrainer:
         )
 
     def prepare_dataloaders(self, config):
+        self.metadata_rtree_index = None
+
         for batch_size, heatmap_kernel_size, drone_view_patch_size in zip(
             self.batch_sizes, self.heatmap_kernel_sizes, self.drone_view_patch_sizes
         ):
@@ -140,6 +142,7 @@ class CrossViewTrainer:
                         download_dataset=self.download_dataset,
                         heatmap_kernel_size=heatmap_kernel_size,
                         drone_view_patch_size=drone_view_patch_size,
+                        metadata_rtree_index=self.metadata_rtree_index,
                     ),
                     indices=range(self.train_subset_size),
                 )
@@ -158,6 +161,7 @@ class CrossViewTrainer:
                     download_dataset=self.download_dataset,
                     heatmap_kernel_size=heatmap_kernel_size,
                     drone_view_patch_size=drone_view_patch_size,
+                    metadata_rtree_index=self.metadata_rtree_index,
                 )
                 self.train_dataloaders.append(
                     DataLoader(
@@ -168,6 +172,9 @@ class CrossViewTrainer:
                     )
                 )
 
+            if self.metadata_rtree_index is None:
+                self.metadata_rtree_index = subset_dataset.dataset.metadata_rtree_index
+
             if self.val_subset_size is not None:
                 logger.info(f"Using val subset of size {self.val_subset_size}")
                 subset_dataset = torch.utils.data.Subset(
@@ -177,6 +184,7 @@ class CrossViewTrainer:
                         download_dataset=self.download_dataset,
                         heatmap_kernel_size=heatmap_kernel_size,
                         drone_view_patch_size=drone_view_patch_size,
+                        metadata_rtree_index=self.metadata_rtree_index,
                     ),
                     indices=range(self.val_subset_size),
                 )
@@ -195,6 +203,7 @@ class CrossViewTrainer:
                     download_dataset=self.download_dataset,
                     heatmap_kernel_size=heatmap_kernel_size,
                     drone_view_patch_size=drone_view_patch_size,
+                    metadata_rtree_index=self.metadata_rtree_index,
                 )
                 self.val_dataloaders.append(
                     DataLoader(
