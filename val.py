@@ -92,7 +92,11 @@ class CrossViewValidator:
                 )
 
             if self.metadata_rtree_index is None:
-                self.metadata_rtree_index = subset_dataset.dataset.metadata_rtree_index
+                self.metadata_rtree_index = (
+                    subset_dataset.metadata_rtree_index
+                    if self.train_subset_size is None
+                    else subset_dataset.dataset.metadata_rtree_index
+                )
 
     def load_model(self):
         """

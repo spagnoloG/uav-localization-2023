@@ -127,25 +127,40 @@ class AdaptiveWingLoss(nn.Module):
 
 
 class WeightedLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, image_size=512, negative_weight=1.0):
         super(WeightedLoss, self).__init__()
+        self.image_size = image_size
+        self.negative_weight = negative_weight
 
     def forward(self, pred, target):
-        # Count true and false labels
-        true_labels = (target > 0).float()
-        false_labels = (target <= 0).float()
+        # Count positive and negative labels
+        positive_labels = (target > 0).float()
+        negative_labels = (target <= 0).float()
 
-        num_true = true_labels.sum()
-        num_false = false_labels.sum()
+        num_positive = positive_labels.sum()
+        num_negative = negative_labels.sum()
 
-        # Compute weights
-        total = num_true + num_false
-        true_weight = num_false / total
-        false_weight = num_true / total
+        # Create Hanning Window for positive weights
+        hanning_window = torch.hann_window(
+            self.image_size, periodic=False, dtype=torch.float, device=pred.device
+        )
+        hanning_window = hanning_window.view(1, 1, -1, 1) * hanning_window.view(
+            1, 1, 1, -1
+        )
+        positive_weights = positive_labels * hanning_window
+        num_positive_weighted = positive_weights.sum()
+
+        # Compute negative weights
+        negative_weights = negative_labels * self.negative_weight / num_negative
+        num_negative_weighted = negative_weights.sum()
+
+        normalization = num_positive_weighted + num_negative_weighted
 
         # Assign weights
-        weights = true_labels * true_weight + false_labels * false_weight
+        weights = (positive_weights / normalization) + negative_weights / normalization
 
         # Compute weighted loss
-        loss = F.binary_cross_entropy_with_logits(pred, target, weight=weights)
+        loss = F.binary_cross_entropy_with_logits(
+            pred.squeeze(), target.squeeze(), weight=weights.squeeze()
+        )
         return loss

@@ -13,8 +13,8 @@ train:
   batch_sizes: [4, 4, 2, 1]
   
   # Dataset parameters
-  train_subset_size: 1000  # size of training subset. Set to null to use full dataset
-  val_subset_size: 10  # size of validation subset. Set to null to use full dataset
+  train_subset_size: null  # size of training subset. Set to null to use full dataset
+  val_subset_size: null  # size of validation subset. Set to null to use full dataset
   
   # Miscellaneous
   plot: true  # whether to plot the outputs and ground truth during validation
@@ -46,9 +46,9 @@ drone_dataset:
 
 val:
   device: "cuda:0"
-  checkpoint_hash:  6c67157f491ba4335a9901affbdbace2e63412dd  # the hash of the checkpoint
-  checkpoint_epoch: 15 
-  val_subset_size: null  # size of validation subset. Set to null to use full dataset
+  checkpoint_hash:  "c" # the hash of the checkpoint
+  checkpoint_epoch: 5 
+  val_subset_size: 200  # size of validation subset. Set to null to use full dataset
   num_workers: 4  # number of worker threads for dataloading
   shuffle_dataset: true  # shuffle dataset for each epoch
   drone_view_patch_sizes: [128, 256, 512, 760] # drone view patches sizes

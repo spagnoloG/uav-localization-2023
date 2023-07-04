@@ -173,7 +173,11 @@ class CrossViewTrainer:
                 )
 
             if self.metadata_rtree_index is None:
-                self.metadata_rtree_index = subset_dataset.dataset.metadata_rtree_index
+                self.metadata_rtree_index = (
+                    subset_dataset.metadata_rtree_index
+                    if self.train_subset_size is None
+                    else subset_dataset.dataset.metadata_rtree_index
+                )
 
             if self.val_subset_size is not None:
                 logger.info(f"Using val subset of size {self.val_subset_size}")
@@ -279,7 +283,7 @@ class CrossViewTrainer:
             total_samples += len(dataloader)
 
         epoch_loss = running_loss / total_samples
-        logger.info("Training Loss: {:.4f}".format(epoch_loss))
+        logger.info(f"Training loss: {epoch_loss}")
 
     def validate(self):
         """
@@ -324,7 +328,7 @@ class CrossViewTrainer:
                 total_samples += len(dataloader)
 
         epoch_loss = running_loss / total_samples
-        logger.info("Validation Loss: {:.4f}".format(epoch_loss))
+        logger.info(f"Validation loss: {epoch_loss}")
 
     def plot_results(
         self,
