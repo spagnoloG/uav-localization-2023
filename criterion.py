@@ -124,3 +124,28 @@ class AdaptiveWingLoss(nn.Module):
         A = self.omega / (1 + torch.exp(-(y - self.epsilon) / self.alpha))
         diffs = A * (torch.log(1 + (delta_y / C).pow(self.alpha)))
         return diffs.mean()
+
+
+class WeightedLoss(nn.Module):
+    def __init__(self):
+        super(WeightedLoss, self).__init__()
+
+    def forward(self, pred, target):
+        # Count true and false labels
+        true_labels = (target > 0).float()
+        false_labels = (target <= 0).float()
+
+        num_true = true_labels.sum()
+        num_false = false_labels.sum()
+
+        # Compute weights
+        total = num_true + num_false
+        true_weight = num_false / total
+        false_weight = num_true / total
+
+        # Assign weights
+        weights = true_labels * true_weight + false_labels * false_weight
+
+        # Compute weighted loss
+        loss = F.binary_cross_entropy_with_logits(pred, target, weight=weights)
+        return loss

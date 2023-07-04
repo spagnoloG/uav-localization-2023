@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from model import CrossViewLocalizationModel
 import yaml
 import argparse
+from criterion import WeightedLoss
 
 
 class CrossViewTrainer:
@@ -414,7 +415,8 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = torch.nn.MSELoss(reduction="mean")
+    # loss_fn = torch.nn.MSELoss(reduction="mean")
+    loss_fn = WeightedLoss()
 
     trainer = CrossViewTrainer(
         device,

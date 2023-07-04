@@ -33,7 +33,7 @@ sat_dataset:
   patch_h: 512
   zoom_level: 16 # satellite dataset zoom level
   root_dir: "./sat"
-  heatmap_kernel_type: "hanning" # "hanning", "gaussian", "square" kernel
+  heatmap_kernel_type: "square" # "hanning", "gaussian", "square" kernel
   heatmap_kernel_size: 110 # kernel size for the chosen kernel 
 
 drone_dataset:
@@ -47,7 +47,7 @@ drone_dataset:
 val:
   device: "cuda:0"
   checkpoint_hash:  6c67157f491ba4335a9901affbdbace2e63412dd  # the hash of the checkpoint
-  checkpoint_epoch: 4
+  checkpoint_epoch: 15 
   val_subset_size: null  # size of validation subset. Set to null to use full dataset
   num_workers: 4  # number of worker threads for dataloading
   shuffle_dataset: true  # shuffle dataset for each epoch
