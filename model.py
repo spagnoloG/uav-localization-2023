@@ -10,7 +10,38 @@ import torch
 import torch.nn.functional as F
 
 
+class MatchCorrelation(nn.Module):
+    """Matches the two embeddings using the correlation layer."""
+
+    def __init__(self):
+        super(MatchCorrelation, self).__init__()
+        self.correlation = F.conv2d
+
+    def forward(self, embed_ref, embed_srch):
+        """
+        Args:
+            embed_ref: (torch.Tensor) The embedding of the reference image. (sat)
+            embed_srch: (torch.Tensor) The embedding of the search image. (drone)
+        Returns:
+            match_map: (torch.Tensor) The correlation map.
+        """
+        match_map = self.correlation(embed_ref, embed_srch)
+
+        return match_map
+
+
 class FusionModule(nn.Module):
+    """
+    Fusion module which applies three convolutional transformations to three drone
+    image inputs and combines them through a weighted sum operation.
+
+    Args:
+        in_channels: (List[int]) The number of input channels for the three conv layers.
+        out_channels: (int) The number of output channels for the three conv layers.
+        upsample_size: (Tuple[int, int]) The size to upsample the fused feature map to.
+
+    """
+
     def __init__(self, in_channels, out_channels, upsample_size):
         super(FusionModule, self).__init__()
         self.upsample_size = upsample_size
@@ -24,50 +55,42 @@ class FusionModule(nn.Module):
         self.conv3 = nn.Conv2d(
             in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
         )
-        self.conv4 = nn.Conv2d(
-            in_channels=out_channels,
-            out_channels=out_channels,
-            kernel_size=3,
-            padding=1,
-        )
         self.weights = nn.Parameter(torch.ones(3, 1, 1, 1))
+        self.w_softmax = nn.Softmax(dim=0)
+
+        self.match_correlation = MatchCorrelation()
 
     def forward(self, drone1, drone2, drone3, satellite):
         drone1 = self.conv1(drone1)
         drone2 = self.conv2(drone2)
         drone3 = self.conv3(drone3)
 
-        drone2_up = F.interpolate(
-            drone2, size=drone1.shape[2:], mode="bilinear", align_corners=False
-        )
-        drone3_up = F.interpolate(
-            drone3, size=drone1.shape[2:], mode="bilinear", align_corners=False
-        )
+        match_map_1 = self.match_correlation(satellite, drone1)
+        match_map_2 = self.match_correlation(satellite, drone2)
+        match_map_3 = self.match_correlation(satellite, drone3)
+        size = match_map_3.shape[-2:]
 
-        # Fuse the upsampled feature maps with the feature maps of the same scale
-        drone1_fused = drone1 + drone2_up + drone3_up
-
-        # Further extract features using a 3x3 convolution
-        drone1_fused = self.conv4(drone1_fused)
-
-        drone1_up = F.interpolate(
-            drone1_fused, size=satellite.shape[2:], mode="bilinear", align_corners=False
+        match_map_1 = F.interpolate(
+            match_map_1, size, mode="bilinear", align_corners=False
         )
-        drone2_up = F.interpolate(
-            drone2_up, size=satellite.shape[2:], mode="bilinear", align_corners=False
+        match_map_2 = F.interpolate(
+            match_map_2, size, mode="bilinear", align_corners=False
         )
-        drone3_up = F.interpolate(
-            drone3_up, size=satellite.shape[2:], mode="bilinear", align_corners=False
+        match_map_3 = F.interpolate(
+            match_map_3, size, mode="bilinear", align_corners=False
         )
 
-        A1 = F.cosine_similarity(satellite, drone1_up, dim=1).unsqueeze(1)
-        A2 = F.cosine_similarity(satellite, drone2_up, dim=1).unsqueeze(1)
-        A3 = F.cosine_similarity(satellite, drone3_up, dim=1).unsqueeze(1)
+        print("match_map_1", match_map_1.shape)
+        print("match_map_2", match_map_2.shape)
+        print("match_map_3", match_map_3.shape)
 
-        # Weighted fusion
-        fusion = A1 * self.weights[0] + A2 * self.weights[1] + A3 * self.weights[2]
+        normalized_weights = self.w_softmax(self.weights)
 
-        self.weights.data = self.weights.data / self.weights.data.sum()
+        fusion = (
+            match_map_1 * normalized_weights[0]
+            + match_map_2 * normalized_weights[1]
+            + match_map_3 * normalized_weights[2]
+        )
 
         # Sum along the channel dimension to get the final fused feature map
         fusion = fusion.sum(dim=1, keepdim=True)
@@ -80,6 +103,11 @@ class FusionModule(nn.Module):
 
 
 class SaveLayerFeatures(nn.Module):
+    """
+    A helper module for saving the features of a layer during forward pass.
+
+    """
+
     def __init__(self):
         super(SaveLayerFeatures, self).__init__()
         self.outputs = []
@@ -95,6 +123,15 @@ class SaveLayerFeatures(nn.Module):
 
 
 class ModifiedPCPVT(nn.Module):
+    """
+    A modified PVT (Pyramid Vision Transformer) model which saves features from
+    its first three blocks during forward pass.
+
+    Args:
+        original_model: (nn.Module) The original PVT model to modify.
+
+    """
+
     def __init__(self, original_model):
         super(ModifiedPCPVT, self).__init__()
 
@@ -124,6 +161,19 @@ class ModifiedPCPVT(nn.Module):
 
 
 class CrossViewLocalizationModel(nn.Module):
+    """
+    Cross-View Localization model that uses a satellite and UAV (Unmanned Aerial Vehicle)
+    view for localization.
+
+    This model uses two modified PVT models for feature extraction from the satellite
+    and UAV views, respectively. The extracted features are then passed through a Fusion
+    module to produce a fused feature map.
+
+    Args:
+        satellite_resolution: (Tuple[int, int]) The resolution of the satellite images.
+
+    """
+
     def __init__(self, satellite_resolution):
         super(CrossViewLocalizationModel, self).__init__()
 
@@ -146,12 +196,6 @@ class CrossViewLocalizationModel(nn.Module):
             upsample_size=self.satellite_resolution,
         )
 
-        # Upsampling module
-        self.upsample = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-
-        # add relu to avoid negative values
-        self.relu = nn.ReLU(inplace=True)
-
     def forward(self, x_UAV, x_satellite):
         # Pytorch: [batch_size, channels, height, width]
         # numpy: [height, width, channels]
@@ -161,8 +205,6 @@ class CrossViewLocalizationModel(nn.Module):
         last_sat_feature = feature_pyramid_satellite[0]
 
         fused_map = self.fusion(*feature_pyramid_UAV, last_sat_feature)
-
-        # fused_map = self.relu(fused_map)
 
         fused_map = fused_map.squeeze(1)  # remove the unnecessary channel dimension
 
