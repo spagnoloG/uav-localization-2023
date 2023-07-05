@@ -6,6 +6,16 @@ from matplotlib import pyplot as plt
 
 
 class BalanceLoss(nn.Module):
+    """
+    Balance loss implementation.
+
+    Args:
+        w_neg (float): Weight for negative samples.
+        R (int): Threshold value.
+        sat_image_size (int): Size of the satellite image.
+
+    """
+
     def __init__(self, w_neg=1.0, R=1, sat_image_size=512):
         super(BalanceLoss, self).__init__()
         self.w_neg = w_neg
@@ -15,9 +25,15 @@ class BalanceLoss(nn.Module):
     def forward(self, heatmap, label):
         """
         Compute the balance loss.
-        """
-        # heatmap = self.upscale_generated_heatmap(heatmap)
 
+        Args:
+            heatmap (torch.Tensor): Predicted heatmap.
+            label (torch.Tensor): Ground truth label.
+
+        Returns:
+            torch.Tensor: Computed balance loss.
+
+        """
         # Step 1: generate the 0,1 matrix
         t = (label >= self.R).float()
 
@@ -49,6 +65,16 @@ class BalanceLoss(nn.Module):
 
 
 class HanningLoss(nn.Module):
+    """
+    Hanning loss implementation.
+
+    Args:
+        center_r (int): Center radius.
+        negative_weight (int): Weight for negative samples.
+        device (str): Device to use for computation.
+
+    """
+
     def __init__(self, center_r=33, negative_weight=1, device="cuda"):
         super(HanningLoss, self).__init__()
         self.Center_R = center_r
@@ -56,6 +82,17 @@ class HanningLoss(nn.Module):
         self.device = device
 
     def forward(self, preds, target):
+        """
+        Compute the Hanning loss.
+
+        Args:
+            preds (torch.Tensor): Predicted tensor.
+            target (torch.Tensor): Ground truth tensor.
+
+        Returns:
+            torch.Tensor: Computed Hanning loss.
+
+        """
         positive_samples = target > 0
         negative_samples = target == 0
 
@@ -87,6 +124,11 @@ class HanningLoss(nn.Module):
 
 
 class MSLELoss(torch.nn.Module):
+    """
+    Mean Squared Logarithmic Error (MSLE) loss implementation.
+
+    """
+
     def __init__(self):
         super().__init__()
         self.mse = torch.nn.MSELoss()
@@ -101,6 +143,17 @@ class DiceLoss(nn.Module):
         self.eps = eps
 
     def forward(self, logits, labels):
+        """
+        Compute the MSLE loss.
+
+        Args:
+            pred (torch.Tensor): Predicted tensor.
+            true (torch.Tensor): Ground truth tensor.
+
+        Returns:
+            torch.Tensor: Computed MSLE loss.
+
+        """
         logits = torch.sigmoid(logits)
         intersection = torch.sum(logits * labels)
         union = torch.sum(logits) + torch.sum(labels)
@@ -109,6 +162,17 @@ class DiceLoss(nn.Module):
 
 
 class AdaptiveWingLoss(nn.Module):
+    """
+    Adaptive Wing loss implementation.
+
+    Args:
+        omega (float): Omega value.
+        theta (float): Theta value.
+        epsilon (float): Epsilon value.
+        alpha (float): Alpha value.
+
+    """
+
     def __init__(self, omega=14, theta=0.5, epsilon=1e-3, alpha=0.01):
         super(AdaptiveWingLoss, self).__init__()
         self.omega = omega
@@ -117,6 +181,17 @@ class AdaptiveWingLoss(nn.Module):
         self.alpha = alpha
 
     def forward(self, pred, target):
+        """
+        Compute the Adaptive Wing loss.
+
+        Args:
+            pred (torch.Tensor): Predicted tensor.
+            target (torch.Tensor): Ground truth tensor.
+
+        Returns:
+            torch.Tensor: Computed Adaptive Wing loss.
+
+        """
         y = target
         y_hat = pred
         delta_y = (y - y_hat).abs()
@@ -127,12 +202,32 @@ class AdaptiveWingLoss(nn.Module):
 
 
 class WeightedLoss(nn.Module):
+    """
+    Weighted loss implementation.
+
+    Args:
+        image_size (int): Size of the image.
+        negative_weight (float): Weight for negative samples.
+
+    """
+
     def __init__(self, image_size=512, negative_weight=1.0):
         super(WeightedLoss, self).__init__()
         self.image_size = image_size
         self.negative_weight = negative_weight
 
     def forward(self, pred, target):
+        """
+        Compute the weighted loss.
+
+        Args:
+            pred (torch.Tensor): Predicted tensor.
+            target (torch.Tensor): Ground truth tensor.
+
+        Returns:
+            torch.Tensor: Computed weighted loss.
+
+        """
         # Count positive and negative labels
         positive_labels = (target > 0).float()
         negative_labels = (target <= 0).float()
@@ -167,10 +262,26 @@ class WeightedLoss(nn.Module):
 
 
 class WeightedMSELoss(nn.Module):
+    """
+    Weighted Mean Squared Error (MSE) loss implementation.
+
+    """
+
     def __init__(self):
         super().__init__()
 
     def forward(self, prediction, ground_truth):
+        """
+        Compute the weighted MSE loss.
+
+        Args:
+            prediction (torch.Tensor): Predicted tensor.
+            ground_truth (torch.Tensor): Ground truth tensor.
+
+        Returns:
+            torch.Tensor: Computed weighted MSE loss.
+
+        """
         mask = ground_truth == 0
         mse_loss = F.mse_loss(prediction, ground_truth, reduction="none")
         mse_loss[mask] = mse_loss[mask] / mse_loss.numel()
