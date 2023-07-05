@@ -80,10 +80,6 @@ class FusionModule(nn.Module):
             match_map_3, size, mode="bilinear", align_corners=False
         )
 
-        print("match_map_1", match_map_1.shape)
-        print("match_map_2", match_map_2.shape)
-        print("match_map_3", match_map_3.shape)
-
         normalized_weights = self.w_softmax(self.weights)
 
         fusion = (
