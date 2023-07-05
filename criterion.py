@@ -164,3 +164,14 @@ class WeightedLoss(nn.Module):
             pred.squeeze(), target.squeeze(), weight=weights.squeeze()
         )
         return loss
+
+
+class WeightedMSELoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, prediction, ground_truth):
+        mask = ground_truth == 0
+        mse_loss = F.mse_loss(prediction, ground_truth, reduction="none")
+        mse_loss[mask] = mse_loss[mask] / mse_loss.numel()
+        return mse_loss.mean()

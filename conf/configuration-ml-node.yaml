@@ -8,9 +8,9 @@ train:
   num_epochs: 24  # number of training epochs
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
-  drone_view_patch_sizes: [128, 256, 512, 760] # drone view patches sizes
-  heatmap_kernel_sizes: [110, 150, 180, 200] # heatmap kernel sizes
-  batch_sizes: [14, 12, 8, 5]
+  drone_view_patch_sizes: [256] # drone view patches sizes
+  heatmap_kernel_sizes: [30] # heatmap kernel sizes
+  batch_sizes: [12]
   
   # Dataset parameters
   train_subset_size: null  # size of training subset. Set to null to use full dataset
@@ -33,7 +33,7 @@ sat_dataset:
   patch_h: 512
   zoom_level: 16 # satellite dataset zoom level
   root_dir: "./sat"
-  heatmap_kernel_type: "hanning" # "hanning", "gaussian", "square" kernel
+  heatmap_kernel_type: "gaussian" # "hanning", "gaussian", "square" kernel
   heatmap_kernel_size: 110 # kernel size for the chosen kernel 
 
 drone_dataset:
