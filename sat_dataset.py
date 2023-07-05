@@ -18,7 +18,17 @@ from torchvision import transforms
 
 
 class SatDataset(Dataset):
-    # Original file size -> 512 x 512
+    """
+    Custom dataset class for satellite images.
+    Original file size -> 512 x 512
+    Args:
+        config (dict): Configuration dictionary containing dataset parameters.
+        download_dataset (bool): Flag indicating whether to download the satellite images.
+        heatmap_kernel_size (int): Size of the heatmap kernel.
+        metadata_rtree_index (rtree.index.Index): R-tree index for fast spatial queries.
+
+    """
+
     def __init__(
         self,
         config,
@@ -71,10 +81,18 @@ class SatDataset(Dataset):
             self.downsample_images = False
 
     def prepare_hanning_window(self):
+        """
+        Prepares the Hanning window for generating Hanning window-based heatmaps.
+
+        """
         hann1d = torch.hann_window(self.heatmap_kernel_size, periodic=False)
         self.hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
 
     def fill_metadata_dict(self):
+        """
+        Fills the metadata dictionary and builds the R-tree index.
+
+        """
         logger.info("Building rtree index...")
         for idx, image_path in enumerate(self.image_paths):
             img_info = self.extract_info_from_filename(image_path)
@@ -85,6 +103,16 @@ class SatDataset(Dataset):
         logger.info("Finished building rtree index.")
 
     def get_entry_paths(self, path):
+        """
+        Recursively retrieves paths to satellite image files in the given directory.
+
+        Args:
+            path (str): Path to the directory.
+
+        Returns:
+            List[str]: List of file paths.
+
+        """
         entry_paths = []
         entries = os.listdir(path)
         for entry in entries:
@@ -96,9 +124,26 @@ class SatDataset(Dataset):
         return entry_paths
 
     def __len__(self):
+        """
+        Returns the total number of samples in the dataset.
+
+        Returns:
+            int: Number of samples.
+
+        """
         return len(self.image_paths)
 
     def __getitem__(self, idx):
+        """
+        Retrieves and preprocesses the satellite image and its corresponding metadata at the given index.
+
+        Args:
+            idx (int): Index of the sample.
+
+        Returns:
+            tuple: Tuple containing the preprocessed image tensor and the metadata (x, y, z) as integers.
+
+        """
         image_path = self.image_paths[idx]
         metadata = self.metadata_dict[image_path]
         image = Image.open(image_path)
@@ -111,11 +156,33 @@ class SatDataset(Dataset):
         return image, (metadata.x, metadata.y, metadata.z)  # return as integers
 
     def downsample(self, image, new_width, new_height):
+        """
+        Downsamples the given image to the specified width and height.
+
+        Args:
+            image (PIL.Image.Image): Image to downsample.
+            new_width (int): New width.
+            new_height (int): New height.
+
+        Returns:
+            PIL.Image.Image: Downsampled image.
+
+        """
         resized_image = image.resize((new_width, new_height), Image.LANCZOS)
         return resized_image
 
     def extract_info_from_filename(self, filename):
-        # 16_35582_23023.jpg -> z, x, y
+        """
+        Extracts zoom level, x, and y coordinates from the filename.
+        format: 16_35582_23023.jpg -> z, x, y
+
+        Args:
+            filename (str): Filename of the satellite image.
+
+        Returns:
+            mercantile.Tile: Tile object containing the extracted information.
+
+        """
         fn = filename.split("/")[-1]
         fn = fn.split(".")[0]
         fn = fn.split("_")
@@ -146,6 +213,20 @@ class SatDataset(Dataset):
         ### -------------------------- ###
 
     def find_tile(self, lat, lng):
+        """
+        Finds the tile containing the given coordinates and returns the corresponding image and metadata.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+
+        Returns:
+            tuple: Tuple containing the satellite image and the metadata (x, y, z) as integers.
+
+        Raises:
+            ValueError: If no tile is found for the given coordinates.
+
+        """
         possible_indices = list(
             self.metadata_rtree_index.intersection((lng, lat, lng, lat))
         )
@@ -158,6 +239,18 @@ class SatDataset(Dataset):
         raise ValueError("No tile found for the given coordinates: ", lat, lng)
 
     def is_coord_in_a_tile(self, lat, lng, tile):
+        """
+        Checks if the given coordinates are within the bounds of the given tile.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            tile (mercantile.Tile): Tile object.
+
+        Returns:
+            bool: True if the coordinates are within the tile, False otherwise.
+
+        """
         bbox = mercantile.bounds(tile)
         min_lng, min_lat, max_lng, max_lat = bbox
 
@@ -168,6 +261,10 @@ class SatDataset(Dataset):
     ### -------------------------- ###
 
     def download_maps(self):
+        """
+        Downloads satellite maps from the Mapbox API.
+
+        """
         headers = {
             "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
@@ -237,6 +334,25 @@ class SatDataset(Dataset):
                         logger.error(f"Error downloading {file_path}")
 
     def generate_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        """
+        Generates a heatmap centered at the given coordinates using the specified method.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            sat_image (torch.Tensor): Satellite image tensor.
+            x (int): x-coordinate of the tile.
+            y (int): y-coordinate of the tile.
+            z (int): Zoom level of the tile.
+            square_size (int): Size of the square kernel for square heatmap.
+
+        Returns:
+            torch.Tensor: Heatmap tensor.
+
+        Raises:
+            ValueError: If the heatmap kernel type is unknown.
+
+        """
         if self.heatmap_kernel_type == "hanning":
             return self.generate_hanning_heatmap(
                 lat, lng, sat_image, x, y, z, square_size=square_size
@@ -254,6 +370,22 @@ class SatDataset(Dataset):
             raise ValueError(f"Unknown gt_method: {self.gt_method}")
 
     def generate_hanning_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        """
+        Generates a heatmap using a Hanning window kernel centered at the given coordinates.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            sat_image (torch.Tensor): Satellite image tensor.
+            x (int): x-coordinate of the tile.
+            y (int): y-coordinate of the tile.
+            z (int): Zoom level of the tile.
+            square_size (int): Size of the square kernel.
+
+        Returns:
+            torch.Tensor: Heatmap tensor.
+
+        """
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = MapUtils().coord_to_pixel(
             lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
@@ -291,6 +423,22 @@ class SatDataset(Dataset):
         return heatmap
 
     def generate_gaussian_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        """
+        Generates a heatmap using a Gaussian kernel centered at the given coordinates.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            sat_image (torch.Tensor): Satellite image tensor.
+            x (int): x-coordinate of the tile.
+            y (int): y-coordinate of the tile.
+            z (int): Zoom level of the tile.
+            square_size (int): Size of the square kernel.
+
+        Returns:
+            torch.Tensor: Heatmap tensor.
+
+        """
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = MapUtils().coord_to_pixel(
             lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
@@ -325,6 +473,22 @@ class SatDataset(Dataset):
         return heatmap
 
     def generate_square_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
+        """
+        Generates a square heatmap centered at the given coordinates.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            sat_image (torch.Tensor): Satellite image tensor.
+            x (int): x-coordinate of the tile.
+            y (int): y-coordinate of the tile.
+            z (int): Zoom level of the tile.
+            square_size (int): Size of the square kernel.
+
+        Returns:
+            torch.Tensor: Heatmap tensor.
+
+        """
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = MapUtils().coord_to_pixel(
             lat, lng, tile, sat_image.shape[1], sat_image.shape[2]
@@ -350,6 +514,11 @@ class SatDataset(Dataset):
 
 
 class MapUtils:
+    """
+    Utility class for satellite map operations.
+
+    """
+
     def __init__(self):
         self.heatmap_colors = [
             "darkblue",
@@ -366,6 +535,20 @@ class MapUtils:
         ]
 
     def pixel_to_coord(self, x, y, tile, image_width, image_height):
+        """
+        Converts pixel coordinates to latitude and longitude coordinates.
+
+        Args:
+            x (int): x-coordinate.
+            y (int): y-coordinate.
+            tile (mercantile.Tile): Tile object.
+            image_width (int): Width of the image.
+            image_height (int): Height of the image.
+
+        Returns:
+            tuple: Tuple containing the latitude and longitude coordinates.
+
+        """
         bbox = mercantile.bounds(tile)
         min_lng, min_lat, max_lng, max_lat = bbox
         pixel_width = (max_lng - min_lng) / image_width
@@ -377,6 +560,20 @@ class MapUtils:
         return lat, lng
 
     def coord_to_pixel(self, lat, lng, tile, image_width, image_height):
+        """
+        Converts latitude and longitude coordinates to pixel coordinates.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            tile (mercantile.Tile): Tile object.
+            image_width (int): Width of the image.
+            image_height (int): Height of the image.
+
+        Returns:
+            tuple: Tuple containing the x and y pixel coordinates.
+
+        """
         bbox = mercantile.bounds(tile)
         min_lng, min_lat, max_lng, max_lat = bbox
         pixel_width = (max_lng - min_lng) / image_width
@@ -388,12 +585,35 @@ class MapUtils:
         return x, y
 
     def is_coord_in_a_tile(self, lat, lng, tile):
+        """
+        Checks if the given coordinates are within the bounds of the given tile.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            tile (mercantile.Tile): Tile object.
+
+        Returns:
+            bool: True if the coordinates are within the tile, False otherwise.
+
+        """
         bbox = mercantile.bounds(tile)
         min_lng, min_lat, max_lng, max_lat = bbox
 
         return lat >= min_lat and lat <= max_lat and lng >= min_lng and lng <= max_lng
 
     def find_and_plot(self, lat, lng, tile, map_image):
+        """
+        Finds the pixel coordinates of the given latitude and longitude coordinates in the satellite map
+        and plots the map with a marker at the corresponding location.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            tile (mercantile.Tile): Tile object.
+            map_image (numpy.ndarray): Satellite map image.
+
+        """
         x, y = self.coord_to_pixel(
             lat, lng, tile, map_image.shape[0], map_image.shape[1]
         )
@@ -405,6 +625,18 @@ class MapUtils:
         plt.show()
 
     def plot_heatmap(self, lat, lng, sat_image, x, y, z):
+        """
+        Plots a heatmap centered at the given coordinates on top of the satellite image.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            sat_image (numpy.ndarray): Satellite image.
+            x (int): x-coordinate of the tile.
+            y (int): y-coordinate of the tile.
+            z (int): Zoom level of the tile.
+
+        """
         tile = mercantile.Tile(x=x, y=y, z=z)
         x_map, y_map = self.coord_to_pixel(
             lat, lng, tile, sat_image.shape[0], sat_image.shape[1]
@@ -424,6 +656,20 @@ class MapUtils:
 
     @lru_cache(maxsize=None)
     def create_2d_gaussian(self, dim1, dim2, sigma=1, center=None):
+        """
+        Creates a 2D Gaussian distribution.
+
+        Args:
+            dim1 (int): Dimension 1 of the output array.
+            dim2 (int): Dimension 2 of the output array.
+            sigma (float): Standard deviation of the Gaussian distribution.
+            center (tuple): Center coordinates of the Gaussian distribution. If None, the center is set to
+                            (dim1 // 2, dim2 // 2).
+
+        Returns:
+            numpy.ndarray: 2D Gaussian array.
+
+        """
         if center is None:
             center = [dim1 // 2, dim2 // 2]
         x = np.arange(0, dim1, 1, dtype=np.float32)

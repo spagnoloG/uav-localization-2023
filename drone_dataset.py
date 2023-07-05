@@ -9,6 +9,17 @@ from torchvision.transforms import functional as F
 
 
 class DroneDataset(Dataset):
+    """
+    Custom dataset class for the Drone Dataset.
+
+    Args:
+        dataset (str): Dataset type, either "train" or "test".
+        config (dict): Configuration dictionary containing dataset parameters.
+        patch_h (int): Height of the image patch.
+        patch_w (int): Width of the image patch.
+
+    """
+
     def __init__(
         self,
         dataset="train",
@@ -34,6 +45,16 @@ class DroneDataset(Dataset):
         )
 
     def get_entry_paths(self, path):
+        """
+        Recursively retrieves paths to image and metadata files in the given directory.
+
+        Args:
+            path (str): Path to the directory.
+
+        Returns:
+            List[str]: List of file paths.
+
+        """
         entry_paths = []
         entries = os.listdir(path)
         for entry in entries:
@@ -53,6 +74,13 @@ class DroneDataset(Dataset):
         return entry_paths
 
     def get_metadata(self, path):
+        """
+        Extracts metadata from a JSON file and stores it in the metadata dictionary.
+
+        Args:
+            path (str): Path to the JSON file.
+
+        """
         with open(path, newline="") as jsonfile:
             json_dict = json.load(jsonfile)
             path = path.split("/")[-1]
@@ -60,9 +88,26 @@ class DroneDataset(Dataset):
             self.metadata_dict[path] = json_dict["cameraFrames"]
 
     def __len__(self):
+        """
+        Returns the total number of samples in the dataset.
+
+        Returns:
+            int: Number of samples.
+
+        """
         return len(self.image_paths) * self.rotations_per_image
 
     def __getitem__(self, idx):
+        """
+        Retrieves and preprocesses the image and its corresponding metadata at the given index.
+
+        Args:
+            idx (int): Index of the sample.
+
+        Returns:
+            tuple: Tuple containing the preprocessed image tensor and the metadata dictionary.
+
+        """
         image_path = self.image_paths[idx // self.rotations_per_image]
         image = Image.open(image_path).convert("RGB")  # Ensure 3-channel image
 
@@ -81,6 +126,16 @@ class DroneDataset(Dataset):
         return image, img_info
 
     def extract_info_from_filename(self, filename):
+        """
+        Extracts information from the filename.
+
+        Args:
+            filename (str): Filename of the image.
+
+        Returns:
+            tuple: Tuple containing the extracted information and the file number.
+
+        """
         filename_without_ext = filename.replace(".jpeg", "")
         segments = filename_without_ext.split("/")
         info = segments[-1]

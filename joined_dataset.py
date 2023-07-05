@@ -6,6 +6,21 @@ import torch
 
 
 class JoinedDataset(Dataset):
+    """
+    Dataset that combines drone and satellite images.
+
+    Args:
+        drone_dir (str): Directory path for the drone images.
+        sat_dir (str): Directory path for the satellite images.
+        dataset (str): Dataset type ("train" or "test").
+        download_dataset (bool): Flag indicating whether to download the dataset.
+        config (dict): Configuration parameters for the drone and satellite datasets.
+        heatmap_kernel_size (int): Size of the heatmap kernel.
+        drone_view_patch_size (int): Patch size for the drone view.
+        metadata_rtree_index (rtree.index.Index): R-tree index for satellite metadata.
+
+    """
+
     def __init__(
         self,
         drone_dir="./drone/",
@@ -37,9 +52,26 @@ class JoinedDataset(Dataset):
         self.metadata_rtree_index = self.sat_dataset.metadata_rtree_index
 
     def __len__(self):
+        """
+        Returns the length of the dataset.
+
+        Returns:
+            int: Length of the dataset.
+
+        """
         return len(self.drone_dataset)
 
     def __getitem__(self, idx):
+        """
+        Retrieves an item from the dataset at the given index.
+
+        Args:
+            idx (int): Index of the item.
+
+        Returns:
+            tuple: Tuple containing the drone image, drone info, satellite image, satellite info, and heatmap.
+
+        """
         drone_image, drone_info = self.drone_dataset[idx]
 
         lat = drone_info["coordinate"]["latitude"]
