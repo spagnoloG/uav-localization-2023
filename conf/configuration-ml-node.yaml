@@ -9,7 +9,7 @@ train:
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
   drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [30] # heatmap kernel sizes
+  heatmap_kernel_sizes: [50] # heatmap kernel sizes
   batch_sizes: [12]
   
   # Dataset parameters

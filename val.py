@@ -11,7 +11,7 @@ import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
 import numpy as np
-from criterion import WeightedLoss
+from criterion import WeightedMSELoss
 
 
 class CrossViewValidator:
@@ -40,7 +40,7 @@ class CrossViewValidator:
         self.shuffle_dataset = self.config["val"]["shuffle_dataset"]
         self.val_dataloaders = []
 
-        self.criterion = WeightedLoss()
+        self.criterion = WeightedMSELoss()
 
         self.prepare_dataloaders(config)
 

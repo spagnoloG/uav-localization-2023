@@ -279,6 +279,14 @@ class CrossViewTrainer:
                 loss.backward()
                 self.optimizer.step()
 
+                if i == 0 and self.plot:
+                    self.plot_results(
+                        drone_images[0].detach(),
+                        sat_images[0].detach(),
+                        heatmap_gt[0].detach(),
+                        outputs[0].detach(),
+                    )
+
                 running_loss += loss.item() * drone_images.size(0)
             total_samples += len(dataloader)
 
@@ -428,8 +436,8 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    # loss_fn = torch.nn.MSELoss(reduction="mean")
-    loss_fn = WeightedMSELoss()
+    loss_fn = torch.nn.MSELoss(reduction="sum")
+    # loss_fn = WeightedMSELoss()
 
     trainer = CrossViewTrainer(
         device,

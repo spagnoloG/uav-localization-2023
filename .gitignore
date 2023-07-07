@@ -5,3 +5,4 @@ drone/
 .venv/
 __pycache__/
 checkpoints/*
+.idea/*
