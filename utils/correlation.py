@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
+from scipy.ndimage import correlate
 
 sat_features = torch.zeros(4, 320, 32, 32)
 drone_features = torch.zeros(4, 320, 16, 16)
@@ -31,14 +32,17 @@ corr_map = match_corr(drone_features, sat_features)
 # Plotting
 fig, axs = plt.subplots(3, 1, figsize=(10, 15))
 
-axs[0].imshow(sat_features[0, 0].detach().numpy(), cmap="gray")
+axs[0].imshow(sat_features[0, 0], cmap="gray")
 axs[0].set_title("Satellite feature (channel 0)")
 
-axs[1].imshow(drone_features[0, 0].detach().numpy(), cmap="gray")
+axs[1].imshow(drone_features[0, 0], cmap="gray")
 axs[1].set_title("Drone feature (channel 0)")
 
-axs[2].imshow(corr_map[0, 0].detach().numpy(), cmap="gray")
+axs[2].imshow(corr_map[0, 0], cmap="gray")
 axs[2].set_title("Correlation map (channel 0)")
 
 plt.tight_layout()
 plt.show()
+print(corr_map.shape)
+# Print the values of channel 0 of the correlation map
+print(corr_map[0, 0])

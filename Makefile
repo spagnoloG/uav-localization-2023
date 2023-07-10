@@ -13,6 +13,9 @@ push-ml-node:
 		--exclude='*' \
 		. ml-node:/home/ml-node/Documents/uav-localization-2023
 
+init_venv:
+	python3 -m venv .venv
+
 install-requirements:
 	pip3 install -r requirements.txt
 

@@ -10,6 +10,41 @@ import torch
 import torch.nn.functional as F
 
 
+class Correlation(nn.Module):
+    def __init__(self):
+        super(Correlation, self).__init__()
+
+    def forward(self, query, search_map):
+        assert query.dim() == search_map.dim() == 4
+
+        # Group convolution as correlation
+        # Pad search map to maintain spatial resolution
+        search_map_padded = F.pad(
+            search_map,
+            (
+                query.shape[3] // 2,
+                query.shape[3] // 2,
+                query.shape[2] // 2,
+                query.shape[2] // 2,
+            ),
+        )
+
+        bs, c, h, w = query.shape
+        _, _, H, W = search_map_padded.shape
+
+        corr_maps = []
+        for map_, q_ in zip(search_map_padded, query):
+            map_ = map_.view(1, c, H, W)
+            q_ = q_.view(1, c, h, w)
+
+            corr_map = F.conv2d(map_, q_, groups=1)
+            corr_maps.append(corr_map)
+
+        corr_maps = torch.cat(corr_maps, dim=0)
+
+        return corr_maps
+
+
 class MatchCorrelation(nn.Module):
     """Matches the two embeddings using the correlation layer."""
 
@@ -46,6 +81,7 @@ class FusionModule(nn.Module):
         super(FusionModule, self).__init__()
         self.upsample_size = upsample_size
         self.match_batchnorm = nn.BatchNorm2d(1)
+        self.correlation = Correlation()
 
         # self.conv1 = nn.Conv2d(
         #    in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
@@ -81,7 +117,7 @@ class FusionModule(nn.Module):
         return match_map
 
     def forward(self, satellite_feature, drone_feature):
-        fusion = self.match_corr(drone_feature, satellite_feature)
+        fusion = self.correlation(drone_feature, satellite_feature)
         # print("match map shape: ", mm.shape)
         # print("sat feature shape: ", satellite_feature.shape)
         # print("drone feature shape", drone_feature.shape)
@@ -197,7 +233,7 @@ class CrossViewLocalizationModel(nn.Module):
         last_sat_feature = feature_pyramid_satellite[-1]
         last_drone_feature = feature_pyramid_UAV[-1]
 
-        fused_map = self.fusion(last_sat_feature, last_drone_feature)
+        fused_map = self.fusion(last_drone_feature, last_sat_feature)
 
         fused_map = fused_map.squeeze(1)  # remove the unnecessary channel dimension
 

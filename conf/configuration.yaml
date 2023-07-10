@@ -1,6 +1,6 @@
 train:
   device: "cuda:0"
-  lr_backbone: 0.0005 # learning rate
+  lr_backbone: 0.0004 # learning rate
   weight_decay: 1.5 # weight decay factor for optimizer
   gamma: 0.2  # factor by which to reduce learning rate
   milestones: [10, 14, 16]  # epoch at which to decay learning rate 
@@ -9,11 +9,11 @@ train:
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
   drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [50] # heatmap kernel sizes
+  heatmap_kernel_sizes: [40] # heatmap kernel sizes
   batch_sizes: [2]
   
     # Dataset parameters
-  train_subset_size: 1000  # size of training subset. Set to null to use full dataset
+  train_subset_size: 200  # size of training subset. Set to null to use full dataset
   val_subset_size: 10  # size of validation subset. Set to null to use full dataset
   
   # Miscellaneous
@@ -47,9 +47,9 @@ drone_dataset:
 val:
   device: "cuda:0"
   checkpoint_hash:  "c" # the hash of the checkpoint
-  checkpoint_epoch: 12
-  val_subset_size: 200  # size of validation subset. Set to null to use full dataset
-  num_workers: 4  # number of worker threads for dataloading
+  checkpoint_epoch: 23 
+  val_subset_size: 400  # size of validation subset. Set to null to use full dataset
+  num_workers: 16  # number of worker threads for dataloading
   shuffle_dataset: true  # shuffle dataset for each epoch
   drone_view_patch_sizes: [256] # drone view patches sizes
   heatmap_kernel_sizes: [30] # heatmap kernel sizes
