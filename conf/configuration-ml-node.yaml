@@ -9,7 +9,7 @@ train:
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
   drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [50] # heatmap kernel sizes
+  heatmap_kernel_sizes: [42] # heatmap kernel sizes
   batch_sizes: [12]
   
   # Dataset parameters
@@ -42,7 +42,7 @@ drone_dataset:
   patch_w: 128 
   patch_h: 128 
   root_dir: "./drone"
-  rotation_deg: 180 # 360 means no rotation, 180 means 2 rotations, etc.
+  rotation_deg: 120 # 360 means no rotation, 180 means 2 rotations, etc.
 
 val:
   device: "cuda:0"

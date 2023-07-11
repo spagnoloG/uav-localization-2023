@@ -21,19 +21,7 @@ class CrossViewTrainer:
 
     def __init__(
         self,
-        device,
         criterion,
-        lr=3e-4,
-        weight_decay=5e-4,
-        batch_sizes=[2],
-        num_workers=4,
-        num_epochs=16,
-        shuffle_dataset=True,
-        checkpoint_hash=None,
-        checkpoint_epoch=None,
-        train_subset_size=None,
-        val_subset_size=None,
-        plot=False,
         config=None,
     ):
         """
@@ -79,19 +67,32 @@ class CrossViewTrainer:
 
         self.prepare_dataloaders(config)
 
-        self.model = torch.nn.DataParallel(
-            CrossViewLocalizationModel(
+        if self.device == "cpu":
+            self.model = CrossViewLocalizationModel(
                 satellite_resolution=(
                     config["sat_dataset"]["patch_w"],
                     config["sat_dataset"]["patch_h"],
-                ),
-            )
-        )
+                )
+            ).to(self.device)
 
-        self.params_to_update_backbone = list(
-            self.model.module.feature_extractor_UAV.parameters()
-        ) + list(self.model.module.feature_extractor_satellite.parameters())
-        self.params_to_update_fusion = list(self.model.module.fusion.parameters())
+            self.params_to_update_backbone = list(
+                self.model.feature_extractor_UAV.parameters()
+            ) + list(self.model.feature_extractor_satellite.parameters())
+            self.params_to_update_fusion = list(self.model.fusion.parameters())
+        else:
+            self.model = torch.nn.DataParallel(  # support for multi-GPU training
+                CrossViewLocalizationModel(
+                    satellite_resolution=(
+                        config["sat_dataset"]["patch_w"],
+                        config["sat_dataset"]["patch_h"],
+                    ),
+                )
+            )
+
+            self.params_to_update_backbone = list(
+                self.model.module.feature_extractor_UAV.parameters()
+            ) + list(self.model.module.feature_extractor_satellite.parameters())
+            self.params_to_update_fusion = list(self.model.module.fusion.parameters())
 
         self.optimizer = AdamW(
             [
@@ -237,7 +238,7 @@ class CrossViewTrainer:
             # Validate every 2 epochs
             if (epoch + 1) % 2 == 0:
                 logger.info("Validating...")
-                self.validate()
+                # self.validate()
 
     def train_epoch(self):
         """
@@ -436,11 +437,10 @@ def main():
     train_config = config["train"]
 
     device = torch.device(train_config["device"])
-    loss_fn = torch.nn.MSELoss(reduction="mean")
-    # loss_fn = WeightedMSELoss()
+    # loss_fn = torch.nn.MSELoss(reduction="mean")
+    loss_fn = WeightedMSELoss()
 
     trainer = CrossViewTrainer(
-        device,
         loss_fn,
         config=config,
     )

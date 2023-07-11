@@ -10,12 +10,102 @@ import torch
 import torch.nn.functional as F
 
 
+class Fusion(nn.Module):
+    def __init__(self, in_channels, out_channels, upsample_size):
+        super(Fusion, self).__init__()
+        self.conv1_UAV = nn.Conv2d(
+            in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
+        )
+        self.conv2_UAV = nn.Conv2d(
+            in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
+        )
+        self.conv3_UAV = nn.Conv2d(
+            in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
+        )
+
+        self.conv1_SAT = nn.Conv2d(
+            in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
+        )
+        self.conv2_SAT = nn.Conv2d(
+            in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
+        )
+        self.conv3_SAT = nn.Conv2d(
+            in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
+        )
+
+        self.corrU1 = Correlation()
+        self.corrU2 = Correlation()
+        self.corrU3 = Correlation()
+
+        self.upsample_size = upsample_size
+        self.fusion_weights = nn.Parameter(torch.ones(3))
+
+    def forward(self, sat_feature_pyramid, UAV_feature_pyramid):
+        s1_drone_feature = UAV_feature_pyramid[0]
+        s2_drone_feature = UAV_feature_pyramid[1]
+        s3_drone_feature = UAV_feature_pyramid[2]
+        s1_sat_feature = sat_feature_pyramid[0]
+        s2_sat_feature = sat_feature_pyramid[1]
+        s3_sat_feature = sat_feature_pyramid[2]
+        U1_drone = self.conv1_UAV(s3_drone_feature)
+        U2_drone = F.interpolate(
+            U1_drone, size=s2_drone_feature.shape[-2:]
+        ) + self.conv2_UAV(s2_drone_feature)
+        U3_drone = F.interpolate(
+            U2_drone, size=s1_drone_feature.shape[-2:]
+        ) + self.conv3_UAV(s1_drone_feature)
+        U1_sat = self.conv1_SAT(s3_sat_feature)
+        U2_sat = F.interpolate(U1_sat, size=s2_sat_feature.shape[-2:]) + self.conv2_SAT(
+            s2_sat_feature
+        )
+        U3_sat = F.interpolate(U2_sat, size=s1_sat_feature.shape[-2:]) + self.conv3_SAT(
+            s1_sat_feature
+        )
+        A1 = self.corrU1(U1_drone, U3_sat)
+        A2 = self.corrU2(U2_drone, U3_sat)
+        A3 = self.corrU3(U3_drone, U3_sat)
+
+        fw = F.softmax(self.fusion_weights, dim=0)
+
+        fused_map = fw[0] * A1 + fw[1] * A2 + fw[2] * A3
+
+        fused_map = F.interpolate(
+            fused_map, size=self.upsample_size, mode="bilinear", align_corners=True
+        )
+
+        return fused_map
+
+
 class Correlation(nn.Module):
+    """Module to compute correlation between a query tensor and a search map tensor."""
+
     def __init__(self):
         super(Correlation, self).__init__()
+        self.batch_norm = nn.BatchNorm2d(1)
 
     def forward(self, query, search_map):
-        assert query.dim() == search_map.dim() == 4
+        """
+        Compute the correlation between a query and a search map.
+
+        Parameters:
+        query: A 4D tensor of shape (batch_size, channels, query_height, query_width).
+        search_map: A 4D tensor of shape (batch_size, channels, search_map_height, search_map_width).
+
+        Returns:
+        corr_maps: A tensor of correlation maps.
+        """
+        # Check if the inputs are 4D tensors.
+        if not (query.dim() == search_map.dim() == 4):
+            raise ValueError("Both query and search_map need to be 4D tensors")
+
+        # Check if search_map has larger or equal spatial dimensions than query.
+        if not (
+            search_map.shape[2] >= query.shape[2]
+            and search_map.shape[3] >= query.shape[3]
+        ):
+            raise ValueError(
+                "Each spatial dimension of search_map must be larger or equal to that of query"
+            )
 
         # Group convolution as correlation
         # Pad search map to maintain spatial resolution
@@ -33,101 +123,16 @@ class Correlation(nn.Module):
         _, _, H, W = search_map_padded.shape
 
         corr_maps = []
-        for map_, q_ in zip(search_map_padded, query):
-            map_ = map_.view(1, c, H, W)
-            q_ = q_.view(1, c, h, w)
-
+        for map_, q_ in zip(search_map_padded.split(1), query.split(1)):
             corr_map = F.conv2d(map_, q_, groups=1)
             corr_maps.append(corr_map)
 
+        # Concatenate the correlation maps along the batch dimension.
         corr_maps = torch.cat(corr_maps, dim=0)
 
+        corr_maps = self.batch_norm(corr_maps)
+
         return corr_maps
-
-
-class MatchCorrelation(nn.Module):
-    """Matches the two embeddings using the correlation layer."""
-
-    def __init__(self):
-        super(MatchCorrelation, self).__init__()
-        self.correlation = F.conv2d
-
-    def forward(self, embed_ref, embed_srch):
-        """
-        Args:
-            embed_ref: (torch.Tensor) The embedding of the reference image. (sat)
-            embed_srch: (torch.Tensor) The embedding of the search image. (drone)
-        Returns:
-            match_map: (torch.Tensor) The correlation map.
-        """
-        match_map = self.correlation(embed_ref, embed_srch)
-
-        return match_map
-
-
-class FusionModule(nn.Module):
-    """
-    Fusion module which applies three convolutional transformations to three drone
-    image inputs and combines them through a weighted sum operation.
-
-    Args:
-        in_channels: (List[int]) The number of input channels for the three conv layers.
-        out_channels: (int) The number of output channels for the three conv layers.
-        upsample_size: (Tuple[int, int]) The size to upsample the fused feature map to.
-
-    """
-
-    def __init__(self, in_channels, out_channels, upsample_size):
-        super(FusionModule, self).__init__()
-        self.upsample_size = upsample_size
-        self.match_batchnorm = nn.BatchNorm2d(1)
-        self.correlation = Correlation()
-
-        # self.conv1 = nn.Conv2d(
-        #    in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
-        # )
-        # self.conv2 = nn.Conv2d(
-        #    in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
-        # )
-        # self.conv3 = nn.Conv2d(
-        #    in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
-        # )
-
-        # Dodaj padding pri conv correlaciji
-        # self.weights = nn.Parameter(torch.ones(3, 1, 1, 1))
-        # self.w_softmax = nn.Softmax(dim=0)
-
-        # self.match_correlation = MatchCorrelation()
-
-    def match_corr(self, drone_feature, satellite_feature):
-        b, c, h, w = satellite_feature.shape
-        # Here the correlation layer is implemented using a trick with the
-        # conv2d function using groups in order to do the correlation with
-        # batch dimension. Basically we concatenate each element of the batch
-        # in the channel dimension for the search image (making it
-        # [1 x (B.C) x H' x W']) and setting the number of groups to the size of
-        # the batch. This grouped convolution/correlation is equivalent to a
-        # correlation between the two images, though it is not obvious.
-        match_map = F.conv2d(
-            satellite_feature.view(1, b * c, h, w), drone_feature, groups=b
-        )
-        # Here we reorder the dimensions to get back the batch dimension.
-        match_map = match_map.permute(1, 0, 2, 3)
-        match_map = self.match_batchnorm(match_map)
-        return match_map
-
-    def forward(self, satellite_feature, drone_feature):
-        fusion = self.correlation(drone_feature, satellite_feature)
-        # print("match map shape: ", mm.shape)
-        # print("sat feature shape: ", satellite_feature.shape)
-        # print("drone feature shape", drone_feature.shape)
-
-        # Up-sample the fusion map to the original size of the satellite image
-        fusion = F.interpolate(
-            fusion, size=self.upsample_size, mode="bilinear", align_corners=False
-        )
-
-        return fusion
 
 
 class SaveLayerFeatures(nn.Module):
@@ -217,9 +222,8 @@ class CrossViewLocalizationModel(nn.Module):
 
         self.feature_extractor_satellite = ModifiedPCPVT(self.backbone_satellite)
 
-        # Weight-Adaptive Multi-Feature fusion module
-        self.fusion = FusionModule(
-            in_channels=[64, 128, 320],
+        self.fusion = Fusion(
+            in_channels=[320, 128, 64],
             out_channels=64,
             upsample_size=self.satellite_resolution,
         )
@@ -230,11 +234,9 @@ class CrossViewLocalizationModel(nn.Module):
 
         feature_pyramid_UAV = self.feature_extractor_UAV(x_UAV)
         feature_pyramid_satellite = self.feature_extractor_satellite(x_satellite)
-        last_sat_feature = feature_pyramid_satellite[-1]
-        last_drone_feature = feature_pyramid_UAV[-1]
 
-        fused_map = self.fusion(last_sat_feature, last_drone_feature)
+        fus = self.fusion(feature_pyramid_satellite, feature_pyramid_UAV)
 
-        fused_map = fused_map.squeeze(1)  # remove the unnecessary channel dimension
+        fused_map = fus.squeeze(1)  # remove the unnecessary channel dimension
 
         return fused_map

@@ -470,6 +470,8 @@ class SatDataset(Dataset):
 
         heatmap[:, :] = gaussian
 
+        heatmap = heatmap * 1e5
+
         return heatmap
 
     def generate_square_heatmap(self, lat, lng, sat_image, x, y, z, square_size=33):
