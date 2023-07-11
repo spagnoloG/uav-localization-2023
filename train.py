@@ -14,6 +14,7 @@ from model import CrossViewLocalizationModel
 import yaml
 import argparse
 from criterion import WeightedMSELoss
+import torchvision.transforms as transforms
 
 
 class CrossViewTrainer:
@@ -43,6 +44,7 @@ class CrossViewTrainer:
         plot: whether to plot the intermediate results of the model
         config: the confguration file
         """
+        self.config = config
         self.device = config["train"]["device"]
         self.criterion = criterion
         self.lr_backbone = config["train"]["lr_backbone"]
@@ -349,15 +351,34 @@ class CrossViewTrainer:
         """
         Plot the outputs of the model and the ground truth.
         """
+
+        inverse_transforms = transforms.Compose(
+            [
+                transforms.Normalize(
+                    mean=[
+                        -m / s
+                        for m, s in zip(
+                            self.config["sat_dataset"]["mean"],
+                            self.config["sat_dataset"]["std"],
+                        )
+                    ],
+                    std=[1 / s for s in self.config["sat_dataset"]["std"]],
+                ),
+                transforms.ToPILImage(),
+            ]
+        )
+
         # Plot them on the same figure
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(1, 4, 1)
-        ax.imshow(drone_image.permute(1, 2, 0).cpu().numpy())
+        img = inverse_transforms(sat_image)
+        ax.imshow(img)
         ax.set_title("Drone Image")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 2)
-        ax.imshow(sat_image.permute(1, 2, 0).cpu().numpy())
+        img = inverse_transforms(drone_image)
+        ax.imshow(img)
         ax.set_title("Satellite Image")
         ax.axis("off")
 

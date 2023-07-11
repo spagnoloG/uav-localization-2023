@@ -12,6 +12,7 @@ from torchviz import make_dot
 from matplotlib import pyplot as plt
 import numpy as np
 from criterion import WeightedMSELoss
+import torchvision.transforms as transforms
 
 
 class CrossViewValidator:
@@ -210,18 +211,32 @@ class CrossViewValidator:
         of epochs.
         """
 
+        inverse_transforms = transforms.Compose(
+            [
+                transforms.Normalize(
+                    mean=[
+                        -m / s
+                        for m, s in zip(
+                            self.config["sat_dataset"]["mean"],
+                            self.config["sat_dataset"]["std"],
+                        )
+                    ],
+                    std=[1 / s for s in self.config["sat_dataset"]["std"]],
+                ),
+                transforms.ToPILImage(),
+            ]
+        )
+
         # Plot them on the same figure
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(1, 4, 1)
-        img = drone_image.permute(1, 2, 0).cpu().numpy()
-        img = np.clip(img, 0, 1)  # Ensure all values are within [0, 1]
+        img = inverse_transforms(drone_image)
         ax.imshow(img)
         ax.set_title("Drone Image")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 2)
-        img = sat_image.permute(1, 2, 0).cpu().numpy()
-        img = np.clip(img, 0, 1)
+        img = inverse_transforms(sat_image)
         ax.imshow(img)
         ax.set_title("Satellite Image")
         ax.axis("off")
