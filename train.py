@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from model import CrossViewLocalizationModel
 import yaml
 import argparse
-from criterion import WeightedMSELoss
 import torchvision.transforms as transforms
+from criterion import JustAnotherWeightedMSELoss
 
 
 class CrossViewTrainer:
@@ -371,13 +371,13 @@ class CrossViewTrainer:
         # Plot them on the same figure
         fig = plt.figure(figsize=(15, 15))
         ax = fig.add_subplot(1, 4, 1)
-        img = inverse_transforms(sat_image)
+        img = inverse_transforms(drone_image)
         ax.imshow(img)
         ax.set_title("Drone Image")
         ax.axis("off")
 
         ax = fig.add_subplot(1, 4, 2)
-        img = inverse_transforms(drone_image)
+        img = inverse_transforms(sat_image)
         ax.imshow(img)
         ax.set_title("Satellite Image")
         ax.axis("off")
@@ -459,7 +459,7 @@ def main():
 
     device = torch.device(train_config["device"])
     # loss_fn = torch.nn.MSELoss(reduction="mean")
-    loss_fn = WeightedMSELoss()
+    loss_fn = JustAnotherWeightedMSELoss()
 
     trainer = CrossViewTrainer(
         loss_fn,

@@ -286,3 +286,71 @@ class WeightedMSELoss(nn.Module):
         mse_loss = F.mse_loss(prediction, ground_truth, reduction="none")
         mse_loss[mask] = mse_loss[mask] / mse_loss.numel()
         return mse_loss.mean()
+
+
+class DynamicWeightedMSELoss(nn.Module):
+    """
+    Dynamic Weighted Mean Squared Error (MSE) loss implementation.
+
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, prediction, ground_truth):
+        """
+        Compute the dynamic weighted MSE loss.
+
+        Args:
+            prediction (torch.Tensor): Predicted tensor.
+            ground_truth (torch.Tensor): Ground truth tensor.
+
+        Returns:
+            torch.Tensor: Computed dynamic weighted MSE loss.
+
+        """
+        # compute class weights dynamically
+        total_samples = ground_truth.numel()
+        negative_samples = (ground_truth == 0).sum()
+        positive_samples = total_samples - negative_samples
+
+        positive_weight = 1 - (positive_samples / total_samples)
+        negative_weight = 1 - (negative_samples / total_samples)
+
+        # compute MSE loss
+        mse_loss = F.mse_loss(prediction, ground_truth, reduction="none")
+
+        # apply weights
+        pos_mask = ground_truth == 1
+        neg_mask = ground_truth == 0
+
+        mse_loss[pos_mask] *= positive_weight
+        mse_loss[neg_mask] *= negative_weight
+
+        return mse_loss.mean()
+
+
+class JustAnotherWeightedMSELoss(nn.Module):
+    def __init__(self, true_weight=1, false_weight=0.5):
+        super(JustAnotherWeightedMSELoss, self).__init__()
+        self.mse_loss = nn.MSELoss(reduction="sum")
+        self.true_weight = true_weight
+        self.false_weight = false_weight
+
+    def forward(self, input, target):
+        N_all = target.numel()
+        N_true = torch.sum(target > 0.0)
+        N_false = N_all - N_true
+
+        true_mask = target > 0.0
+        false_mask = torch.logical_not(true_mask)
+
+        MSE_true = self.mse_loss(input[true_mask], target[true_mask])
+        MSE_false = self.mse_loss(input[false_mask], target[false_mask])
+
+        loss = (
+            self.true_weight * N_true * MSE_false
+            + self.false_weight * N_false * MSE_true
+        ) / N_all
+
+        return loss

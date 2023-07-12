@@ -9,11 +9,11 @@ train:
   shuffle_dataset: true  # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
   drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [40] # heatmap kernel sizes
+  heatmap_kernel_sizes: [50] # heatmap kernel sizes
   batch_sizes: [4]
   
     # Dataset parameters
-  train_subset_size: 100  # size of training subset. Set to null to use full dataset
+  train_subset_size: 1000  # size of training subset. Set to null to use full dataset
   val_subset_size: 10  # size of validation subset. Set to null to use full dataset
   
   # Miscellaneous
@@ -46,8 +46,8 @@ drone_dataset:
 
 val:
   device: "cuda:0"
-  checkpoint_hash:  "95cf77d08ccd91ad1e0c07bf6eb05a2262e43a37" # the hash of the checkpoint
-  checkpoint_epoch: 23
+  checkpoint_hash: "c" # the hash of the checkpoint
+  checkpoint_epoch: 10
   val_subset_size: 400  # size of validation subset. Set to null to use full dataset
   num_workers: 16  # number of worker threads for dataloading
   shuffle_dataset: true  # shuffle dataset for each epoch

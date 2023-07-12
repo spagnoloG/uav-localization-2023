@@ -63,7 +63,7 @@ class SatDataset(Dataset):
             self.download_maps()
 
         self.fill_metadata_dict()
-        self.prepare_hanning_window()
+        self.prepare_kernels()
 
         self.transforms = transforms.Compose(
             [
@@ -80,13 +80,17 @@ class SatDataset(Dataset):
         else:
             self.downsample_images = False
 
-    def prepare_hanning_window(self):
+    def prepare_kernels(self):
         """
         Prepares the Hanning window for generating Hanning window-based heatmaps.
 
         """
         hann1d = torch.hann_window(self.heatmap_kernel_size, periodic=False)
-        self.hanning_window = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
+        self.hanning_kernel = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
+
+        gauss1d = torch.linspace(-1, 1, self.heatmap_kernel_size)
+        gauss1d = torch.exp(-gauss1d.pow(2))
+        self.gaussian_kernel = gauss1d.unsqueeze(1) * gauss1d.unsqueeze(0)
 
     def fill_metadata_dict(self):
         """
@@ -398,27 +402,25 @@ class SatDataset(Dataset):
         heatmap = torch.zeros((height, width))
 
         # Compute half size of the hanning window
-        half_size = self.hanning_window.shape[0] // 2
+        half_size = self.hanning_kernel.shape[0] // 2
 
         # Calculate the valid range for the hanning window
         start_x = max(0, x_map - half_size)
-        end_x = min(width, start_x + self.hanning_window.shape[1])
+        end_x = min(width, start_x + self.hanning_kernel.shape[1])
         start_y = max(0, y_map - half_size)
-        end_y = min(height, start_y + self.hanning_window.shape[0])
+        end_y = min(height, start_y + self.hanning_kernel.shape[0])
 
         # If the hanning window doesn't fit at the current position, move its start position
-        if end_x - start_x < self.hanning_window.shape[1]:
-            start_x = end_x - self.hanning_window.shape[1]
+        if end_x - start_x < self.hanning_kernel.shape[1]:
+            start_x = end_x - self.hanning_kernel.shape[1]
 
-        if end_y - start_y < self.hanning_window.shape[0]:
-            start_y = end_y - self.hanning_window.shape[0]
+        if end_y - start_y < self.hanning_kernel.shape[0]:
+            start_y = end_y - self.hanning_kernel.shape[0]
 
         # Assign the hanning window to the valid region within the heatmap tensor
-        heatmap[start_y:end_y, start_x:end_x] = self.hanning_window[
+        heatmap[start_y:end_y, start_x:end_x] = self.hanning_kernel[
             : end_y - start_y, : end_x - start_x
         ]
-
-        heatmap = heatmap * 20
 
         return heatmap
 
@@ -446,31 +448,28 @@ class SatDataset(Dataset):
 
         x_map, y_map = int(x_map), int(y_map)
 
-        height, width = sat_image.shape[1], sat_image.shape[2]
+        heatmap = torch.zeros((sat_image.shape[1], sat_image.shape[2]))
 
-        heatmap = torch.zeros((height, width))
+        # Compute half size of the Gaussian window
+        half_size = self.gaussian_kernel.shape[0] // 2
 
-        # Define standard deviation and mean for Gaussian
-        sigma = square_size / 2  # it roughly covers 99% of the distribution
-        mean = torch.tensor([x_map, y_map])
+        # Calculate the valid range for the Gaussian window
+        start_x = max(0, x_map - half_size)
+        end_x = min(sat_image.shape[2], start_x + self.gaussian_kernel.shape[1])
+        start_y = max(0, y_map - half_size)
+        end_y = min(sat_image.shape[1], start_y + self.gaussian_kernel.shape[0])
 
-        # Create coordinates grid
-        x_cord = torch.arange(width)
-        y_cord = torch.arange(height)
-        xx, yy = torch.meshgrid(x_cord, y_cord, indexing="xy")
-        coords = torch.stack((xx, yy), dim=-1)
+        # If the Gaussian window doesn't fit at the current position, move its start position
+        if end_x - start_x < self.gaussian_kernel.shape[1]:
+            start_x = end_x - self.gaussian_kernel.shape[1]
 
-        # Calculate the 2D Gaussian
-        gaussian = torch.exp(
-            -torch.sum((coords - mean) ** 2, dim=-1) / (2 * sigma**2)
-        )
+        if end_y - start_y < self.gaussian_kernel.shape[0]:
+            start_y = end_y - self.gaussian_kernel.shape[0]
 
-        # Normalize
-        gaussian /= torch.sum(gaussian)
-
-        heatmap[:, :] = gaussian
-
-        heatmap = heatmap * 1e5
+        # Assign the Gaussian window to the valid region within the heatmap tensor
+        heatmap[start_y:end_y, start_x:end_x] = self.gaussian_kernel[
+            : end_y - start_y, : end_x - start_x
+        ]
 
         return heatmap
 
