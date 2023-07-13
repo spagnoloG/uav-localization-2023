@@ -26,16 +26,16 @@ class ConvergenceEarlyStopping:
     for a specified number of consecutive epochs.
     """
 
-    def __init__(self, scheduler, patience_early_stopping=3):
+    def __init__(self, scheduler, patience=3):
         """
         :param scheduler: the scheduler
-        :param patience_early_stopping: how many epochs to wait before stopping the training when loss is not improving
-        :param factor: factor by which the learning rate will be reduced
+        :param patience: how many epochs to wait before stopping the training when loss is not improving
         """
         self.scheduler = scheduler
         self.best_loss = None
         self.stale_epochs = 0
         self.stale_epochs_reseted = False
+        self.patience = patience
 
     def step(self, val_loss):
         """
@@ -44,12 +44,13 @@ class ConvergenceEarlyStopping:
         if self.best_loss is None:
             self.best_loss = val_loss
         elif self.best_loss <= val_loss:
-            if self.stale_epochs_reseted:
-                logger.warning("Loss has not improved after reducing learning rate")
-                return True
             self.stale_epochs += 1
             logger.warning(f"Loss has not improved for {self.stale_epochs} epochs")
-            if self.stale_epochs == 2:
+            if self.stale_epochs == self.patience:
+                if self.stale_epochs_reseted:
+                    logger.warning("Loss has not improved after reducing learning rate")
+                    return True
+
                 logger.warning(
                     f"Loss has not improved for {self.stale_epochs} epochs, reducing learning rate"
                 )
@@ -422,7 +423,7 @@ class CrossViewTrainer:
                     # Accumulate the loss
                     running_loss += loss.item() * drone_images.size(0)
 
-                    if self.plot:
+                    if i == 0 and self.plot:
                         self.plot_results(
                             drone_images[0], sat_images[0], heatmap_gt[0], outputs[0]
                         )
