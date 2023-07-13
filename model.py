@@ -12,6 +12,24 @@ import torch.nn.functional as F
 
 class Fusion(nn.Module):
     def __init__(self, in_channels, out_channels, upsample_size):
+        """
+        Fusion module which is a type of convolutional neural network.
+
+        The Fusion class is designed to merge information from two separate
+        input streams. In the case of a UAV (unmanned aerial vehicle) and
+        SAT (satellite), the module uses a pyramid of features from both, and
+        computes correlations between them to fuse them into a single output.
+        This module utilizes several 1x1 convolutions and correlation layers
+        for the fusion process. The fusion is controlled by learnable weights
+        for each level of the pyramid.
+
+        Args:
+            in_channels (tuple): Tuple of 3 elements specifying the number of
+            input channels for the 3 layers of the pyramid.
+            out_channels (int): The number of output channels for the convolution operations.
+            upsample_size (tuple): Tuple specifying the height and width for the output of the module.
+        """
+
         super(Fusion, self).__init__()
         self.conv1_UAV = nn.Conv2d(
             in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
@@ -41,6 +59,19 @@ class Fusion(nn.Module):
         self.fusion_weights = nn.Parameter(torch.ones(3))
 
     def forward(self, sat_feature_pyramid, UAV_feature_pyramid):
+        """
+        Perform the forward pass of the Fusion module.
+
+        Args:
+            sat_feature_pyramid (list of torch.Tensor): List of 3 tensors representing the satellite feature pyramid.
+            Each tensor is of shape (batch_size, channels, height, width).
+            UAV_feature_pyramid (list of torch.Tensor): List of 3 tensors representing the UAV feature pyramid.
+            Each tensor is of shape (batch_size, channels, height, width).
+
+        Returns:
+            fused_map (torch.Tensor): The fused feature map resulting from the fusion of the input feature pyramids.
+            The shape is (batch_size, channels, upsample_size[0], upsample_size[1]).
+        """
         s1_drone_feature = UAV_feature_pyramid[0]
         s2_drone_feature = UAV_feature_pyramid[1]
         s3_drone_feature = UAV_feature_pyramid[2]

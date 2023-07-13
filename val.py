@@ -10,8 +10,6 @@ import yaml
 import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
-import numpy as np
-from criterion import WeightedMSELoss
 import torchvision.transforms as transforms
 from criterion import JustAnotherWeightedMSELoss
 
@@ -304,7 +302,6 @@ def main():
     validator = CrossViewValidator(config=config)
 
     validator.run_validation()
-    # validator.visualize_model()
 
 
 if __name__ == "__main__":

@@ -24,11 +24,11 @@ Follow these steps to set up the environment and start training the model.
     ```bash
     mv ./conf/configuration.yaml.template ./conf/configuration.yaml
     ```
-4. Train the model.
+5. Train the model.
     ```bash
     make train
     ```
-5. Validate the model.
+6. Validate the model.
     ```bash
     make val
     ```
@@ -320,10 +320,4 @@ Twins(
   (head_drop): Identity()
   (head): Identity()
 )
-```
-
-```bash
-  File "/timm/models/twins.py", line 407, in forward_features
-    zip(self.patch_embeds, self.pos_drops, self.blocks, self.pos_block)):
-TypeError: 'Identity' object is not iterable
 ```

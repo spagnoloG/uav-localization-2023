@@ -22,7 +22,6 @@ class CrossViewTrainer:
 
     def __init__(
         self,
-        criterion,
         config=None,
     ):
         """
@@ -46,7 +45,6 @@ class CrossViewTrainer:
         """
         self.config = config
         self.device = config["train"]["device"]
-        self.criterion = criterion
         self.lr_backbone = config["train"]["lr_backbone"]
         self.lr_fusion = self.lr_backbone * 1.5
         self.weight_decay = config["train"]["weight_decay"]
@@ -68,6 +66,8 @@ class CrossViewTrainer:
         self.val_dataloaders = []
 
         self.prepare_dataloaders(config)
+
+        self.criterion = JustAnotherWeightedMSELoss()
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
@@ -455,14 +455,7 @@ def main():
 
     config = load_config(f"./conf/{args.config}.yaml")
 
-    train_config = config["train"]
-
-    device = torch.device(train_config["device"])
-    # loss_fn = torch.nn.MSELoss(reduction="mean")
-    loss_fn = JustAnotherWeightedMSELoss()
-
     trainer = CrossViewTrainer(
-        loss_fn,
         config=config,
     )
 
