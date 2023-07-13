@@ -13,6 +13,16 @@ push-ml-node:
 		--exclude='*' \
 		. ml-node:/home/ml-node/Documents/uav-localization-2023
 
+push-vicos:
+	find . \
+    -path './.venv' -prune -o \
+    -path './.git' -prune -o \
+    -path './checkpoints' -prune -o \
+    -path './__pycache__' -prune -o \
+    -type f \( -name '*.py' -o -name '*.csv' -o -name '*.txt' -o -name '*.yaml' \) -print0 | \
+    tar cf - --null -T - | \
+    ssh vicos 'dir="/home/gasper/uav-localization-2023_`date +%Y%m%d_%H%M%S`"; mkdir -p "$$dir" && cd "$$dir" && tar xf -'
+
 init_venv:
 	python3 -m venv .venv
 

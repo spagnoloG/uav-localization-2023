@@ -15,6 +15,9 @@ import yaml
 import argparse
 import torchvision.transforms as transforms
 from criterion import JustAnotherWeightedMSELoss
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 
 class CrossViewTrainer:
@@ -64,6 +67,9 @@ class CrossViewTrainer:
         self.drone_view_patch_sizes = config["train"]["drone_view_patch_sizes"]
         self.train_dataloaders = []
         self.val_dataloaders = []
+
+        if "cuda" in self.device:
+            torch.backends.cudnn.benchmark = True
 
         self.prepare_dataloaders(config)
 
@@ -158,6 +164,7 @@ class CrossViewTrainer:
                     )
                 )
             else:
+                logger.info("Using full train dataset")
                 subset_dataset = JoinedDataset(
                     dataset="train",
                     config=config,
@@ -204,6 +211,7 @@ class CrossViewTrainer:
                     )
                 )
             else:
+                logger.info("Using full val dataset")
                 subset_dataset = JoinedDataset(
                     dataset="test",
                     config=config,
@@ -240,7 +248,7 @@ class CrossViewTrainer:
             # Validate every 2 epochs
             if (epoch + 1) % 2 == 0:
                 logger.info("Validating...")
-                # self.validate()
+                self.validate()
 
     def train_epoch(self):
         """

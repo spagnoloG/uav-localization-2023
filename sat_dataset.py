@@ -535,6 +535,39 @@ class MapUtils:
             "darkred",
         ]
 
+    def distance_between_points(self, lat1, lon1, lat2, lon2):
+        """
+        Calculates the distance between two points on the map.
+
+        Args:
+            lat1 (float): Latitude of the first point.
+            lon1 (float): Longitude of the first point.
+            lat2 (float): Latitude of the second point.
+            lon2 (float): Longitude of the second point.
+
+        Returns:
+            float: Distance between the two points.
+
+        """
+        # Convert coordinates from degrees to radians
+        lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+
+        # Earth radius in meters
+        R = 6371000
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        # Haversine formula
+        a = (
+            np.sin(dlat / 2.0) ** 2
+            + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
+        )
+        c = 2 * np.arcsin(np.sqrt(a))
+        distance = R * c
+
+        return distance
+
     def pixel_to_coord(self, x, y, tile, image_width, image_height):
         """
         Converts pixel coordinates to latitude and longitude coordinates.
