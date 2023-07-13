@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from criterion import WeightedMSELoss
 import torchvision.transforms as transforms
+from criterion import JustAnotherWeightedMSELoss
 
 
 class CrossViewValidator:
@@ -41,7 +42,7 @@ class CrossViewValidator:
         self.shuffle_dataset = self.config["val"]["shuffle_dataset"]
         self.val_dataloaders = []
 
-        self.criterion = WeightedMSELoss()
+        self.criterion = JustAnotherWeightedMSELoss()
 
         self.prepare_dataloaders(config)
 
@@ -228,29 +229,46 @@ class CrossViewValidator:
         )
 
         # Plot them on the same figure
-        fig = plt.figure(figsize=(15, 15))
-        ax = fig.add_subplot(1, 4, 1)
+        fig = plt.figure(figsize=(20, 20))
+
+        ax = fig.add_subplot(2, 3, 1)
         img = inverse_transforms(drone_image)
         ax.imshow(img)
         ax.set_title("Drone Image")
         ax.axis("off")
 
-        ax = fig.add_subplot(1, 4, 2)
+        ax = fig.add_subplot(2, 3, 2)
         img = inverse_transforms(sat_image)
         ax.imshow(img)
         ax.set_title("Satellite Image")
         ax.axis("off")
 
-        ax = fig.add_subplot(1, 4, 3)
+        ax = fig.add_subplot(2, 3, 3)
         heatmap = heatmap_gt.squeeze(0).cpu().numpy()
         ax.imshow(heatmap, cmap="viridis")
         ax.set_title("Ground Truth Heatmap")
         ax.axis("off")
 
-        ax = fig.add_subplot(1, 4, 4)
+        ax = fig.add_subplot(2, 3, 4)
         heatmap = heatmap_pred.squeeze(0).cpu().numpy()
         ax.imshow(heatmap, cmap="viridis")
         ax.set_title("Predicted Heatmap")
+        ax.axis("off")
+
+        ax = fig.add_subplot(2, 3, 5)
+        img = inverse_transforms(sat_image)
+        heatmap = heatmap_pred.squeeze(0).cpu().numpy()
+        ax.imshow(img)
+        ax.imshow(heatmap, cmap="jet", alpha=0.6)
+        ax.set_title("Satellite Image with Predicted Heatmap Overlay")
+        ax.axis("off")
+
+        ax = fig.add_subplot(2, 3, 6)
+        img = inverse_transforms(sat_image)
+        heatmap = heatmap_gt.squeeze(0).cpu().numpy()
+        ax.imshow(img)
+        ax.imshow(heatmap, cmap="jet", alpha=0.6)
+        ax.set_title("Satellite Image with Ground Truth Heatmap Overlay")
         ax.axis("off")
 
         os.makedirs(f"./vis/{self.val_hash}", exist_ok=True)
