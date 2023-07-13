@@ -70,8 +70,7 @@ class CrossViewTrainer:
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
-
-        self.prepare_dataloaders(config)
+            torch.backends.cudnn.deterministic = True
 
         self.criterion = JustAnotherWeightedMSELoss()
 
@@ -117,20 +116,25 @@ class CrossViewTrainer:
         self.model.to(self.device)
 
         if self.checkpoint_hash is not None and self.checkpoint_epoch is not None:
+            print("Loading checkpoint...")
             try:
-                self.current_epoch = self.load_checkpoint(
-                    self.checkpoint_hash, self.checkpoint_epoch
-                )
+                self.current_epoch = self.load_checkpoint()
+                self.current_epoch += 1  # Train from next epoch
             except FileNotFoundError:
                 logger.error(
                     f"Checkpoint with hash {self.checkpoint_hash} not found. Starting from scratch."
                 )
 
         else:
+            print("Starting from scratch...")
             now = datetime.datetime.now()
             now_str = now.strftime("%Y-%m-%d-%H-%M-%S")
             now_hash = hashlib.sha1(now_str.encode()).hexdigest()
             self.checkpoint_hash = now_hash
+
+        logger.info("Preparing dataloaders...")
+        self.prepare_dataloaders(config)
+        logger.info("Dataloaders ready.")
 
         logger.info(
             f"Using chekpoint hash {self.checkpoint_hash}, starting from epoch {self.current_epoch}"
@@ -237,7 +241,7 @@ class CrossViewTrainer:
         """
         logger.info("Starting training...")
         for epoch in range(self.current_epoch, self.num_epochs):
-            logger.info(f"Epoch {epoch + 1}")
+            logger.info(f"Epoch {epoch}")
             self.train_epoch()
             self.save_checkpoint(epoch=epoch)
 
@@ -431,7 +435,9 @@ class CrossViewTrainer:
         dir_path: the directory to load the checkpoint from
         epoch: the epoch to load the checkpoint from
         """
-        checkpoint_path = f"{dir_path}/{self.checkpoint_hash}/checkpoint-{epoch}.pt"
+        checkpoint_path = (
+            f"{dir_path}/{self.checkpoint_hash}/checkpoint-{self.checkpoint_epoch}.pt"
+        )
         checkpoint = torch.load(checkpoint_path)
 
         self.model.load_state_dict(checkpoint["model_state_dict"])
