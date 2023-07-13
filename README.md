@@ -20,6 +20,10 @@ Follow these steps to set up the environment and start training the model.
     ```bash
     make install-requirements
     ```
+4. Modify the `./conf/configuration.yaml.template` to adjust parameters for training. 
+    ```bash
+    mv ./conf/configuration.yaml.template ./conf/configuration.yaml
+    ```
 4. Train the model.
     ```bash
     make train
