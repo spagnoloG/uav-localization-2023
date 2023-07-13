@@ -20,6 +20,52 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 
+class ConvergenceEarlyStopping:
+    """Early stopping to stop the training when the loss does not improve after
+    certain epochs, and reduce the learning rate when the loss does not improve
+    for a specified number of consecutive epochs.
+    """
+
+    def __init__(self, scheduler, patience_early_stopping=3):
+        """
+        :param scheduler: the scheduler
+        :param patience_early_stopping: how many epochs to wait before stopping the training when loss is not improving
+        :param factor: factor by which the learning rate will be reduced
+        """
+        self.scheduler = scheduler
+        self.best_loss = None
+        self.stale_epochs = 0
+        self.stale_epochs_reseted = False
+
+    def step(self, val_loss):
+        """
+        Update the learning rate and check if we need to early stop the training.
+        """
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif self.best_loss <= val_loss:
+            if self.stale_epochs_reseted:
+                logger.warning("Loss has not improved after reducing learning rate")
+                return True
+            self.stale_epochs += 1
+            logger.warning(f"Loss has not improved for {self.stale_epochs} epochs")
+            if self.stale_epochs == 2:
+                logger.warning(
+                    f"Loss has not improved for {self.stale_epochs} epochs, reducing learning rate"
+                )
+                self.scheduler.step()
+                self.stale_epochs = 0
+                self.stale_epochs_reseted = True
+        else:
+            self.stale_epochs = 0
+            prev_best_loss = self.best_loss
+            self.best_loss = val_loss
+            self.stale_epochs_reseted = False
+            logger.info(f"Loss has improved from {prev_best_loss} to {val_loss}")
+
+        return False
+
+
 class CrossViewTrainer:
     """Trainer class for cross-view (UAV and satellite) image learning"""
 
@@ -67,6 +113,10 @@ class CrossViewTrainer:
         self.drone_view_patch_sizes = config["train"]["drone_view_patch_sizes"]
         self.train_dataloaders = []
         self.val_dataloaders = []
+        self.train_until_convergence = config["train"]["train_until_convergence"]
+        self.gamma = config["train"]["gamma"]
+        self.val_loss = 0
+        self.stop_training = False
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
@@ -110,13 +160,13 @@ class CrossViewTrainer:
         )
 
         self.scheduler = MultiStepLR(
-            self.optimizer, milestones=self.milestones, gamma=0.1
+            self.optimizer, milestones=self.milestones, gamma=self.gamma
         )
 
         self.model.to(self.device)
 
         if self.checkpoint_hash is not None and self.checkpoint_epoch is not None:
-            print("Loading checkpoint...")
+            logger.info("Loading checkpoint...")
             try:
                 self.current_epoch = self.load_checkpoint()
                 self.current_epoch += 1  # Train from next epoch
@@ -126,11 +176,16 @@ class CrossViewTrainer:
                 )
 
         else:
-            print("Starting from scratch...")
+            logger.info("No checkpoint specified. Starting from scratch.")
             now = datetime.datetime.now()
             now_str = now.strftime("%Y-%m-%d-%H-%M-%S")
             now_hash = hashlib.sha1(now_str.encode()).hexdigest()
             self.checkpoint_hash = now_hash
+
+        if self.train_until_convergence:
+            self.convergence_early_stopping = ConvergenceEarlyStopping(
+                scheduler=self.scheduler
+            )
 
         logger.info("Preparing dataloaders...")
         self.prepare_dataloaders(config)
@@ -243,16 +298,39 @@ class CrossViewTrainer:
         for epoch in range(self.current_epoch, self.num_epochs):
             logger.info(f"Epoch {epoch}")
             self.train_epoch()
-            self.save_checkpoint(epoch=epoch)
+            self.validate(epoch)
 
-            # reduce learning rate for the 10th and 14th epochs
-            if epoch in [9, 13]:
+            if (epoch + 1) % 2 == 0:
+                logger.info("Saving checkpoint...")
+                self.save_checkpoint(epoch)
+
+            if not self.train_until_convergence and self.epoch in self.milestones:
                 self.scheduler.step()
 
-            # Validate every 2 epochs
-            if (epoch + 1) % 2 == 0:
-                logger.info("Validating...")
-                self.validate()
+            if self.train_until_convergence:
+                stop_training = self.convergence_early_stopping.step(self.val_loss)
+                self.stop_training = stop_training
+                if stop_training:
+                    break
+
+        if not self.stop_training and self.train_until_convergence:
+            while True:
+                logger.info(f"Epoch {epoch}")
+                self.train_epoch()
+                self.validate(epoch)
+
+                if (epoch + 1) % 2 == 0:
+                    logger.info("Saving checkpoint...")
+                    self.save_checkpoint(epoch)
+
+                if not self.train_until_convergence and self.epoch in self.milestones:
+                    self.scheduler.step()
+
+                if self.train_until_convergence and epoch > 4:
+                    stop_training = self.convergence_early_stopping.step(self.val_loss)
+
+                if stop_training:
+                    break
 
     def train_epoch(self):
         """
@@ -308,7 +386,7 @@ class CrossViewTrainer:
         epoch_loss = running_loss / total_samples
         logger.info(f"Training loss: {epoch_loss}")
 
-    def validate(self):
+    def validate(self, epoch):
         """
         Perform one epoch of validation.
         """
@@ -351,6 +429,9 @@ class CrossViewTrainer:
                 total_samples += len(dataloader)
 
         epoch_loss = running_loss / total_samples
+
+        self.val_loss = epoch_loss
+
         logger.info(f"Validation loss: {epoch_loss}")
 
     def plot_results(
