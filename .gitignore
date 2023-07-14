@@ -6,3 +6,4 @@ drone/
 __pycache__/
 checkpoints/*
 .idea/*
+dld/*

@@ -123,7 +123,7 @@ class CrossViewTrainer:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = True
 
-        self.criterion = JustAnotherWeightedMSELoss()
+        self.criterion = torch.nn.MSELoss()
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
@@ -308,7 +308,7 @@ class CrossViewTrainer:
             if not self.train_until_convergence and self.epoch in self.milestones:
                 self.scheduler.step()
 
-            if self.train_until_convergence:
+            if self.train_until_convergence and epoch > 10:
                 stop_training = self.convergence_early_stopping.step(self.val_loss)
                 self.stop_training = stop_training
                 if stop_training:

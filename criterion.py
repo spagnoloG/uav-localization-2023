@@ -330,7 +330,7 @@ class DynamicWeightedMSELoss(nn.Module):
 
 
 class JustAnotherWeightedMSELoss(nn.Module):
-    def __init__(self, true_weight=1, false_weight=0.5):
+    def __init__(self, true_weight=1, false_weight=1):
         super(JustAnotherWeightedMSELoss, self).__init__()
         self.mse_loss = nn.MSELoss(reduction="sum")
         self.true_weight = true_weight

@@ -31,29 +31,66 @@ class Fusion(nn.Module):
         """
 
         super(Fusion, self).__init__()
-        self.conv1_UAV = nn.Conv2d(
-            in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
+        # UAV convolutions
+        self.conv1_UAV = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
+            ),
+            nn.BatchNorm2d(out_channels),
         )
-        self.conv2_UAV = nn.Conv2d(
-            in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
+        self.conv2_UAV = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
+            ),
+            nn.BatchNorm2d(out_channels),
         )
-        self.conv3_UAV = nn.Conv2d(
-            in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
+        self.conv3_UAV = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
+            ),
+            nn.BatchNorm2d(out_channels),
         )
 
-        self.conv1_SAT = nn.Conv2d(
-            in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
+        # SAT convolutions
+        self.conv1_SAT = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
+            ),
+            nn.BatchNorm2d(out_channels),
         )
-        self.conv2_SAT = nn.Conv2d(
-            in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
+        self.conv2_SAT = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
+            ),
+            nn.BatchNorm2d(out_channels),
         )
-        self.conv3_SAT = nn.Conv2d(
-            in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
+        self.conv3_SAT = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
+            ),
+            nn.BatchNorm2d(out_channels),
         )
 
         self.corrU1 = Correlation()
         self.corrU2 = Correlation()
         self.corrU3 = Correlation()
+
+        self.convU1_UAV = nn.Sequential(
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+        )
+        self.convU2_UAV = nn.Sequential(
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+        )
+        self.convU3_UAV = nn.Sequential(
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+        )
+        self.convU3_SAT = nn.Sequential(
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+        )
 
         self.upsample_size = upsample_size
         self.fusion_weights = nn.Parameter(torch.ones(3))
@@ -78,20 +115,28 @@ class Fusion(nn.Module):
         s1_sat_feature = sat_feature_pyramid[0]
         s2_sat_feature = sat_feature_pyramid[1]
         s3_sat_feature = sat_feature_pyramid[2]
+
         U1_drone = self.conv1_UAV(s3_drone_feature)
         U2_drone = F.interpolate(
-            U1_drone, size=s2_drone_feature.shape[-2:]
+            U1_drone, size=s2_drone_feature.shape[-2:], mode="bilinear"
         ) + self.conv2_UAV(s2_drone_feature)
         U3_drone = F.interpolate(
-            U2_drone, size=s1_drone_feature.shape[-2:]
+            U2_drone, size=s1_drone_feature.shape[-2:], mode="bilinear"
         ) + self.conv3_UAV(s1_drone_feature)
+
         U1_sat = self.conv1_SAT(s3_sat_feature)
-        U2_sat = F.interpolate(U1_sat, size=s2_sat_feature.shape[-2:]) + self.conv2_SAT(
-            s2_sat_feature
-        )
-        U3_sat = F.interpolate(U2_sat, size=s1_sat_feature.shape[-2:]) + self.conv3_SAT(
-            s1_sat_feature
-        )
+        U2_sat = F.interpolate(
+            U1_sat, size=s2_sat_feature.shape[-2:], mode="bilinear"
+        ) + self.conv2_SAT(s2_sat_feature)
+        U3_sat = F.interpolate(
+            U2_sat, size=s1_sat_feature.shape[-2:], mode="bilinear"
+        ) + self.conv3_SAT(s1_sat_feature)
+
+        U1_drone = self.convU1_UAV(U1_drone)
+        U2_drone = self.convU2_UAV(U2_drone)
+        U3_drone = self.convU3_UAV(U3_drone)
+        U3_sat = self.convU3_SAT(U3_sat)
+
         A1 = self.corrU1(U1_drone, U3_sat)
         A2 = self.corrU2(U2_drone, U3_sat)
         A3 = self.corrU3(U3_drone, U3_sat)
