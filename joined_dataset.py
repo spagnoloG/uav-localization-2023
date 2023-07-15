@@ -94,32 +94,38 @@ class JoinedDataset(Dataset):
 
 
 def test():
+    import yaml
+    from matplotlib import pyplot as plt
+
+    with open("./conf/configuration.yaml", "r") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
     dataloader = DataLoader(
-        JoinedDataset(drone_dir="./drone/", sat_dir="./sat/"),
+        JoinedDataset(config=config),
         batch_size=10,
         shuffle=True,
     )
 
     # Fetch one batch of data
-    drone_images, drone_infos, sat_images, sat_infos = next(iter(dataloader))
+    drone_images, drone_infos, sat_images, sat_infos, heatmap = next(iter(dataloader))
 
     ## Plot first 5 pairs of images
-    # for i in range(5):
-    # fig, (ax1, ax2) = plt.subplots(1, 3, figsize=(10, 5))
+    for i in range(5):
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
 
-    # Plot drone image
-    # drone_image = drone_images[i].numpy()
-    # ax1.imshow(drone_image)
-    # ax1.set_title(f"Drone Image {i+1}")
-    # ax1.axis("off")
+        # Plot drone image
+        drone_image = drone_images[i].permute(1, 2, 0).numpy()
+        ax1.imshow(drone_image)
+        ax1.set_title(f"Drone Image {i+1}")
+        ax1.axis("off")
 
-    # Plot satellite image
-    # sat_image = sat_images[i].numpy()
-    # ax2.imshow(sat_image)
-    # ax2.set_title(f"Satellite Image {i+1}")
-    # ax2.axis("off")
+        # Plot satellite image
+        sat_image = sat_images[i].permute(1, 2, 0).numpy()
+        ax2.imshow(sat_image)
+        ax2.set_title(f"Satellite Image {i+1}")
+        ax2.axis("off")
 
-    # plt.show()
+        plt.show()
 
 
 if __name__ == "__main__":

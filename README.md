@@ -321,11 +321,3 @@ Twins(
   (head): Identity()
 )
 ```
-
-// visina 150m in fov -> vemo za en pixel kaksna je razdalja
-
-// dodaj 3x3 konvolucijo pred korelacijo done
-
-// adjacent point interpolation done
-
-// delis s negative mse s stevilo negativnih pikslov

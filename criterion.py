@@ -63,65 +63,6 @@ class BalanceLoss(nn.Module):
         return loss
 
 
-class HanningLoss(nn.Module):
-    """
-    Hanning loss implementation.
-
-    Args:
-        center_r (int): Center radius.
-        negative_weight (int): Weight for negative samples.
-        device (str): Device to use for computation.
-
-    """
-
-    def __init__(self, center_r=33, negative_weight=1, device="cuda"):
-        super(HanningLoss, self).__init__()
-        self.Center_R = center_r
-        self.NG = negative_weight
-        self.device = device
-
-    def forward(self, preds, target):
-        """
-        Compute the Hanning loss.
-
-        Args:
-            preds (torch.Tensor): Predicted tensor.
-            target (torch.Tensor): Ground truth tensor.
-
-        Returns:
-            torch.Tensor: Computed Hanning loss.
-
-        """
-        positive_samples = target > 0
-        negative_samples = target == 0
-
-        num_negative_samples = negative_samples.sum()
-        num_positive_samples = positive_samples.sum()
-
-        i_negative_weight = num_negative_samples / (
-            num_positive_samples + num_negative_samples
-        )
-
-        negative_weights = self.NG / (i_negative_weight + 1)
-        positive_weights = 1 / num_positive_samples
-
-        preds = preds.squeeze(1)
-
-        loss = (
-            negative_weights
-            * (preds[negative_samples] - target[negative_samples]).pow(2).sum()
-        )
-
-        loss2 = (
-            positive_weights
-            * (preds[positive_samples] - target[positive_samples]).pow(2).sum()
-        )
-
-        l = loss + loss2
-
-        return l
-
-
 class MSLELoss(torch.nn.Module):
     """
     Mean Squared Logarithmic Error (MSLE) loss implementation.
@@ -332,7 +273,7 @@ class DynamicWeightedMSELoss(nn.Module):
 class JustAnotherWeightedMSELoss(nn.Module):
     def __init__(self, true_weight=1, false_weight=1):
         super(JustAnotherWeightedMSELoss, self).__init__()
-        self.mse_loss = nn.MSELoss(reduction="sum")
+        self.mse_loss = nn.MSELoss(reduction="mean")
         self.true_weight = true_weight
         self.false_weight = false_weight
 
@@ -353,3 +294,74 @@ class JustAnotherWeightedMSELoss(nn.Module):
         ) / N_all
 
         return loss
+
+
+class HanningLoss(nn.Module):
+    def __init__(self, kernel_size=33, negative_weight=1, device="cuda:0"):
+        super(HanningLoss, self).__init__()
+        self.kernel_size = kernel_size
+        self.device = device
+        self.negative_weight = negative_weight
+        self.prepare_hann_kernel()
+
+    def prepare_hann_kernel(self):
+        hann_kernel = torch.hann_window(
+            self.kernel_size, periodic=False, dtype=torch.float, device=self.device
+        )
+        hann_kernel = hann_kernel.view(1, 1, -1, 1) * hann_kernel.view(1, 1, 1, -1)
+        self.hann_kernel = hann_kernel
+
+    def weighted_mse(self, pred, target, weights):
+        return (weights * (pred - target) ** 2).sum()
+
+    def forward(self, pred, target):
+        batch_size = target.shape[0]
+        batch_loss = 0.0
+
+        for i in range(batch_size):
+            weights = F.conv2d(
+                target[i].view(1, 1, *target[i].shape),
+                self.hann_kernel,
+                padding=self.kernel_size // 2,
+            )
+
+            # Normalize positive weights
+            weights /= weights.sum()
+
+            # Compute negative weights
+            num_negative = (weights == 0).sum()
+            if num_negative == 0:
+                # Save the weights for debugging
+                torch.save(weights, "weights.pt")
+                torch.save(target[i], "target.pt")
+                torch.save(pred[i], "pred.pt")
+                raise ValueError("No negative weights found. Check the target tensor.")
+
+            negative_weight = self.negative_weight / num_negative
+
+            # Assign weights
+            weights = torch.where(weights == 0, negative_weight, weights)
+
+            # Normalize weights again
+            weights /= weights.sum()
+
+            batch_loss += self.weighted_mse(
+                pred[i].view(1, 1, *pred[i].shape),
+                target[i].view(1, 1, *target[i].shape),
+                weights,
+            )
+
+        return batch_loss / batch_size
+
+
+def test():
+    input = torch.randn(4, 400, 400)
+    target = torch.zeros(4, 400, 400)
+    target[:, 100:133, 100:133] = 1
+    loss = HanningLoss()
+    output = loss(input, target)
+    print(output)
+
+
+if __name__ == "__main__":
+    test()

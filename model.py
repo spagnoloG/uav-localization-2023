@@ -141,7 +141,7 @@ class Fusion(nn.Module):
         A2 = self.corrU2(U2_drone, U3_sat)
         A3 = self.corrU3(U3_drone, U3_sat)
 
-        fw = F.softmax(self.fusion_weights, dim=0)
+        fw = self.fusion_weights / torch.sum(self.fusion_weights)
 
         fused_map = fw[0] * A1 + fw[1] * A2 + fw[2] * A3
 

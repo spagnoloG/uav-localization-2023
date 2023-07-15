@@ -87,6 +87,7 @@ class SatDataset(Dataset):
         """
         hann1d = torch.hann_window(self.heatmap_kernel_size, periodic=False)
         self.hanning_kernel = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
+        print(self.hanning_kernel.shape)
 
         gauss1d = torch.linspace(-1, 1, self.heatmap_kernel_size)
         gauss1d = torch.exp(-gauss1d.pow(2))
@@ -649,12 +650,12 @@ class MapUtils:
 
         """
         x, y = self.coord_to_pixel(
-            lat, lng, tile, map_image.shape[0], map_image.shape[1]
+            lat, lng, tile, map_image.shape[1], map_image.shape[2]
         )
         x, y = int(x), int(y)
 
         fig, ax = plt.subplots(1, 1, figsize=(15, 10))
-        ax.imshow(map_image)
+        ax.imshow(map_image.permute(1, 2, 0))
         ax.scatter(x, y, color="red")
         plt.show()
 
@@ -741,10 +742,13 @@ def test():
 
     #    plt.show()
 
-    img, metadata = dataloader.dataset.find_tile(46.051450, 14.506099)
+    LAT_LNG = (46.050190, 14.503788)
+
+    img, metadata = dataloader.dataset.find_tile(*LAT_LNG)
+
     tile = mercantile.Tile(x=metadata[0], y=metadata[1], z=metadata[2])
 
-    map_utils.find_and_plot(46.051450, 14.506099, tile, img)
+    map_utils.find_and_plot(*LAT_LNG, tile, img)
 
 
 if __name__ == "__main__":

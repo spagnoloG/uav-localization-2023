@@ -257,8 +257,12 @@ class CrossViewValidator:
         y_pred, x_pred = np.unravel_index(
             np.argmax(heatmap_pred_np), heatmap_pred_np.shape
         )
-        x_gt, y_gt = self.map_utils.coord_to_pixel(lat_gt, lon_gt, tile, 512, 512)
-        lat, lng = self.map_utils.pixel_to_coord(x_pred, y_pred, tile, 512, 512)
+        x_gt, y_gt = self.map_utils.coord_to_pixel(
+            lat_gt, lon_gt, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
+        )  # fix hardcoded values
+        lat, lng = self.map_utils.pixel_to_coord(
+            x_pred, y_pred, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
+        )
         distance_in_m = self.map_utils.distance_between_points(lat_gt, lon_gt, lat, lng)
 
         # Initialize figure

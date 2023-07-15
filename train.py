@@ -14,7 +14,7 @@ from model import CrossViewLocalizationModel
 import yaml
 import argparse
 import torchvision.transforms as transforms
-from criterion import JustAnotherWeightedMSELoss
+from criterion import HanningLoss
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
@@ -81,7 +81,6 @@ class CrossViewTrainer:
         device: the device to train on
         criterion: the loss function to use
         lr: learning rate
-        weight_decay: weight decay
         batch_size: batch size
         num_workers: number of threads to use for the dataloader
         num_epochs: number of epochs to train for
@@ -95,9 +94,8 @@ class CrossViewTrainer:
         """
         self.config = config
         self.device = config["train"]["device"]
-        self.lr_backbone = config["train"]["lr_backbone"]
-        self.lr_fusion = self.lr_backbone * 1.5
-        self.weight_decay = config["train"]["weight_decay"]
+        self.lr_fusion = config["train"]["lr"]
+        self.lr_backbone = self.lr_fusion / 1.5
         self.num_workers = config["train"]["num_workers"]
         self.num_epochs = config["train"]["num_epochs"]
         self.shuffle_dataset = config["train"]["shuffle_dataset"]
@@ -122,8 +120,9 @@ class CrossViewTrainer:
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = True
+            torch.backends.cuda.matmul.allow_tf32 = True
 
-        self.criterion = torch.nn.MSELoss()
+        self.criterion = HanningLoss()
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
@@ -305,7 +304,8 @@ class CrossViewTrainer:
                 logger.info("Saving checkpoint...")
                 self.save_checkpoint(epoch)
 
-            if not self.train_until_convergence and self.epoch in self.milestones:
+            if not self.train_until_convergence and epoch in self.milestones:
+                logger.info("Stepping scheduler...")
                 self.scheduler.step()
 
             if self.train_until_convergence and epoch > 10:
