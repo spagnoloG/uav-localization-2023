@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from logger import logger
 import hashlib
 import datetime
-import os
+import mercantile
 import matplotlib.pyplot as plt
 from model import CrossViewLocalizationModel
 import yaml
@@ -16,6 +16,9 @@ import argparse
 import torchvision.transforms as transforms
 from criterion import HanningLoss
 import os
+import numpy as np
+from sat_dataset import MapUtils
+import matplotlib.patches as patches
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
@@ -116,6 +119,7 @@ class CrossViewTrainer:
         self.gamma = config["train"]["gamma"]
         self.val_loss = 0
         self.stop_training = False
+        self.map_utils = MapUtils()
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
@@ -297,7 +301,7 @@ class CrossViewTrainer:
         logger.info("Starting training...")
         for epoch in range(self.current_epoch, self.num_epochs):
             logger.info(f"Epoch {epoch}")
-            self.train_epoch()
+            self.train_epoch(epoch)
             self.validate(epoch)
 
             if (epoch + 1) % 2 == 0:
@@ -317,7 +321,7 @@ class CrossViewTrainer:
         if not self.stop_training and self.train_until_convergence:
             while True:
                 logger.info(f"Epoch {epoch}")
-                self.train_epoch()
+                self.train_epoch(epoch)
                 self.validate(epoch)
 
                 if (epoch + 1) % 2 == 0:
@@ -333,7 +337,7 @@ class CrossViewTrainer:
                 if stop_training:
                     break
 
-    def train_epoch(self):
+    def train_epoch(self, epoch):
         """
         Perform one epoch of training.
         """
@@ -374,13 +378,29 @@ class CrossViewTrainer:
                 self.optimizer.step()
 
                 if i == 0 and self.plot:
+                    pseudo_tile = (
+                        sat_infos[0][0],
+                        sat_infos[1][0],
+                        sat_infos[2][0],
+                    )  # x, y, z
+                    tile = mercantile.Tile(
+                        x=pseudo_tile[0], y=pseudo_tile[1], z=pseudo_tile[2]
+                    )
+                    lat_gt, lon_gt = (
+                        drone_infos["coordinate"]["latitude"][0].item(),
+                        drone_infos["coordinate"]["longitude"][0].item(),
+                    )
                     self.plot_results(
                         drone_images[0].detach(),
                         sat_images[0].detach(),
                         heatmap_gt[0].detach(),
                         outputs[0].detach(),
+                        lat_gt,
+                        lon_gt,
+                        tile,
+                        i,
+                        f"train-{epoch}",
                     )
-
                 running_loss += loss.item() * drone_images.size(0)
             total_samples += len(dataloader)
 
@@ -424,8 +444,28 @@ class CrossViewTrainer:
                     running_loss += loss.item() * drone_images.size(0)
 
                     if i == 0 and self.plot:
+                        pseudo_tile = (
+                            sat_infos[0][0],
+                            sat_infos[1][0],
+                            sat_infos[2][0],
+                        )  # x, y, z
+                        tile = mercantile.Tile(
+                            x=pseudo_tile[0], y=pseudo_tile[1], z=pseudo_tile[2]
+                        )
+                        lat_gt, lon_gt = (
+                            drone_infos["coordinate"]["latitude"][0].item(),
+                            drone_infos["coordinate"]["longitude"][0].item(),
+                        )
                         self.plot_results(
-                            drone_images[0], sat_images[0], heatmap_gt[0], outputs[0]
+                            drone_images[0],
+                            sat_images[0],
+                            heatmap_gt[0],
+                            outputs[0],
+                            lat_gt,
+                            lon_gt,
+                            tile,
+                            i,
+                            f"val-{epoch}",
                         )
                 total_samples += len(dataloader)
 
@@ -441,11 +481,18 @@ class CrossViewTrainer:
         sat_image,
         heatmap_gt,
         heatmap_pred,
+        lat_gt,
+        lon_gt,
+        tile,
+        i,
+        call_f,
     ):
         """
-        Plot the outputs of the model and the ground truth.
-        """
+        Plot the validation results.
 
+        This function will plot the validation results for the specified number of epochs.
+        """
+        # Inverse transform for images
         inverse_transforms = transforms.Compose(
             [
                 transforms.Normalize(
@@ -462,31 +509,88 @@ class CrossViewTrainer:
             ]
         )
 
-        # Plot them on the same figure
-        fig = plt.figure(figsize=(15, 15))
-        ax = fig.add_subplot(1, 4, 1)
-        img = inverse_transforms(drone_image)
-        ax.imshow(img)
-        ax.set_title("Drone Image")
-        ax.axis("off")
+        # Compute prediction, ground truth positions, and the distance
+        heatmap_pred_np = heatmap_pred.cpu().numpy()
+        y_pred, x_pred = np.unravel_index(
+            np.argmax(heatmap_pred_np), heatmap_pred_np.shape
+        )
+        x_gt, y_gt = self.map_utils.coord_to_pixel(
+            lat_gt, lon_gt, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
+        )  # fix hardcoded values
+        lat, lng = self.map_utils.pixel_to_coord(
+            x_pred, y_pred, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
+        )
+        distance_in_m = self.map_utils.distance_between_points(lat_gt, lon_gt, lat, lng)
 
-        ax = fig.add_subplot(1, 4, 2)
-        img = inverse_transforms(sat_image)
-        ax.imshow(img)
-        ax.set_title("Satellite Image")
-        ax.axis("off")
+        # Initialize figure
+        fig = plt.figure(figsize=(20, 20))
 
-        ax = fig.add_subplot(1, 4, 3)
-        ax.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
-        ax.set_title("Ground Truth Heatmap")
-        ax.axis("off")
+        # Subplot 1: Drone Image
+        ax1 = fig.add_subplot(2, 3, 1)
+        ax1.imshow(inverse_transforms(drone_image))
+        ax1.set_title("Drone Image")
+        ax1.axis("off")
 
-        ax = fig.add_subplot(1, 4, 4)
-        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
-        ax.set_title("Predicted Heatmap")
-        ax.axis("off")
+        # Subplot 2: Satellite Image
+        ax2 = fig.add_subplot(2, 3, 2)
+        ax2.imshow(inverse_transforms(sat_image))
+        ax2.set_title("Satellite Image")
+        ax2.axis("off")
 
-        plt.show()
+        # Subplot 3: Ground Truth Heatmap
+        ax3 = fig.add_subplot(2, 3, 3)
+        ax3.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
+        ax3.set_title("Ground Truth Heatmap")
+        ax3.axis("off")
+
+        # Subplot 4: Predicted Heatmap
+        ax4 = fig.add_subplot(2, 3, 4)
+        ax4.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
+        ax4.set_title("Predicted Heatmap")
+        ax4.axis("off")
+
+        # Subplot 5: Satellite Image with Predicted Heatmap and circles
+        ax5 = fig.add_subplot(2, 3, 5)
+        ax5.imshow(inverse_transforms(sat_image))
+        ax5.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
+        ax5.add_patch(
+            patches.Circle(
+                (x_pred, y_pred),
+                radius=10,
+                edgecolor="blue",
+                facecolor="none",
+                linewidth=4,
+            )
+        )
+        ax5.add_patch(
+            patches.Circle(
+                (x_gt, y_gt), radius=10, edgecolor="red", facecolor="none", linewidth=4
+            )
+        )
+        ax5.set_title("Satellite Image with Predicted Heatmap")
+        ax5.legend(["Prediction", "Ground Truth"], loc="upper right")
+        ax5.axis("off")
+
+        # Subplot 6: Satellite Image with Ground Truth Heatmap
+        ax6 = fig.add_subplot(2, 3, 6)
+        ax6.imshow(inverse_transforms(sat_image))
+        ax6.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
+        ax6.set_title("Satellite Image with Ground Truth Heatmap")
+        ax6.axis("off")
+
+        fig.suptitle(f"UAV -> satellite matching\nDistance: {distance_in_m} meters")
+
+        if "val" in call_f:
+            s_dir = "val"
+        else:
+            s_dir = "train"
+
+        # Save the figure
+        os.makedirs(f"./vis/{self.checkpoint_hash}/{s_dir}", exist_ok=True)
+        plt.savefig(
+            f"./vis/{self.checkpoint_hash}/{s_dir}/{call_f}-{self.checkpoint_hash}-{i}.png"
+        )
+        plt.close()
 
     def save_checkpoint(self, epoch, dir_path="./checkpoints/"):
         """

@@ -15,6 +15,7 @@ from logger import logger
 from functools import lru_cache
 import rtree
 from torchvision import transforms
+from torchvision.transforms import functional as F
 
 
 class SatDataset(Dataset):
@@ -44,6 +45,7 @@ class SatDataset(Dataset):
         self.image_indices = {}
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.download_dataset = download_dataset
+        self.rotations = [0, 20, 360]
 
         if metadata_rtree_index:
             self.metadata_rtree_index = metadata_rtree_index
