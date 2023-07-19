@@ -3,32 +3,12 @@
 import mercantile
 import requests
 import os
-import csv
+from tqdm import tqdm
+import time
 
 from bounding_boxes import bboxes
 
 zoom_level = 16
-metadata_file = "metadata.csv"
-csv_file = open(metadata_file, "w", newline="")
-csv_writer = csv.writer(csv_file)
-csv_writer.writerow(
-    [
-        "file_path",
-        "lat",
-        "lng",
-        "bbox_west",
-        "bbox_east",
-        "bbox_north",
-        "bbox_south",
-        "x",
-        "y",
-        "z",
-    ]
-)
-
-
-# Create a directory to store the downloaded tiles
-os.makedirs("tiles", exist_ok=True)
 
 headers = {
     "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
@@ -50,42 +30,55 @@ params = {
 }
 
 
-for r_name, bbox in bboxes.items():
-    for tile in mercantile.tiles(bbox[0], bbox[1], bbox[2], bbox[3], zoom_level):
-        bbox = mercantile.bounds(tile)
+def downloader():
+    os.makedirs(f"./tiles", exist_ok=True)
+    for r_name, bbox in bboxes.items():
+        print("Downloading tiles for", r_name)
+        for tile in tqdm(
+            mercantile.tiles(bbox[0], bbox[1], bbox[2], bbox[3], zoom_level)
+        ):
+            box = mercantile.bounds(tile)
 
-        center_lat = (bbox.north + bbox.south) / 2
-        center_lng = (bbox.east + bbox.west) / 2
+            center_lat = (box.north + box.south) / 2
+            center_lng = (box.east + box.west) / 2
 
-        os.makedirs(f"tiles/{r_name}", exist_ok=True)
-        file_path = f"tiles/{r_name}/{zoom_level}_{tile.x}_{tile.y}.jpg"
+            region_path = "./tiles/" + r_name + "/"
+            file_path = region_path + f"{zoom_level}_{tile.x}_{tile.y}.jpg"
 
-        csv_writer.writerow(
-            [
-                file_path,
-                center_lat,
-                center_lng,
-                bbox.west,
-                bbox.east,
-                bbox.north,
-                bbox.south,
-                tile.x,
-                tile.y,
-                zoom_level,
-            ]
-        )
+            os.makedirs(f"./tiles/{r_name}", exist_ok=True)
 
-        if not os.path.exists(file_path):
-            response = requests.get(
-                f"https://c.tiles.mapbox.com/v4/mapbox.satellite/{zoom_level}/{tile.x}/{tile.y}@2x.jpg",
-                params=params,
-                headers=headers,
-            )
+            if not os.path.exists(file_path):
+                max_attempts = 5
+                for attempt in range(max_attempts):
+                    try:
+                        response = requests.get(
+                            f"https://c.tiles.mapbox.com/v4/mapbox.satellite/{zoom_level}/{tile.x}/{tile.y}@2x.jpg",
+                            params=params,
+                            headers=headers,
+                        )
+                        response.raise_for_status()  # raises a Python exception if the response contains an HTTP error status code
+                    except (
+                        requests.exceptions.RequestException,
+                        requests.exceptions.ConnectionError,
+                    ) as e:
+                        if (
+                            attempt < max_attempts - 1
+                        ):  # i.e., if it's not the final attempt
+                            print(
+                                f"Attempt {attempt + 1} of {max_attempts} failed. Retrying..."
+                            )
+                            time.sleep(5)  # wait for 5 seconds before trying again
+                            continue
+                        else:
+                            print(f"Error downloading {file_path}: {e}")
+                            break
+                    else:  # executes if the try block didn't throw any exceptions
+                        with open(file_path, "wb") as f:
+                            f.write(response.content)
+                        break
+                else:
+                    print(f"Error downloading {file_path}: {e}")
 
-            if response.status_code == 200:
-                with open(file_path, "wb") as f:
-                    f.write(response.content)
-            else:
-                print(f"Error downloading {file_path}")
 
-csv_file.close()
+if __name__ == "__main__":
+    downloader()
