@@ -11,8 +11,6 @@ import time
 from random import shuffle
 from tqdm import tqdm
 import rasterio
-from rasterio.merge import merge
-from rasterio.transform import from_bounds
 from rasterio.io import MemoryFile
 from rasterio.transform import from_bounds
 from rasterio.merge import merge
@@ -156,7 +154,7 @@ def join_tifs(tile, i_path):
                         height=height,
                         width=width,
                         count=3,
-                        dtype="uint8",  # Update dtype if your image has a different type
+                        dtype="uint8",
                         crs="EPSG:4326",
                         transform=from_bounds(west, south, east, north, width, height),
                     ) as dataset:
@@ -175,7 +173,7 @@ def join_tifs(tile, i_path):
                     height=height,
                     width=width,
                     count=3,
-                    dtype="uint8",  # Update dtype if your image has a different type
+                    dtype="uint8",
                     crs="EPSG:4326",
                     transform=from_bounds(west, south, east, north, width, height),
                 ) as dataset:
