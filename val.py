@@ -12,9 +12,8 @@ from torchviz import make_dot
 from matplotlib import pyplot as plt
 import torchvision.transforms as transforms
 from criterion import JustAnotherWeightedMSELoss
-from sat_dataset import MapUtils
+from map_utils import MapUtils
 import numpy as np
-import mercantile
 import matplotlib.patches as patches
 
 
@@ -63,10 +62,9 @@ class CrossViewValidator:
                     JoinedDataset(
                         dataset="test",
                         config=config,
-                        download_dataset=self.download_dataset,
                         heatmap_kernel_size=heatmap_kernel_size,
-                        drone_view_patch_size=drone_view_patch_size,
-                        metadata_rtree_index=self.metadata_rtree_index,
+                        drone_patch_h=drone_view_patch_size,
+                        drone_patch_w=drone_view_patch_size,
                     ),
                     indices=range(self.val_subset_size),
                 )
@@ -79,13 +77,13 @@ class CrossViewValidator:
                     )
                 )
             else:
+                logger.info("Using full val dataset")
                 subset_dataset = JoinedDataset(
                     dataset="test",
                     config=config,
-                    download_dataset=self.download_dataset,
                     heatmap_kernel_size=heatmap_kernel_size,
-                    drone_view_patch_size=drone_view_patch_size,
-                    metadata_rtree_index=self.metadata_rtree_index,
+                    drone_patch_h=drone_view_patch_size,
+                    drone_patch_w=drone_view_patch_size,
                 )
                 self.val_dataloaders.append(
                     DataLoader(
@@ -94,13 +92,6 @@ class CrossViewValidator:
                         num_workers=self.num_workers,
                         shuffle=self.shuffle_dataset,
                     )
-                )
-
-            if self.metadata_rtree_index is None:
-                self.metadata_rtree_index = (
-                    subset_dataset.metadata_rtree_index
-                    if self.val_subset_size is None
-                    else subset_dataset.dataset.metadata_rtree_index
                 )
 
     def load_model(self):
@@ -171,15 +162,16 @@ class CrossViewValidator:
                     drone_images,
                     drone_infos,
                     sat_images,
-                    sat_infos,
-                    heatmap_gt,
+                    heatmaps_gt,
+                    x_sat,
+                    y_sat,
                 ) in tqdm(
                     enumerate(dataloader),
                     total=len(dataloader),
                 ):
                     drone_images = drone_images.to(self.device)
                     sat_images = sat_images.to(self.device)
-                    heatmap_gt = heatmap_gt.to(self.device)
+                    heatmap_gt = heatmaps_gt.to(self.device)
                     # Forward pass
                     outputs = self.model(drone_images, sat_images)
                     # Calculate loss
@@ -188,32 +180,29 @@ class CrossViewValidator:
                     running_loss += loss.item() * drone_images.size(0)
 
                     if self.plot:
-                        pseudo_tile = (
-                            sat_infos[0][0],
-                            sat_infos[1][0],
-                            sat_infos[2][0],
-                        )  # x, y, z
-                        tile = mercantile.Tile(
-                            x=pseudo_tile[0], y=pseudo_tile[1], z=pseudo_tile[2]
-                        )
                         lat_gt, lon_gt = (
                             drone_infos["coordinate"]["latitude"][0].item(),
                             drone_infos["coordinate"]["longitude"][0].item(),
                         )
                         self.plot_results(
-                            drone_images[0],
-                            sat_images[0],
-                            heatmap_gt[0],
-                            outputs[0],
+                            drone_images[0].detach(),
+                            sat_images[0].detach(),
+                            heatmap_gt[0].detach(),
+                            outputs[0].detach(),
                             lat_gt,
                             lon_gt,
-                            tile,
+                            x_sat[0].item(),
+                            y_sat[0].item(),
                             i,
                         )
+
                 total_samples += len(dataloader)
 
         epoch_loss = running_loss / total_samples
-        logger.info("Validation Loss: {:.4f}".format(epoch_loss))
+
+        self.val_loss = epoch_loss
+
+        logger.info(f"Validation loss: {epoch_loss}")
 
     def visualize_model(self):
         tensor_uav = torch.randn(1, 128, 128, 3)
@@ -227,14 +216,22 @@ class CrossViewValidator:
         dot.render("model", "./vis", view=True)
 
     def plot_results(
-        self, drone_image, sat_image, heatmap_gt, heatmap_pred, lat_gt, lon_gt, tile, i
+        self,
+        drone_image,
+        sat_image,
+        heatmap_gt,
+        heatmap_pred,
+        lat_gt,
+        lon_gt,
+        x_gt,
+        y_gt,
+        i,
     ):
         """
         Plot the validation results.
 
         This function will plot the validation results for the specified number of epochs.
         """
-
         # Inverse transform for images
         inverse_transforms = transforms.Compose(
             [
@@ -257,13 +254,6 @@ class CrossViewValidator:
         y_pred, x_pred = np.unravel_index(
             np.argmax(heatmap_pred_np), heatmap_pred_np.shape
         )
-        x_gt, y_gt = self.map_utils.coord_to_pixel(
-            lat_gt, lon_gt, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
-        )  # fix hardcoded values
-        lat, lng = self.map_utils.pixel_to_coord(
-            x_pred, y_pred, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
-        )
-        distance_in_m = self.map_utils.distance_between_points(lat_gt, lon_gt, lat, lng)
 
         # Initialize figure
         fig = plt.figure(figsize=(20, 20))
@@ -319,11 +309,7 @@ class CrossViewValidator:
         ax6.imshow(inverse_transforms(sat_image))
         ax6.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
         ax6.set_title("Satellite Image with Ground Truth Heatmap")
-        ax6.axis("off")
-
-        fig.suptitle(f"UAV -> satellite matching\nDistance: {distance_in_m} meters")
-
-        # Save the figure
+        ax6.axis("off")  # Save the figure
         os.makedirs(f"./vis/{self.val_hash}", exist_ok=True)
         plt.savefig(f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}.png")
         plt.close()

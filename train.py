@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader
 from logger import logger
 import hashlib
 import datetime
-import mercantile
 import matplotlib.pyplot as plt
 from model import CrossViewLocalizationModel
 import yaml
@@ -492,13 +491,6 @@ class CrossViewTrainer:
         y_pred, x_pred = np.unravel_index(
             np.argmax(heatmap_pred_np), heatmap_pred_np.shape
         )
-        # x_gt, y_gt = self.map_utils.coord_to_pixel(
-        #    lat_gt, lon_gt, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
-        # )  # fix hardcoded values
-        # lat, lng = self.map_utils.pixel_to_coord(
-        #    x_pred, y_pred, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
-        # )
-        # distance_in_m = self.map_utils.distance_between_points(lat_gt, lon_gt, lat, lng)
 
         # Initialize figure
         fig = plt.figure(figsize=(20, 20))
