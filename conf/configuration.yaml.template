@@ -1,58 +1,64 @@
 train:
   device: "cuda:0"
-  lr_backbone: 0.0004 # learning rate
-  weight_decay: 1.5 # weight decay factor for optimizer
-  gamma: 0.2  # factor by which to reduce learning rate
-  milestones: [10, 14, 16]  # epoch at which to decay learning rate 
-  num_workers: 16  # number of worker threads for dataloading
-  num_epochs: 24  # number of training epochs
-  shuffle_dataset: true  # shuffle dataset for each epoch
+  lr: 0.0004 # learning rate
+  gamma: 0.2 # factor by which to reduce learning rate
+  milestones: [9, 13, 15] # epoch at which to decay learning rate
+  num_workers: 16 # number of worker threads for dataloading
+  num_epochs: 24 # number of training epochs
+  shuffle_dataset: true # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
-  drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [50] # heatmap kernel sizes
-  batch_sizes: [4]
-  
+  drone_view_patch_sizes: [128] # drone view patches sizes
+  heatmap_kernel_sizes: [33] # heatmap kernel sizes
+  batch_sizes: [7]
+  train_until_convergence:
+    false # train until convergence (ignore milestones and num_epochs)
+
+
     # Dataset parameters
-  train_subset_size: 2000  # size of training subset. Set to null to use full dataset
-  val_subset_size: 10  # size of validation subset. Set to null to use full dataset
-  
+  train_subset_size: 200 # size of training subset. Set to null to use full dataset
+  val_subset_size: 10 # size of validation subset. Set to null to use full dataset
+
   # Miscellaneous
-  plot: true  # whether to plot the outputs and ground truth during validation
-  
+  plot: true # whether to plot the outputs and ground truth during validation
+
   # Checkpoint parameters
-  checkpoint_hash: null  # the hash of the checkpoint
-  checkpoint_epoch: 0 # the epoch of the checkpoint
+  checkpoint_hash: null # the hash of the checkpoint
+  checkpoint_epoch: null # the epoch of the checkpoint
 
 # must be divisible by 4 becouse of the Twins model architecture
 # twins model was trained on:
 # >>> config {'input_size': (3, 224, 224), 'interpolation': 'bicubic', 'mean': (0.485, 0.456, 0.406), 'std': (0.229, 0.224, 0.225), 'crop_pct': 0.9, 'crop_mode': 'center'}
 sat_dataset:
-  mean: [0.485, 0.456, 0.406] 
+  mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  patch_w: 512
-  patch_h: 512
+  patch_w: 400
+  patch_h: 400
   zoom_level: 16 # satellite dataset zoom level
   root_dir: "./sat"
-  heatmap_kernel_type: "gaussian" # "hanning", "gaussian", "square" kernel
-  heatmap_kernel_size: 110 # kernel size for the chosen kernel 
+  heatmap_kernel_type: "square" # "hanning", "gaussian", "square" kernel
+  heatmap_kernel_size: 110 # kernel size for the chosen kernel
 
-drone_dataset:
-  mean: [0.485, 0.456, 0.406] 
+dataset:
+  mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  patch_w: 128 
-  patch_h: 128 
-  root_dir: "./drone"
-  rotation_deg: 180 # 360 means no rotation, 180 means 2 rotations, etc.
+  drone_patch_w: 128
+  drone_patch_h: 128
+  drone_rotation_deg: 360 # 360 means no rotation, 180 means 2 rotations, ec.
+  sat_zoom_level: 16 # satellite dataset zoom level
+  heatmap_kernel_size: 33 # kernel size for the chosen kernel
+  sat_patch_w: 400
+  sat_patch_h: 400
+  root_dir: "./dataset"
 
 val:
   device: "cuda:0"
-  checkpoint_hash: "c" # the hash of the checkpoint
-  checkpoint_epoch: 8 
-  val_subset_size: 400  # size of validation subset. Set to null to use full dataset
-  num_workers: 16  # number of worker threads for dataloading
-  shuffle_dataset: true  # shuffle dataset for each epoch
+  checkpoint_hash: "9e30d7dd9e29d1ff38d8a5d77d73cc49cee87f5a" # the hash of the checkpoint
+  checkpoint_epoch: 5
+  val_subset_size: null # size of validation subset. Set to null to use full dataset
+  num_workers: 16 # number of worker threads for dataloading
+  shuffle_dataset: true # shuffle dataset for each epoch
   drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [42] # heatmap kernel sizes
-  batch_sizes: [4]
+  heatmap_kernel_sizes: [33] # heatmap kernel sizes
+  batch_sizes: [16]
   download_dataset: false # wether to download the dataset
   plot: true
