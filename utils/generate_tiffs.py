@@ -14,13 +14,13 @@ import rasterio
 from rasterio.io import MemoryFile
 from rasterio.transform import from_bounds
 from rasterio.merge import merge
-import mercantile
 from PIL import Image
 
 
 # Constants
 tiles_path = "../sat/"
 SAT_DIM_IM = 512
+ZOOM_LEVEL = 16
 
 headers = {
     "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
@@ -42,9 +42,9 @@ params = {
 }
 
 
-def download_missing_tile(tile, r_name):
-    os.makedirs(f"{tiles_path}/{r_name}", exist_ok=True)
-    file_path = f"{tiles_path}/tiles/{r_name}/{tile.z}_{tile.x}_{tile.y}.jpg"
+def download_missing_tile(tile):
+    os.makedirs(f"{tiles_path}", exist_ok=True)
+    file_path = f"{tiles_path}/tiles/{tile.z}_{tile.x}_{tile.y}.jpg"
 
     if os.path.exists(file_path):
         return
@@ -108,78 +108,59 @@ def is_coord_in_a_tile(lat, lng, tile):
     bbox = mercantile.bounds(tile)
     min_lng, min_lat, max_lng, max_lat = bbox
 
-    return lat >= min_lat and lat <= max_lat and lng >= min_lng and lng <= max_lng
+    return lat > min_lat and lat < max_lat and lng > min_lng and lng < max_lng
+
+def get_tile_from_coord(lat, lng, zoom_level):
+    tile = mercantile.tile(lng, lat, zoom_level)
+    return tile
 
 
 def join_tifs(tile, i_path):
     tile_data = []
-    min_west, min_south, max_east, max_north = None, None, None, None
-
     neighbors = mercantile.neighbors(tile)
     neighbors.append(tile)
 
-    with open("../sat/metadata.csv", newline="") as csv_file:
-        ptr = csv.DictReader(csv_file)
-        for neighbor in neighbors:
-            # Extract tile bounds and find min/max coordinates
-            west, south, east, north = mercantile.bounds(neighbor)
-            if min_west is None or west < min_west:
-                min_west = west
-            if min_south is None or south < min_south:
-                min_south = south
-            if max_east is None or east > max_east:
-                max_east = east
-            if max_north is None or north > max_north:
-                max_north = north
+    for neighbor in neighbors:
+        found = False
+        west, south, east, north = mercantile.bounds(neighbor)
+        tile_path = f"{tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
+        if os.path.exists(tile_path):
+            found = True
+            with Image.open(tile_path) as img:
+                width, height = img.size
 
-            csv_file.seek(0)  # rewind the CSV file to start
-            found = False
-            for row in ptr:
-                if row["x"] == "x":
-                    continue
-                if (
-                    int(row["x"]) == neighbor.x
-                    and int(row["y"]) == neighbor.y
-                    and int(row["z"]) == neighbor.z
-                ):
-                    found = True
+            memfile = MemoryFile()
+            with memfile.open(
+                driver="GTiff",
+                height=height,
+                width=width,
+                count=3,
+                dtype="uint8",
+                crs="EPSG:4326",
+                transform=from_bounds(west, south, east, north, width, height),
+            ) as dataset:
+                data = rasterio.open(tile_path).read()
+                dataset.write(data)
+            tile_data.append(memfile.open())
 
-                    tile_path = f'{tiles_path}{row["file_path"]}'
-                    with Image.open(tile_path) as img:
-                        width, height = img.size
-
-                    memfile = MemoryFile()
-                    with memfile.open(
-                        driver="GTiff",
-                        height=height,
-                        width=width,
-                        count=3,
-                        dtype="uint8",
-                        crs="EPSG:4326",
-                        transform=from_bounds(west, south, east, north, width, height),
-                    ) as dataset:
-                        data = rasterio.open(tile_path).read()
-                        dataset.write(data)
-                    tile_data.append(memfile.open())
-
-            if not found:
-                download_missing_tile(neighbor, row["file_path"].split("/")[2])
-                tile_path = f'{tiles_path}{row["file_path"]}'
-                with Image.open(tile_path) as img:
-                    width, height = img.size
-                memfile = MemoryFile()
-                with memfile.open(
-                    driver="GTiff",
-                    height=height,
-                    width=width,
-                    count=3,
-                    dtype="uint8",
-                    crs="EPSG:4326",
-                    transform=from_bounds(west, south, east, north, width, height),
-                ) as dataset:
-                    data = rasterio.open(tile_path).read()
-                    dataset.write(data)
-                tile_data.append(memfile.open())
+        if not found:
+            download_missing_tile(neighbor)
+            tile_path = f"{tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
+            with Image.open(tile_path) as img:
+                width, height = img.size
+            memfile = MemoryFile()
+            with memfile.open(
+                driver="GTiff",
+                height=height,
+                width=width,
+                count=3,
+                dtype="uint8",
+                crs="EPSG:4326",
+                transform=from_bounds(west, south, east, north, width, height),
+            ) as dataset:
+                data = rasterio.open(tile_path).read()
+                dataset.write(data)
+            tile_data.append(memfile.open())
 
     mosaic, out_trans = merge(tile_data)
 
@@ -194,7 +175,7 @@ def join_tifs(tile, i_path):
         }
     )
 
-    i_path = i_path + "_sat.tif"
+    i_path = i_path + "_sat.tiff"
     with rasterio.open(i_path, "w", **out_meta) as dest:
         dest.write(mosaic)
         print(f"Saved {i_path} successfully!")
@@ -203,25 +184,20 @@ def join_tifs(tile, i_path):
         t.close()
 
 
-def find_on_map(i_path, lat, lng, metadata_reader, plot=False):
-    tile_data = []
-    for row in metadata_reader:
-        tile = mercantile.Tile(int(row["x"]), int(row["y"]), int(row["z"]))
-
-        if is_coord_in_a_tile(lat, lng, tile):
-            x, y = coord_to_pixel(lat, lng, tile, SAT_DIM_IM, SAT_DIM_IM)
-
-            join_tifs(tile, i_path)
-
-            # open the image
-            fp = row["file_path"]
-            if plot:
-                im_map = plt.imread(tiles_path + fp)
-                return im_map, tile
-            else:
-                return None, tile
-
-    return None, None
+def find_on_map(i_path, lat, lng, plot=False):
+    tile = get_tile_from_coord(lat, lng, ZOOM_LEVEL)
+    x, y = coord_to_pixel(lat, lng, tile, SAT_DIM_IM, SAT_DIM_IM)
+    assert x >= 0 and x <= SAT_DIM_IM
+    assert y >= 0 and y <= SAT_DIM_IM
+    join_tifs(tile, i_path)
+    # open the image
+    #fp = row["file_path"]
+    #if plot:
+    #    im_map = plt.imread(tiles_path + fp)
+    #    return im_map, tile
+    #else:
+    #    return None, tile
+    return None, tile
 
 
 def sort_by_last_digits(arr):
@@ -231,14 +207,13 @@ def sort_by_last_digits(arr):
     return sorted(arr, key=key_func)
 
 
-def process_image_frame(data, i_path, metadata_reader, plot):
+def process_image_frame(data, i_path, plot):
     im, frame = data
 
     map_im, tile = find_on_map(
         f"{i_path}{im}",
         frame["coordinate"]["latitude"],
         frame["coordinate"]["longitude"],
-        metadata_reader,
     )
 
     if tile is None:
@@ -274,7 +249,6 @@ def validate_dataset(
     i_path="../drone/Train1_MB_150m_80fov_90deg/footage/",
     m_path="../drone/Train1_MB_150m_80fov_90deg/Train1_MB_150m_80fov_90deg.json",
     plot=False,
-    metadata_reader=None,
 ):
     with open(m_path, newline="") as jsonfile:
         json_dict = json.load(jsonfile)
@@ -288,7 +262,7 @@ def validate_dataset(
             else:
                 continue
 
-        pairs = sort_by_last_digits(imgs)
+        imgs = sort_by_last_digits(imgs)
         pairs = list(zip(imgs, camera_frames))
         shuffle(pairs)
 
@@ -297,45 +271,34 @@ def validate_dataset(
             f = partial(
                 process_image_frame,
                 i_path=i_path,
-                metadata_reader=metadata_reader,
                 plot=plot,
             )
             pool.map(f, pairs)
 
 
-def validate_directory(directory, drone_dir, metadata_reader, plot=False):
+def validate_directory(directory, drone_dir, plot=False):
     if os.path.isdir(drone_dir + directory):
         if "Train" in directory or "Test" in directory or "Val" in directory:
             validate_dataset(
                 f"{drone_dir}{directory}/footage/",
                 f"{drone_dir}{directory}/{directory}.json",
                 plot=plot,
-                metadata_reader=metadata_reader,
             )
             print(f"Validation of {directory} successful!")
 
 
-def iterate_through_datasets(metadata_reader, drone_dir="../drone/"):
+def iterate_through_datasets(drone_dir="../drone/"):
     for directory in tqdm(os.listdir(drone_dir)):
         print(f"Downloading {directory}...")
         validate_directory(
             directory,
             drone_dir=drone_dir,
-            metadata_reader=metadata_reader,
             plot=False,
         )
 
 
-def read_metadata_file(metadata_path="../sat/metadata.csv"):
-    with open(metadata_path, newline="") as csvfile:
-        reader = csv.DictReader(csvfile)
-        rows = list(reader)
-        return rows
-
-
 def main():
-    metadata_reader = read_metadata_file()
-    iterate_through_datasets(metadata_reader)
+    iterate_through_datasets()
 
 
 if __name__ == "__main__":
