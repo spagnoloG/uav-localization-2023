@@ -5,6 +5,7 @@ import mercantile
 from matplotlib.colors import LinearSegmentedColormap
 from functools import lru_cache
 
+
 class MapUtils:
     """
     Utility class for satellite map operations.

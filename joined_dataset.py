@@ -12,10 +12,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import torch
-import mercantile
 
 
-class DroneDataset(Dataset):
+class JoinedDataset(Dataset):
     """
     Custom dataset class for the Drone Dataset.
 
@@ -35,12 +34,19 @@ class DroneDataset(Dataset):
         drone_patch_h=None,
         sat_patch_w=None,
         sat_patch_h=None,
+        heatmap_kernel_size=None,
     ):
+        config = config["dataset"]
         self.root_dir = config["root_dir"]
         self.patch_w = drone_patch_w if drone_patch_w else config["drone_patch_w"]
         self.patch_h = drone_patch_h if drone_patch_h else config["drone_patch_h"]
         self.sat_patch_w = sat_patch_w if sat_patch_w else config["sat_patch_w"]
         self.sat_patch_h = sat_patch_h if sat_patch_h else config["sat_patch_h"]
+        self.heatmap_kernel_size = (
+            heatmap_kernel_size
+            if heatmap_kernel_size
+            else config["heatmap_kernel_size"]
+        )
         self.metadata_dict = {}
         self.dataset = dataset
         self.rotation_deg = config["drone_rotation_deg"]
@@ -334,8 +340,6 @@ class DroneDataset(Dataset):
                 image_path, lat, lon, 400, 400
             )
 
-        print(satellite_patch.shape)
-
         rotation_angle = (idx % self.rotations_per_image) * self.rotation_deg
         img_info["angle"] = rotation_angle
 
@@ -389,7 +393,7 @@ def test():
         config = yaml.load(f, Loader=yaml.FullLoader)
         config = config["dataset"]
 
-    dataset = DroneDataset(config=config)
+    dataset = JoinedDataset(config=config)
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
 
     for batch in dataloader:

@@ -17,7 +17,7 @@ import torchvision.transforms as transforms
 from criterion import HanningLoss
 import os
 import numpy as np
-from sat_dataset import MapUtils
+from map_utils import MapUtils
 import matplotlib.patches as patches
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
@@ -200,8 +200,6 @@ class CrossViewTrainer:
         )
 
     def prepare_dataloaders(self, config):
-        self.metadata_rtree_index = None
-
         for batch_size, heatmap_kernel_size, drone_view_patch_size in zip(
             self.batch_sizes, self.heatmap_kernel_sizes, self.drone_view_patch_sizes
         ):
@@ -211,10 +209,9 @@ class CrossViewTrainer:
                     JoinedDataset(
                         dataset="train",
                         config=config,
-                        download_dataset=self.download_dataset,
                         heatmap_kernel_size=heatmap_kernel_size,
-                        drone_view_patch_size=drone_view_patch_size,
-                        metadata_rtree_index=self.metadata_rtree_index,
+                        drone_patch_h=drone_view_patch_size,
+                        drone_patch_w=drone_view_patch_size,
                     ),
                     indices=range(self.train_subset_size),
                 )
@@ -231,10 +228,9 @@ class CrossViewTrainer:
                 subset_dataset = JoinedDataset(
                     dataset="train",
                     config=config,
-                    download_dataset=self.download_dataset,
                     heatmap_kernel_size=heatmap_kernel_size,
-                    drone_view_patch_size=drone_view_patch_size,
-                    metadata_rtree_index=self.metadata_rtree_index,
+                    drone_patch_h=drone_view_patch_size,
+                    drone_patch_w=drone_view_patch_size,
                 )
                 self.train_dataloaders.append(
                     DataLoader(
@@ -245,23 +241,15 @@ class CrossViewTrainer:
                     )
                 )
 
-            if self.metadata_rtree_index is None:
-                self.metadata_rtree_index = (
-                    subset_dataset.metadata_rtree_index
-                    if self.train_subset_size is None
-                    else subset_dataset.dataset.metadata_rtree_index
-                )
-
             if self.val_subset_size is not None:
                 logger.info(f"Using val subset of size {self.val_subset_size}")
                 subset_dataset = torch.utils.data.Subset(
                     JoinedDataset(
                         dataset="test",
                         config=config,
-                        download_dataset=self.download_dataset,
                         heatmap_kernel_size=heatmap_kernel_size,
-                        drone_view_patch_size=drone_view_patch_size,
-                        metadata_rtree_index=self.metadata_rtree_index,
+                        drone_patch_h=drone_view_patch_size,
+                        drone_patch_w=drone_view_patch_size,
                     ),
                     indices=range(self.val_subset_size),
                 )
@@ -278,10 +266,9 @@ class CrossViewTrainer:
                 subset_dataset = JoinedDataset(
                     dataset="test",
                     config=config,
-                    download_dataset=self.download_dataset,
                     heatmap_kernel_size=heatmap_kernel_size,
-                    drone_view_patch_size=drone_view_patch_size,
-                    metadata_rtree_index=self.metadata_rtree_index,
+                    drone_patch_h=drone_view_patch_size,
+                    drone_patch_w=drone_view_patch_size,
                 )
                 self.val_dataloaders.append(
                     DataLoader(
@@ -356,15 +343,16 @@ class CrossViewTrainer:
                 drone_images,
                 drone_infos,
                 sat_images,
-                sat_infos,
-                heatmap_gt,
+                heatmaps_gt,
+                x_sat,
+                y_sat,
             ) in tqdm(
                 enumerate(dataloader),
                 total=len(dataloader),
             ):
                 drone_images = drone_images.to(self.device)
                 sat_images = sat_images.to(self.device)
-                heatmap_gt = heatmap_gt.to(self.device)
+                heatmap_gt = heatmaps_gt.to(self.device)
 
                 # Zero out the gradients
                 self.optimizer.zero_grad()
@@ -378,14 +366,6 @@ class CrossViewTrainer:
                 self.optimizer.step()
 
                 if i == 0 and self.plot:
-                    pseudo_tile = (
-                        sat_infos[0][0],
-                        sat_infos[1][0],
-                        sat_infos[2][0],
-                    )  # x, y, z
-                    tile = mercantile.Tile(
-                        x=pseudo_tile[0], y=pseudo_tile[1], z=pseudo_tile[2]
-                    )
                     lat_gt, lon_gt = (
                         drone_infos["coordinate"]["latitude"][0].item(),
                         drone_infos["coordinate"]["longitude"][0].item(),
@@ -397,10 +377,12 @@ class CrossViewTrainer:
                         outputs[0].detach(),
                         lat_gt,
                         lon_gt,
-                        tile,
+                        x_sat[0].item(),
+                        y_sat[0].item(),
                         i,
                         f"train-{epoch}",
                     )
+
                 running_loss += loss.item() * drone_images.size(0)
             total_samples += len(dataloader)
 
@@ -427,15 +409,16 @@ class CrossViewTrainer:
                     drone_images,
                     drone_infos,
                     sat_images,
-                    sat_infos,
-                    heatmap_gt,
+                    heatmaps_gt,
+                    x_sat,
+                    y_sat,
                 ) in tqdm(
                     enumerate(dataloader),
                     total=len(dataloader),
                 ):
                     drone_images = drone_images.to(self.device)
                     sat_images = sat_images.to(self.device)
-                    heatmap_gt = heatmap_gt.to(self.device)
+                    heatmap_gt = heatmaps_gt.to(self.device)
                     # Forward pass
                     outputs = self.model(drone_images, sat_images)
                     # Calculate loss
@@ -444,29 +427,23 @@ class CrossViewTrainer:
                     running_loss += loss.item() * drone_images.size(0)
 
                     if i == 0 and self.plot:
-                        pseudo_tile = (
-                            sat_infos[0][0],
-                            sat_infos[1][0],
-                            sat_infos[2][0],
-                        )  # x, y, z
-                        tile = mercantile.Tile(
-                            x=pseudo_tile[0], y=pseudo_tile[1], z=pseudo_tile[2]
-                        )
                         lat_gt, lon_gt = (
                             drone_infos["coordinate"]["latitude"][0].item(),
                             drone_infos["coordinate"]["longitude"][0].item(),
                         )
                         self.plot_results(
-                            drone_images[0],
-                            sat_images[0],
-                            heatmap_gt[0],
-                            outputs[0],
+                            drone_images[0].detach(),
+                            sat_images[0].detach(),
+                            heatmap_gt[0].detach(),
+                            outputs[0].detach(),
                             lat_gt,
                             lon_gt,
-                            tile,
+                            x_sat[0].item(),
+                            y_sat[0].item(),
                             i,
                             f"val-{epoch}",
                         )
+
                 total_samples += len(dataloader)
 
         epoch_loss = running_loss / total_samples
@@ -483,7 +460,8 @@ class CrossViewTrainer:
         heatmap_pred,
         lat_gt,
         lon_gt,
-        tile,
+        x_gt,
+        y_gt,
         i,
         call_f,
     ):
@@ -514,13 +492,13 @@ class CrossViewTrainer:
         y_pred, x_pred = np.unravel_index(
             np.argmax(heatmap_pred_np), heatmap_pred_np.shape
         )
-        x_gt, y_gt = self.map_utils.coord_to_pixel(
-            lat_gt, lon_gt, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
-        )  # fix hardcoded values
-        lat, lng = self.map_utils.pixel_to_coord(
-            x_pred, y_pred, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
-        )
-        distance_in_m = self.map_utils.distance_between_points(lat_gt, lon_gt, lat, lng)
+        # x_gt, y_gt = self.map_utils.coord_to_pixel(
+        #    lat_gt, lon_gt, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
+        # )  # fix hardcoded values
+        # lat, lng = self.map_utils.pixel_to_coord(
+        #    x_pred, y_pred, tile, heatmap_pred_np.shape[0], heatmap_pred_np.shape[1]
+        # )
+        # distance_in_m = self.map_utils.distance_between_points(lat_gt, lon_gt, lat, lng)
 
         # Initialize figure
         fig = plt.figure(figsize=(20, 20))
@@ -577,8 +555,6 @@ class CrossViewTrainer:
         ax6.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
         ax6.set_title("Satellite Image with Ground Truth Heatmap")
         ax6.axis("off")
-
-        fig.suptitle(f"UAV -> satellite matching\nDistance: {distance_in_m} meters")
 
         if "val" in call_f:
             s_dir = "val"

@@ -36,19 +36,16 @@ class Fusion(nn.Module):
             nn.Conv2d(
                 in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
             ),
-            nn.BatchNorm2d(out_channels),
         )
         self.conv2_UAV = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
             ),
-            nn.BatchNorm2d(out_channels),
         )
         self.conv3_UAV = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
             ),
-            nn.BatchNorm2d(out_channels),
         )
 
         # SAT convolutions
@@ -56,19 +53,16 @@ class Fusion(nn.Module):
             nn.Conv2d(
                 in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
             ),
-            nn.BatchNorm2d(out_channels),
         )
         self.conv2_SAT = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
             ),
-            nn.BatchNorm2d(out_channels),
         )
         self.conv3_SAT = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
             ),
-            nn.BatchNorm2d(out_channels),
         )
 
         self.corrU1 = Correlation()
@@ -77,19 +71,15 @@ class Fusion(nn.Module):
 
         self.convU1_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
-            nn.BatchNorm2d(64),
         )
         self.convU2_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
-            nn.BatchNorm2d(64),
         )
         self.convU3_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
-            nn.BatchNorm2d(64),
         )
         self.convU3_SAT = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
-            nn.BatchNorm2d(64),
         )
 
         self.upsample_size = upsample_size
@@ -157,7 +147,6 @@ class Correlation(nn.Module):
 
     def __init__(self):
         super(Correlation, self).__init__()
-        self.batch_norm = nn.BatchNorm2d(1)
 
     def forward(self, query, search_map):
         """
@@ -205,8 +194,6 @@ class Correlation(nn.Module):
 
         # Concatenate the correlation maps along the batch dimension.
         corr_maps = torch.cat(corr_maps, dim=0)
-
-        corr_maps = self.batch_norm(corr_maps)
 
         return corr_maps
 
