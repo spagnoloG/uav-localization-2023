@@ -24,8 +24,8 @@ def main():
         for entry_path in get_entry_paths("./tiles"):
             # Get x, y, z
             ep = entry_path.replace("./tiles/", "")
-            ep = entry_path.replace(".jpg", "")
-            z, x, y = ep.split("/")[3].split("_")
+            ep = ep.replace(".jpg", "")
+            z, x, y = ep.split("_")
             z = int(z)
             x = int(x)
             y = int(y)

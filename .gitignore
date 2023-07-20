@@ -2,6 +2,7 @@ sat/tiles/
 sat/metadata*
 vis/*
 drone/
+dataset/
 .venv/
 __pycache__/
 checkpoints/*

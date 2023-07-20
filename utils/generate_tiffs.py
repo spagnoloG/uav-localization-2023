@@ -110,6 +110,7 @@ def is_coord_in_a_tile(lat, lng, tile):
 
     return lat > min_lat and lat < max_lat and lng > min_lng and lng < max_lng
 
+
 def get_tile_from_coord(lat, lng, zoom_level):
     tile = mercantile.tile(lng, lat, zoom_level)
     return tile
@@ -191,11 +192,11 @@ def find_on_map(i_path, lat, lng, plot=False):
     assert y >= 0 and y <= SAT_DIM_IM
     join_tifs(tile, i_path)
     # open the image
-    #fp = row["file_path"]
-    #if plot:
+    # fp = row["file_path"]
+    # if plot:
     #    im_map = plt.imread(tiles_path + fp)
     #    return im_map, tile
-    #else:
+    # else:
     #    return None, tile
     return None, tile
 

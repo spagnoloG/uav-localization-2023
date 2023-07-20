@@ -42,10 +42,7 @@ def downloader():
             center_lat = (box.north + box.south) / 2
             center_lng = (box.east + box.west) / 2
 
-            region_path = "./tiles/" + r_name + "/"
-            file_path = region_path + f"{zoom_level}_{tile.x}_{tile.y}.jpg"
-
-            os.makedirs(f"./tiles/{r_name}", exist_ok=True)
+            file_path = "./tiles/" + f"{zoom_level}_{tile.x}_{tile.y}.jpg"
 
             if not os.path.exists(file_path):
                 max_attempts = 5
