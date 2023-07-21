@@ -128,15 +128,23 @@ class Fusion(nn.Module):
 
         self.convU1_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
         )
         self.convU2_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
         )
         self.convU3_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
         )
         self.convU3_SAT = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
         )
 
         self.upsample_size = upsample_size
