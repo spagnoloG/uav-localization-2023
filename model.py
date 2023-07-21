@@ -10,6 +10,51 @@ import torch
 import torch.nn.functional as F
 
 
+class Xcorr(nn.Module):
+    """
+    Cross-correlation module.
+    """
+
+    def __init__(self):
+        super(Xcorr, self).__init__()
+        self.batch_norm = nn.BatchNorm2d(1)
+
+    def forward(self, query, search_map):
+        """
+        Compute the cross-correlation between a query and a search map.
+
+        Parameters:
+        query: A 4D tensor of shape (batch_size, channels, query_height, query_width).
+        search_map: A 4D tensor of shape (batch_size, channels, search_map_height, search_map_width).
+
+        Returns:
+        corr_maps: A tensor of correlation maps.
+        """
+        # Group convolution as correlation
+        # Pad search map to maintain spatial resolution
+        search_map_padded = F.pad(
+            search_map,
+            (
+                query.shape[3] // 2,
+                query.shape[3] // 2,
+                query.shape[2] // 2,
+                query.shape[2] // 2,
+            ),
+        )
+
+        bs, c, h, w = query.shape
+        _, _, H, W = search_map_padded.shape
+
+        search_map_padded = search_map_padded.view(1, bs * c, H, W)
+
+        corr_maps = F.conv2d(search_map_padded, query, groups=bs)
+
+        corr_maps = corr_maps.permute(1, 0, 2, 3)
+        corr_maps = self.batch_norm(corr_maps)
+
+        return corr_maps
+
+
 class Fusion(nn.Module):
     def __init__(self, in_channels, out_channels, upsample_size):
         """
@@ -36,16 +81,22 @@ class Fusion(nn.Module):
             nn.Conv2d(
                 in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
             ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
         )
         self.conv2_UAV = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
             ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
         )
         self.conv3_UAV = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
             ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
         )
 
         # SAT convolutions
@@ -53,21 +104,27 @@ class Fusion(nn.Module):
             nn.Conv2d(
                 in_channels=in_channels[0], out_channels=out_channels, kernel_size=1
             ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
         )
         self.conv2_SAT = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[1], out_channels=out_channels, kernel_size=1
             ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
         )
         self.conv3_SAT = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[2], out_channels=out_channels, kernel_size=1
             ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
         )
 
-        self.corrU1 = Correlation()
-        self.corrU2 = Correlation()
-        self.corrU3 = Correlation()
+        self.corrU1 = Xcorr()
+        self.corrU2 = Xcorr()
+        self.corrU3 = Xcorr()
 
         self.convU1_UAV = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3),
@@ -135,67 +192,9 @@ class Fusion(nn.Module):
 
         fused_map = fw[0] * A1 + fw[1] * A2 + fw[2] * A3
 
-        fused_map = F.interpolate(
-            fused_map, size=self.upsample_size, mode="bilinear", align_corners=True
-        )
+        fused_map = F.interpolate(fused_map, size=self.upsample_size, mode="bilinear")
 
         return fused_map
-
-
-class Correlation(nn.Module):
-    """Module to compute correlation between a query tensor and a search map tensor."""
-
-    def __init__(self):
-        super(Correlation, self).__init__()
-
-    def forward(self, query, search_map):
-        """
-        Compute the correlation between a query and a search map.
-
-        Parameters:
-        query: A 4D tensor of shape (batch_size, channels, query_height, query_width).
-        search_map: A 4D tensor of shape (batch_size, channels, search_map_height, search_map_width).
-
-        Returns:
-        corr_maps: A tensor of correlation maps.
-        """
-        # Check if the inputs are 4D tensors.
-        if not (query.dim() == search_map.dim() == 4):
-            raise ValueError("Both query and search_map need to be 4D tensors")
-
-        # Check if search_map has larger or equal spatial dimensions than query.
-        if not (
-            search_map.shape[2] >= query.shape[2]
-            and search_map.shape[3] >= query.shape[3]
-        ):
-            raise ValueError(
-                "Each spatial dimension of search_map must be larger or equal to that of query"
-            )
-
-        # Group convolution as correlation
-        # Pad search map to maintain spatial resolution
-        search_map_padded = F.pad(
-            search_map,
-            (
-                query.shape[3] // 2,
-                query.shape[3] // 2,
-                query.shape[2] // 2,
-                query.shape[2] // 2,
-            ),
-        )
-
-        bs, c, h, w = query.shape
-        _, _, H, W = search_map_padded.shape
-
-        corr_maps = []
-        for map_, q_ in zip(search_map_padded.split(1), query.split(1)):
-            corr_map = F.conv2d(map_, q_, groups=1)
-            corr_maps.append(corr_map)
-
-        # Concatenate the correlation maps along the batch dimension.
-        corr_maps = torch.cat(corr_maps, dim=0)
-
-        return corr_maps
 
 
 class SaveLayerFeatures(nn.Module):
