@@ -173,18 +173,18 @@ class Fusion(nn.Module):
 
         U1_drone = self.conv1_UAV(s3_drone_feature)
         U2_drone = F.interpolate(
-            U1_drone, size=s2_drone_feature.shape[-2:], mode="bilinear"
+            U1_drone, size=s2_drone_feature.shape[-2:], mode="bicubic"
         ) + self.conv2_UAV(s2_drone_feature)
         U3_drone = F.interpolate(
-            U2_drone, size=s1_drone_feature.shape[-2:], mode="bilinear"
+            U2_drone, size=s1_drone_feature.shape[-2:], mode="bicubic"
         ) + self.conv3_UAV(s1_drone_feature)
 
         U1_sat = self.conv1_SAT(s3_sat_feature)
         U2_sat = F.interpolate(
-            U1_sat, size=s2_sat_feature.shape[-2:], mode="bilinear"
+            U1_sat, size=s2_sat_feature.shape[-2:], mode="bicubic"
         ) + self.conv2_SAT(s2_sat_feature)
         U3_sat = F.interpolate(
-            U2_sat, size=s1_sat_feature.shape[-2:], mode="bilinear"
+            U2_sat, size=s1_sat_feature.shape[-2:], mode="bicubic"
         ) + self.conv3_SAT(s1_sat_feature)
 
         U1_drone = self.convU1_UAV(U1_drone)
@@ -200,29 +200,24 @@ class Fusion(nn.Module):
 
         fused_map = fw[0] * A1 + fw[1] * A2 + fw[2] * A3
 
-        fused_map = F.interpolate(fused_map, size=self.upsample_size, mode="bilinear")
+        fused_map = F.interpolate(fused_map, size=self.upsample_size, mode="bicubic")
 
         return fused_map
 
 
 class SaveLayerFeatures(nn.Module):
-    """
-    A helper module for saving the features of a layer during forward pass.
-
-    """
-
     def __init__(self):
         super(SaveLayerFeatures, self).__init__()
-        self.outputs = []
+        self.outputs = None
 
     def forward(self, x, shape):
         output = x.clone()
         output = output.reshape(x.shape[0], x.shape[2], shape[0], shape[1])
-        self.outputs.append(output)
-        return x
+        self.outputs = output
+        return output
 
     def clear(self):
-        self.outputs = []
+        self.outputs = None
 
 
 class ModifiedPCPVT(nn.Module):
@@ -251,16 +246,26 @@ class ModifiedPCPVT(nn.Module):
         ] = nn.Identity()  # Remove the last position embedding layer
 
         # Add the save_features layer to the first 3 blocks
-        self.save_features = SaveLayerFeatures()
-        self.model.blocks[0].add_module("save_features", self.save_features)
-        self.model.blocks[1].add_module("save_features", self.save_features)
-        self.model.blocks[2].add_module("save_features", self.save_features)
+        self.save_l0 = SaveLayerFeatures()
+        self.save_l1 = SaveLayerFeatures()
+        self.save_l2 = SaveLayerFeatures()
+        self.model.blocks[0].add_module("save_features", self.save_l0)
+        self.model.blocks[1].add_module("save_features", self.save_l1)
+        self.model.blocks[2].add_module("save_features", self.save_l2)
 
     def forward(self, x):
+        self.save_l0.clear()
+        self.save_l1.clear()
+        self.save_l2.clear()
+
         _ = self.model(x)
-        features = self.save_features.outputs.copy()
-        self.save_features.clear()
-        return features
+
+        return [ # Return the feature pyramids
+            self.save_l0.outputs,
+            self.save_l1.outputs,
+            self.save_l2.outputs,
+        ]
+
 
 
 class CrossViewLocalizationModel(nn.Module):

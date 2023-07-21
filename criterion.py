@@ -302,7 +302,6 @@ class HanningLoss(nn.Module):
         self.kernel_size = kernel_size
         self.device = device
         self.negative_weight = negative_weight
-        self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
         self._prepare_hann_kernel()
 
     def _prepare_hann_kernel(self):
@@ -341,12 +340,13 @@ class HanningLoss(nn.Module):
             # Normalize weights again
             weights /= weights.sum()
 
-            # Binary Cross Entropy with custom weights
-            bce_loss = self.bce_loss(
+            bce_l = F.binary_cross_entropy_with_logits(
                 pred[i].view(1, 1, *pred[i].shape),
                 target[i].view(1, 1, *target[i].shape),
+                weight=weights,
+                reduction="sum",
             )
-            batch_loss += (bce_loss * weights).sum()
+            batch_loss += bce_l
 
         return batch_loss / batch_size
 

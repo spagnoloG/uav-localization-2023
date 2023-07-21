@@ -126,7 +126,7 @@ class CrossViewTrainer:
             torch.backends.cudnn.deterministic = True
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        self.criterion = HanningLoss(kernel_size=self.kernel_size, device=self.device)
+        self.criterion = HanningLoss(kernel_size =self.kernel_size, device=self.device)
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
