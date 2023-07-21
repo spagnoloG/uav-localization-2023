@@ -332,12 +332,6 @@ class HanningLoss(nn.Module):
 
             # Compute negative weights
             num_negative = (weights == 0).sum()
-            if num_negative == 0:
-                # Save the weights for debugging
-                torch.save(weights, "weights.pt")
-                torch.save(target[i], "target.pt")
-                torch.save(pred[i], "pred.pt")
-                raise ValueError("No negative weights found. Check the target tensor.")
 
             negative_weight = self.negative_weight / num_negative
 
