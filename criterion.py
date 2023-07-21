@@ -302,28 +302,30 @@ class HanningLoss(nn.Module):
         self.kernel_size = kernel_size
         self.device = device
         self.negative_weight = negative_weight
-        self.prepare_hann_kernel()
+        self.bce_loss = nn.BCEWithLogitsLoss(reduction="none")
+        self._prepare_hann_kernel()
 
-    def prepare_hann_kernel(self):
+    def _prepare_hann_kernel(self):
         hann_kernel = torch.hann_window(
             self.kernel_size, periodic=False, dtype=torch.float, device=self.device
         )
         hann_kernel = hann_kernel.view(1, 1, -1, 1) * hann_kernel.view(1, 1, 1, -1)
         self.hann_kernel = hann_kernel
 
-    def weighted_mse(self, pred, target, weights):
-        return (weights * (pred - target) ** 2).sum()
+    def _get_bounds(self, mask):
+        indices = torch.nonzero(mask)
+        ymin, xmin = indices.min(dim=0)[0]
+        ymax, xmax = indices.max(dim=0)[0]
+        return xmin.item(), ymin.item(), (xmax + 1).item(), (ymax + 1).item()
 
     def forward(self, pred, target):
         batch_size = target.shape[0]
         batch_loss = 0.0
 
         for i in range(batch_size):
-            weights = F.conv2d(
-                target[i].view(1, 1, *target[i].shape),
-                self.hann_kernel,
-                padding=self.kernel_size // 2,
-            )
+            weights = torch.zeros_like(target[i])
+            xmin, ymin, xmax, ymax = self._get_bounds(target[i] == 1)
+            weights[ymin:ymax, xmin:xmax] = self.hann_kernel
 
             # Normalize positive weights
             weights /= weights.sum()
@@ -345,11 +347,12 @@ class HanningLoss(nn.Module):
             # Normalize weights again
             weights /= weights.sum()
 
-            batch_loss += self.weighted_mse(
+            # Binary Cross Entropy with custom weights
+            bce_loss = self.bce_loss(
                 pred[i].view(1, 1, *pred[i].shape),
                 target[i].view(1, 1, *target[i].shape),
-                weights,
             )
+            batch_loss += (bce_loss * weights).sum()
 
         return batch_loss / batch_size
 

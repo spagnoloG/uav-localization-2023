@@ -119,13 +119,14 @@ class CrossViewTrainer:
         self.val_loss = 0
         self.stop_training = False
         self.map_utils = MapUtils()
+        self.kernel_size = config["dataset"]["heatmap_kernel_size"]
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = True
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        self.criterion = HanningLoss()
+        self.criterion = HanningLoss(kernel_size=self.kernel_size, device=self.device)
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(

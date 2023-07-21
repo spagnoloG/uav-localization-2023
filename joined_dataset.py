@@ -65,6 +65,8 @@ class JoinedDataset(Dataset):
             self.random_seed = config.get("random_seed", 42)
             self.set_seed(self.random_seed)
 
+        self.set_hanning_kernel(self.heatmap_kernel_size)
+
         self.deterministic_val = True if dataset == "test" else False
 
         if self.deterministic_val:
@@ -110,6 +112,17 @@ class JoinedDataset(Dataset):
                 if entry_path.endswith(".json"):
                     self.get_metadata(entry_path)
         return entry_paths
+
+    def set_hanning_kernel(self, kernel_size):
+        """
+        Sets the hanning kernel for heatmap generation.
+
+        Args:
+            kernel_size (int): Size of the kernel.
+
+        """
+        self.kernel_size = kernel_size
+        self.hanning_kernel = np.outer(np.hanning(kernel_size), np.hanning(kernel_size))
 
     def get_metadata(self, path):
         """
@@ -223,8 +236,14 @@ class JoinedDataset(Dataset):
 
             x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
 
-            x_offset_range = [x_pixel - patch_width, x_pixel]
-            y_offset_range = [y_pixel - patch_height, y_pixel]
+            x_offset_range = [
+                x_pixel - patch_width + self.kernel_size,
+                x_pixel - self.kernel_size,
+            ]
+            y_offset_range = [
+                y_pixel - patch_height + self.kernel_size,
+                y_pixel - self.kernel_size,
+            ]
 
             # Randomly select an offset within the valid range
             x_offset = random.randint(*x_offset_range)
@@ -285,11 +304,45 @@ class JoinedDataset(Dataset):
 
         # Calculate the valid range for the square
         start_x = max(0, x_map - half_size)
-        end_x = min(width, x_map + half_size)
+        end_x = min(
+            width, x_map + half_size + 1
+        )  # +1 to include the end_x in the square
         start_y = max(0, y_map - half_size)
-        end_y = min(height, y_map + half_size)
+        end_y = min(
+            height, y_map + half_size + 1
+        )  # +1 to include the end_y in the square
 
         heatmap[start_y:end_y, start_x:end_x] = 1
+
+        return heatmap
+
+    def generate_hanning_heatmap(self, x, y, height, width, square_size=33):
+        x_map, y_map = x, y
+
+        height, width = height, width
+
+        heatmap = torch.zeros((height, width))
+
+        # Compute half size of the hanning window
+        half_size = self.hanning_kernel.shape[0] // 2
+
+        # Calculate the valid range for the hanning window
+        start_x = max(0, x_map - half_size)
+        end_x = min(width, start_x + self.hanning_kernel.shape[1])
+        start_y = max(0, y_map - half_size)
+        end_y = min(height, start_y + self.hanning_kernel.shape[0])
+
+        # If the hanning window doesn't fit at the current position, move its start position
+        if end_x - start_x < self.hanning_kernel.shape[1]:
+            start_x = end_x - self.hanning_kernel.shape[1]
+
+        if end_y - start_y < self.hanning_kernel.shape[0]:
+            start_y = end_y - self.hanning_kernel.shape[0]
+
+        # Assign the hanning window to the valid region within the heatmap tensor
+        heatmap[start_y:end_y, start_x:end_x] = self.hanning_kernel[
+            : end_y - start_y, : end_x - start_x
+        ]
 
         return heatmap
 
@@ -344,9 +397,10 @@ class JoinedDataset(Dataset):
         img_info["angle"] = rotation_angle
 
         # Rotate crop center and transform image
-        drone_image = F.resize(
-            drone_image, [drone_image.height // 2, drone_image.width // 2]
-        )
+        # hw = np.ceil(drone_image.height // 1.1).astype(int)
+        # drone_image = F.resize(
+        #    drone_image, [hw, hw]
+        # )
         drone_image = F.rotate(drone_image, rotation_angle)
         drone_image = F.center_crop(drone_image, (self.patch_h, self.patch_w))
         drone_image = self.transforms(drone_image)
@@ -356,7 +410,11 @@ class JoinedDataset(Dataset):
 
         # Generate heatmap
         heatmap = self.generate_square_heatmap(
-            x_sat, y_sat, satellite_patch.shape[1], satellite_patch.shape[2]
+            x_sat,
+            y_sat,
+            satellite_patch.shape[1],
+            satellite_patch.shape[2],
+            self.kernel_size,
         )
 
         return drone_image, img_info, satellite_patch, heatmap, x_sat, y_sat
