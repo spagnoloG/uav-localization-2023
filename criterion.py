@@ -297,7 +297,7 @@ class JustAnotherWeightedMSELoss(nn.Module):
 
 
 class HanningLoss(nn.Module):
-    def __init__(self, kernel_size=33, negative_weight=2, device="cuda:0"):
+    def __init__(self, kernel_size=33, negative_weight=1, device="cuda:0"):
         super(HanningLoss, self).__init__()
         self.kernel_size = kernel_size
         self.device = device

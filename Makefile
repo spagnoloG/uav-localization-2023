@@ -66,5 +66,5 @@ download-vis:
 
 download-weights:
 	@echo  "Downloading weights from ml-node"
-	mkdir -p vis
+	mkdir -p checkpoints
 	rsync -rav ml-node:/home/ml-node/Documents/uav-localization-2023/checkpoints/ ./checkpoints/
