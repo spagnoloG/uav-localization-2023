@@ -45,7 +45,7 @@ class Xcorr(nn.Module):
         bs, c, h, w = query.shape
         _, _, H, W = search_map_padded.shape
 
-        search_map_padded = search_map_padded.view(1, bs * c, H, W)
+        search_map_padded = search_map_padded.reshape(1, bs * c, H, W)
 
         corr_maps = F.conv2d(search_map_padded, query, groups=bs)
 
@@ -210,11 +210,9 @@ class SaveLayerFeatures(nn.Module):
         super(SaveLayerFeatures, self).__init__()
         self.outputs = None
 
-    def forward(self, x, shape):
-        output = x.clone()
-        output = output.reshape(x.shape[0], x.shape[2], shape[0], shape[1])
-        self.outputs = output
-        return output
+    def forward(self, x):
+        self.outputs = x.clone()
+        return x
 
     def clear(self):
         self.outputs = None
@@ -249,9 +247,9 @@ class ModifiedPCPVT(nn.Module):
         self.save_l0 = SaveLayerFeatures()
         self.save_l1 = SaveLayerFeatures()
         self.save_l2 = SaveLayerFeatures()
-        self.model.blocks[0].add_module("save_features", self.save_l0)
-        self.model.blocks[1].add_module("save_features", self.save_l1)
-        self.model.blocks[2].add_module("save_features", self.save_l2)
+        self.model.pos_block[0].proj.add_module("save_l0", self.save_l0)
+        self.model.pos_block[1].proj.add_module("save_l1", self.save_l1)
+        self.model.pos_block[2].proj.add_module("save_l2", self.save_l2)
 
     def forward(self, x):
         self.save_l0.clear()
@@ -260,12 +258,11 @@ class ModifiedPCPVT(nn.Module):
 
         _ = self.model(x)
 
-        return [ # Return the feature pyramids
+        return [  # Return the feature pyramids
             self.save_l0.outputs,
             self.save_l1.outputs,
             self.save_l2.outputs,
         ]
-
 
 
 class CrossViewLocalizationModel(nn.Module):

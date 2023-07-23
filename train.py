@@ -126,13 +126,13 @@ class CrossViewTrainer:
             torch.backends.cudnn.deterministic = True
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        self.criterion = HanningLoss(kernel_size =self.kernel_size, device=self.device)
+        self.criterion = HanningLoss(kernel_size=self.kernel_size, device=self.device)
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
                 satellite_resolution=(
-                    config["sat_dataset"]["patch_w"],
-                    config["sat_dataset"]["patch_h"],
+                    config["dataset"]["sat_patch_w"],
+                    config["dataset"]["sat_patch_h"],
                 )
             ).to(self.device)
 
@@ -144,8 +144,8 @@ class CrossViewTrainer:
             self.model = torch.nn.DataParallel(  # support for multi-GPU training
                 CrossViewLocalizationModel(
                     satellite_resolution=(
-                        config["sat_dataset"]["patch_w"],
-                        config["sat_dataset"]["patch_h"],
+                        config["dataset"]["sat_patch_w"],
+                        config["dataset"]["sat_patch_h"],
                     ),
                 )
             )
@@ -477,11 +477,11 @@ class CrossViewTrainer:
                     mean=[
                         -m / s
                         for m, s in zip(
-                            self.config["sat_dataset"]["mean"],
-                            self.config["sat_dataset"]["std"],
+                            self.config["dataset"]["mean"],
+                            self.config["dataset"]["std"],
                         )
                     ],
-                    std=[1 / s for s in self.config["sat_dataset"]["std"]],
+                    std=[1 / s for s in self.config["dataset"]["std"]],
                 ),
                 transforms.ToPILImage(),
             ]

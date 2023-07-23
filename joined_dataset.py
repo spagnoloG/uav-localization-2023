@@ -65,7 +65,7 @@ class JoinedDataset(Dataset):
             self.random_seed = config.get("random_seed", 42)
             self.set_seed(self.random_seed)
 
-        self.set_hanning_kernel(self.heatmap_kernel_size)
+        self.set_hanning_kernel()
 
         self.deterministic_val = True if dataset == "test" else False
 
@@ -113,7 +113,7 @@ class JoinedDataset(Dataset):
                     self.get_metadata(entry_path)
         return entry_paths
 
-    def set_hanning_kernel(self, kernel_size):
+    def set_hanning_kernel(self):
         """
         Sets the hanning kernel for heatmap generation.
 
@@ -121,8 +121,8 @@ class JoinedDataset(Dataset):
             kernel_size (int): Size of the kernel.
 
         """
-        self.kernel_size = kernel_size
-        self.hanning_kernel = np.outer(np.hanning(kernel_size), np.hanning(kernel_size))
+        hann1d = torch.hann_window(self.heatmap_kernel_size, periodic=False)
+        self.hanning_kernel = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
 
     def get_metadata(self, path):
         """
@@ -236,7 +236,7 @@ class JoinedDataset(Dataset):
 
             x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
 
-            ks = self.kernel_size // 2
+            ks = self.heatmap_kernel_size // 2
 
             x_offset_range = [
                 x_pixel - patch_width + ks + 1,
@@ -346,6 +346,8 @@ class JoinedDataset(Dataset):
             : end_y - start_y, : end_x - start_x
         ]
 
+        heatmap = heatmap / heatmap.sum()
+
         return heatmap
 
     def __getitem__(self, idx):
@@ -378,7 +380,13 @@ class JoinedDataset(Dataset):
             if key in self.drone_to_sat_dict:
                 x_offset, y_offset = self.drone_to_sat_dict[key]
                 satellite_patch, x_sat, y_sat, _, _ = self.get_tiff_patch(
-                    image_path, lat, lon, 400, 400, x_offset, y_offset
+                    image_path,
+                    lat,
+                    lon,
+                    self.sat_patch_h,
+                    self.sat_patch_w,
+                    x_offset,
+                    y_offset,
                 )
             else:
                 (
@@ -387,12 +395,14 @@ class JoinedDataset(Dataset):
                     y_sat,
                     x_offset,
                     y_offset,
-                ) = self.get_random_tiff_patch(image_path, lat, lon, 400, 400)
+                ) = self.get_random_tiff_patch(
+                    image_path, lat, lon, self.sat_patch_h, self.sat_patch_h
+                )
                 self.drone_to_sat_dict[key] = (x_offset, y_offset)
 
         else:
             satellite_patch, x_sat, y_sat, _, _ = self.get_random_tiff_patch(
-                image_path, lat, lon, 400, 400
+                image_path, lat, lon, self.sat_patch_h, self.sat_patch_w
             )
 
         rotation_angle = (idx % self.rotations_per_image) * self.rotation_deg
@@ -416,7 +426,7 @@ class JoinedDataset(Dataset):
             y_sat,
             satellite_patch.shape[1],
             satellite_patch.shape[2],
-            self.kernel_size,
+            self.heatmap_kernel_size,
         )
 
         return drone_image, img_info, satellite_patch, heatmap, x_sat, y_sat
@@ -451,7 +461,6 @@ def test():
 
     with open("./conf/configuration.yaml", "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-        config = config["dataset"]
 
     dataset = JoinedDataset(config=config)
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
@@ -459,7 +468,7 @@ def test():
     for batch in dataloader:
         drone_images, drone_infos, satellite_images, heatmaps, x, y = batch
         assert drone_images.shape == (len(batch[0]), 3, 128, 128)
-        assert satellite_images.shape == (len(batch[0]), 3, 400, 400)
+        assert satellite_images.shape == (len(batch[0]), 3, 256, 256)
         # First pair of drone and satellite images
         fig, axs = plt.subplots(1, 3, figsize=(20, 6))
         axs[0].imshow(drone_images[0].permute(1, 2, 0))
