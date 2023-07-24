@@ -20,7 +20,7 @@ from map_utils import MapUtils
 import matplotlib.patches as patches
 import json
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 class ConvergenceEarlyStopping:
