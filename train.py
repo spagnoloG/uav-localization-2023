@@ -18,6 +18,7 @@ import os
 import numpy as np
 from map_utils import MapUtils
 import matplotlib.patches as patches
+import json
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
@@ -194,6 +195,8 @@ class CrossViewTrainer:
         logger.info("Preparing dataloaders...")
         self.prepare_dataloaders(config)
         logger.info("Dataloaders ready.")
+
+        self.dump_config()
 
         logger.info(
             f"Using chekpoint hash {self.checkpoint_hash}, starting from epoch {self.current_epoch}"
@@ -560,6 +563,11 @@ class CrossViewTrainer:
             f"./vis/{self.checkpoint_hash}/{s_dir}/{call_f}-{self.checkpoint_hash}-{i}.png"
         )
         plt.close()
+
+    def dump_config(self, dir_path="./checkpoints/"):
+        os.makedirs(f"{dir_path}/{self.checkpoint_hash}/", exist_ok=True)
+        with open(f"{dir_path}/{self.checkpoint_hash}/config.json", "w") as f:
+            json.dump(self.config, f)
 
     def save_checkpoint(self, epoch, dir_path="./checkpoints/"):
         """

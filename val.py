@@ -116,9 +116,9 @@ class CrossViewValidator:
         self.model = torch.nn.DataParallel(
             CrossViewLocalizationModel(
                 satellite_resolution=(
-                    self.config["sat_dataset"]["patch_w"],
-                    self.config["sat_dataset"]["patch_h"],
-                ),
+                    self.config["dataset"]["sat_patch_w"],
+                    self.config["dataset"]["sat_patch_h"],
+                )
             )
         )
         # load the state dict into the model
@@ -239,11 +239,11 @@ class CrossViewValidator:
                     mean=[
                         -m / s
                         for m, s in zip(
-                            self.config["sat_dataset"]["mean"],
-                            self.config["sat_dataset"]["std"],
+                            self.config["dataset"]["mean"],
+                            self.config["dataset"]["std"],
                         )
                     ],
-                    std=[1 / s for s in self.config["sat_dataset"]["std"]],
+                    std=[1 / s for s in self.config["dataset"]["std"]],
                 ),
                 transforms.ToPILImage(),
             ]

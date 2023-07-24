@@ -146,7 +146,7 @@ Twins(
     )
     (1): PosConv(
       (proj): Sequential(
-        (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), groups=128)
+        (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), groups=128) # DO the same thing in  the fusion layer
         (save_l1): SaveLayerFeatures()
       )
     )
