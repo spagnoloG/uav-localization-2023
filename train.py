@@ -97,8 +97,8 @@ class CrossViewTrainer:
         """
         self.config = config
         self.device = config["train"]["device"]
-        self.lr_fusion = config["train"]["lr"]
-        self.lr_backbone = self.lr_fusion / 1.5
+        self.lr_fusion = config["train"]["lr_fusion"]
+        self.lr_backbone = config["train"]["lr_backbone"]
         self.num_workers = config["train"]["num_workers"]
         self.num_epochs = config["train"]["num_epochs"]
         self.shuffle_dataset = config["train"]["shuffle_dataset"]
@@ -444,7 +444,7 @@ class CrossViewTrainer:
                             x_sat[0].item(),
                             y_sat[0].item(),
                             i,
-                            f"val-{epoch}",
+                            f"val-{epoch}-{i}",
                         )
 
                 total_samples += len(dataloader)
@@ -499,10 +499,10 @@ class CrossViewTrainer:
         # Initialize figure
         fig = plt.figure(figsize=(20, 20))
 
-        # Subplot 1: Drone Image
+        # Subplot 1: UAV Image
         ax1 = fig.add_subplot(2, 3, 1)
         ax1.imshow(inverse_transforms(drone_image))
-        ax1.set_title("Drone Image")
+        ax1.set_title("UAV Image")
         ax1.axis("off")
 
         # Subplot 2: Satellite Image

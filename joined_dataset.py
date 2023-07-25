@@ -35,6 +35,7 @@ class JoinedDataset(Dataset):
         sat_patch_w=None,
         sat_patch_h=None,
         heatmap_kernel_size=None,
+        heatmap_type=None,
     ):
         config = config["dataset"]
         self.root_dir = config["root_dir"]
@@ -47,6 +48,7 @@ class JoinedDataset(Dataset):
             if heatmap_kernel_size
             else config["heatmap_kernel_size"]
         )
+        self.heatmap_type = config["heatmap_type"]
         self.metadata_dict = {}
         self.dataset = dataset
         self.rotation_deg = config["drone_rotation_deg"]
@@ -65,7 +67,7 @@ class JoinedDataset(Dataset):
             self.random_seed = config.get("random_seed", 42)
             self.set_seed(self.random_seed)
 
-        self.set_hanning_kernel()
+        self.prepare_kernels()
 
         self.deterministic_val = True if dataset == "test" else False
 
@@ -113,7 +115,7 @@ class JoinedDataset(Dataset):
                     self.get_metadata(entry_path)
         return entry_paths
 
-    def set_hanning_kernel(self):
+    def prepare_kernels(self):
         """
         Sets the hanning kernel for heatmap generation.
 
@@ -123,6 +125,10 @@ class JoinedDataset(Dataset):
         """
         hann1d = torch.hann_window(self.heatmap_kernel_size, periodic=False)
         self.hanning_kernel = hann1d.unsqueeze(1) * hann1d.unsqueeze(0)
+
+        gauss1d = torch.linspace(-1, 1, self.heatmap_kernel_size)
+        gauss1d = torch.exp(-gauss1d.pow(2))
+        self.gaussian_kernel = gauss1d.unsqueeze(1) * gauss1d.unsqueeze(0)
 
     def get_metadata(self, path):
         """
@@ -224,6 +230,16 @@ class JoinedDataset(Dataset):
             plt.show()
 
         return data
+
+    def get_heatmap_gt(self, x, y, height, width, square_size=33):
+        if self.heatmap_type == "hanning":
+            return self.generate_hanning_heatmap(x, y, height, width, square_size)
+        elif self.heatmap_type == "gaussian":
+            return self.generate_gaussian_heatmap(x, y, height, width, square_size)
+        elif self.heatmap_type == "square":
+            return self.generate_square_heatmap(x, y, height, width, square_size)
+        else:
+            raise ValueError("Invalid heatmap type: ", self.heatmap_type)
 
     def get_random_tiff_patch(self, path, lat, lon, patch_width, patch_height):
         """ "
@@ -350,6 +366,50 @@ class JoinedDataset(Dataset):
 
         return heatmap
 
+    def generate_gaussian_heatmap(self, x, y, height, width, square_size=33):
+        """
+        Generates a heatmap using a Gaussian kernel centered at the given coordinates.
+
+        Args:
+            lat (float): Latitude.
+            lng (float): Longitude.
+            sat_image (torch.Tensor): Satellite image tensor.
+            x (int): x-coordinate of the tile.
+            y (int): y-coordinate of the tile.
+            z (int): Zoom level of the tile.
+            square_size (int): Size of the square kernel.
+
+        Returns:
+            torch.Tensor: Heatmap tensor.
+
+        """
+        x_map, y_map = x, y
+
+        heatmap = torch.zeros((width, height))
+
+        # Compute half size of the Gaussian window
+        half_size = self.gaussian_kernel.shape[0] // 2
+
+        # Calculate the valid range for the Gaussian window
+        start_x = max(0, x_map - half_size)
+        end_x = min(width, start_x + self.gaussian_kernel.shape[1])
+        start_y = max(0, y_map - half_size)
+        end_y = min(height, start_y + self.gaussian_kernel.shape[0])
+
+        # If the Gaussian window doesn't fit at the current position, move its start position
+        if end_x - start_x < self.gaussian_kernel.shape[1]:
+            start_x = end_x - self.gaussian_kernel.shape[1]
+
+        if end_y - start_y < self.gaussian_kernel.shape[0]:
+            start_y = end_y - self.gaussian_kernel.shape[0]
+
+        # Assign the Gaussian window to the valid region within the heatmap tensor
+        heatmap[start_y:end_y, start_x:end_x] = self.gaussian_kernel[
+            : end_y - start_y, : end_x - start_x
+        ]
+
+        return heatmap
+
     def __getitem__(self, idx):
         """
         Retrieves and preprocesses the image and its corresponding metadata at the given index.
@@ -465,10 +525,28 @@ def test():
     dataset = JoinedDataset(config=config)
     dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
 
+    # satellite_patch, x_sat, y_sat, x_offset, y_offset = dataset.get_random_tiff_patch(
+    #    "./dataset/Test1_Ljubljana_150m_80fov_90deg/footage/Test1_Ljubljana_150m_80fov_90deg_0515.jpeg",
+    #    46.050095,
+    #    14.502725,
+    #    400,
+    #    400,
+    # )
+
+    ## Plot the satellite patch and the point on the satellite patch
+    # fig, axs = plt.subplots(1, 2, figsize=(20, 6))
+    # axs[0].imshow(satellite_patch.transpose(1, 2, 0))
+    # axs[0].scatter(x_sat, y_sat, c="r")
+    # axs[0].set_title("Satellite patch")
+    # axs[1].imshow(satellite_patch.transpose(1, 2, 0))
+    # axs[1].scatter(x_sat + x_offset, y_sat + y_offset, c="r")
+    # axs[1].set_title("Satellite patch with offset")
+    # plt.show()
+
     for batch in dataloader:
         drone_images, drone_infos, satellite_images, heatmaps, x, y = batch
         assert drone_images.shape == (len(batch[0]), 3, 128, 128)
-        assert satellite_images.shape == (len(batch[0]), 3, 256, 256)
+        assert satellite_images.shape == (len(batch[0]), 3, 400, 400)
         # First pair of drone and satellite images
         fig, axs = plt.subplots(1, 3, figsize=(20, 6))
         axs[0].imshow(drone_images[0].permute(1, 2, 0))
