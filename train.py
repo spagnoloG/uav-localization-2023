@@ -13,7 +13,7 @@ from model import CrossViewLocalizationModel
 import yaml
 import argparse
 import torchvision.transforms as transforms
-from criterion import HanningLoss
+from criterion import HanningLoss, RDS
 import os
 import numpy as np
 from map_utils import MapUtils
@@ -121,6 +121,7 @@ class CrossViewTrainer:
         self.stop_training = False
         self.map_utils = MapUtils()
         self.kernel_size = config["dataset"]["heatmap_kernel_size"]
+        self.RDS = RDS(k=10)
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
@@ -333,6 +334,7 @@ class CrossViewTrainer:
         """
         self.model.train()
         running_loss = 0.0
+        running_RDS = 0.0
         total_samples = 0
         for dataloader, h_kernel_size, d_patch_size in zip(
             self.train_dataloaders,
@@ -368,6 +370,17 @@ class CrossViewTrainer:
                 loss.backward()
                 self.optimizer.step()
 
+                ### RDS ###
+                with torch.no_grad():
+                    running_RDS += self.RDS(
+                        outputs,
+                        x_sat,
+                        y_sat,
+                        heatmaps_gt[0].shape[-1],
+                        heatmaps_gt[0].shape[-2],
+                    )
+                ### RDS ###
+
                 if i == 0 and self.plot:
                     lat_gt, lon_gt = (
                         drone_infos["coordinate"]["latitude"][0].item(),
@@ -391,6 +404,7 @@ class CrossViewTrainer:
 
         epoch_loss = running_loss / total_samples
         logger.info(f"Training loss: {epoch_loss}")
+        logger.info(f"Training RDS: {running_RDS.cpu().item() / total_samples}")
 
     def validate(self, epoch):
         """
@@ -399,6 +413,7 @@ class CrossViewTrainer:
         self.model.eval()
         running_loss = 0.0
         total_samples = 0
+        running_RDS = 0.0
         with torch.no_grad():
             for dataloader, h_kernel_size, d_patch_size in zip(
                 self.val_dataloaders,
@@ -422,12 +437,23 @@ class CrossViewTrainer:
                     drone_images = drone_images.to(self.device)
                     sat_images = sat_images.to(self.device)
                     heatmap_gt = heatmaps_gt.to(self.device)
+
                     # Forward pass
                     outputs = self.model(drone_images, sat_images)
                     # Calculate loss
                     loss = self.criterion(outputs, heatmap_gt)
                     # Accumulate the loss
                     running_loss += loss.item() * drone_images.size(0)
+
+                    ### RDS ###
+                    running_RDS += self.RDS(
+                        outputs,
+                        x_sat,
+                        y_sat,
+                        heatmaps_gt[0].shape[-1],
+                        heatmaps_gt[0].shape[-2],
+                    )
+                    ### RDS ###
 
                     if i == 0 and self.plot:
                         lat_gt, lon_gt = (
@@ -452,8 +478,8 @@ class CrossViewTrainer:
         epoch_loss = running_loss / total_samples
 
         self.val_loss = epoch_loss
-
         logger.info(f"Validation loss: {epoch_loss}")
+        logger.info(f"Validation RDS: {running_RDS.cpu().item() / total_samples}")
 
     def plot_results(
         self,

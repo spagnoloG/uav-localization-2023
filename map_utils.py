@@ -204,3 +204,6 @@ class MapUtils:
         return np.exp(
             -4 * np.log(2) * ((x - center[0]) ** 2 + (y - center[1]) ** 2) / sigma**2
         )
+
+    def RDS(self, k, dx, dy, hm_w, hm_h):
+        return np.exp(-k * np.sqrt(((dx / hm_w) ** 2 + (dy / hm_h) ** 2)) / 2)

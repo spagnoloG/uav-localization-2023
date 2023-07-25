@@ -351,6 +351,24 @@ class HanningLoss(nn.Module):
         return batch_loss / batch_size
 
 
+class RDS(nn.Module):
+    def __init__(self, k=10):
+        super(RDS, self).__init__()
+        self.k = k
+
+    def forward(self, heatmaps_pred, xs_gt, ys_gt, hm_w, hm_h):
+        running_rds = 0.0
+        for heatmap_pred, x_gt, y_gt in zip(heatmaps_pred, xs_gt, ys_gt):
+            y_pred, x_pred = torch.where(heatmap_pred == heatmap_pred.max())
+            dx = torch.abs(x_pred - x_gt)
+            dy = torch.abs(y_pred - y_gt)
+            running_rds += torch.exp(
+                -self.k * (torch.sqrt(((dx / hm_w) ** 2 + (dy / hm_h) ** 2)) / 2)
+            )
+
+        return running_rds / len(heatmaps_pred)
+
+
 def test():
     input = torch.randn(4, 400, 400)
     target = torch.zeros(4, 400, 400)
