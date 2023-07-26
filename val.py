@@ -11,7 +11,7 @@ import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
 import torchvision.transforms as transforms
-from criterion import JustAnotherWeightedMSELoss
+from criterion import HanningLoss, RDS
 from map_utils import MapUtils
 import numpy as np
 import matplotlib.patches as patches
@@ -40,8 +40,12 @@ class CrossViewValidator:
         self.shuffle_dataset = self.config["val"]["shuffle_dataset"]
         self.val_dataloaders = []
         self.batch_size = config["val"]["batch_size"]
+        self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
+        self.RDS = RDS()
 
-        self.criterion = JustAnotherWeightedMSELoss()
+        self.criterion = HanningLoss(
+            kernel_size=self.heatmap_kernel_size, device=self.device
+        )
 
         self.prepare_dataloaders(config)
         self.map_utils = MapUtils()
@@ -132,6 +136,7 @@ class CrossViewValidator:
         self.model.eval()
         running_loss = 0.0
         total_samples = 0
+        running_RDS = 0.0
         with torch.no_grad():
             for i, (
                 drone_images,
@@ -154,6 +159,16 @@ class CrossViewValidator:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
+                ### RDS ###
+                running_RDS += self.RDS(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                    heatmaps_gt[0].shape[-1],
+                    heatmaps_gt[0].shape[-2],
+                )
+                ### RDS ###
+
                 if self.plot:
                     lat_gt, lon_gt = (
                         drone_infos["coordinate"]["latitude"][0].item(),
@@ -171,13 +186,14 @@ class CrossViewValidator:
                         i,
                     )
 
-            total_samples += len(self.dataloader)
+            total_samples += len(self.val_dataloader)
 
         epoch_loss = running_loss / total_samples
 
         self.val_loss = epoch_loss
 
         logger.info(f"Validation loss: {epoch_loss}")
+        logger.info(f"Validation RDS: {running_RDS.cpu().item() / total_samples}")
 
     def visualize_model(self):
         tensor_uav = torch.randn(1, 128, 128, 3)
