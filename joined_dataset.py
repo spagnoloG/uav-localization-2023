@@ -51,10 +51,8 @@ class JoinedDataset(Dataset):
         self.heatmap_type = config["heatmap_type"]
         self.metadata_dict = {}
         self.dataset = dataset
-        self.rotation_deg = config["drone_rotation_deg"]
-        self.rotations_per_image = (
-            360 // self.rotation_deg
-        )  # Number of rotations for each image
+        self.drone_scales = config["drone_scales"]
+        self.tiffs = config["tiffs"]
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.transforms = transforms.Compose(
             [
@@ -152,7 +150,7 @@ class JoinedDataset(Dataset):
             int: Number of samples.
 
         """
-        return len(self.image_paths) * self.rotations_per_image
+        return len(self.image_paths) * len(self.drone_scales)
 
     def equirectangular_np(self, lat1, lon1, lat2, lon2):
         lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
@@ -245,7 +243,8 @@ class JoinedDataset(Dataset):
         """ "
         Returns a random patch from the satellite image.
         """
-        path = path + "_sat.tiff"
+        tiff_num = random.choice(self.tiffs)
+        path = path + f"_sat_{tiff_num}.tiff"
 
         with rasterio.open(path) as tif:
             transform = tif.transform
@@ -274,16 +273,16 @@ class JoinedDataset(Dataset):
             x, y = x_pixel - x_offset, y_pixel - y_offset
             patch = tif.read(window=window)
 
-        return patch, x, y, x_offset, y_offset
+        return patch, x, y, x_offset, y_offset, tiff_num
 
     def get_tiff_patch(
-        self, path, lat, lon, patch_width, patch_height, x_offset, y_offset
+        self, path, lat, lon, patch_width, patch_height, x_offset, y_offset, tiff_num
     ):
         """
         Returns a patch from the satellite image. with the given offset and size.
         """
 
-        path = path + "_sat.tiff"
+        path = path + f"_sat_{tiff_num}.tiff"
 
         with rasterio.open(path) as tif:
             transform = tif.transform
@@ -421,7 +420,7 @@ class JoinedDataset(Dataset):
             tuple: Tuple containing the preprocessed image tensor and the metadata dictionary.
 
         """
-        image_path = self.image_paths[idx // self.rotations_per_image]
+        image_path = self.image_paths[idx // len(self.drone_scales)]
         drone_image = Image.open(image_path).convert("RGB")  # Ensure 3-channel image
 
         lookup_str, file_number = self.extract_info_from_filename(image_path)
@@ -438,8 +437,8 @@ class JoinedDataset(Dataset):
 
             # Check if key is already in self.drone_to_sat_dict
             if key in self.drone_to_sat_dict:
-                x_offset, y_offset = self.drone_to_sat_dict[key]
-                satellite_patch, x_sat, y_sat, _, _ = self.get_tiff_patch(
+                x_offset, y_offset, tiff_num = self.drone_to_sat_dict[key]
+                satellite_patch, x_sat, y_sat, _, _, _ = self.get_tiff_patch(
                     image_path,
                     lat,
                     lon,
@@ -455,25 +454,25 @@ class JoinedDataset(Dataset):
                     y_sat,
                     x_offset,
                     y_offset,
+                    tiff_num,
                 ) = self.get_random_tiff_patch(
                     image_path, lat, lon, self.sat_patch_h, self.sat_patch_h
                 )
-                self.drone_to_sat_dict[key] = (x_offset, y_offset)
+                self.drone_to_sat_dict[key] = (x_offset, y_offset, tiff_num)
 
         else:
-            satellite_patch, x_sat, y_sat, _, _ = self.get_random_tiff_patch(
+            satellite_patch, x_sat, y_sat, _, _, _ = self.get_random_tiff_patch(
                 image_path, lat, lon, self.sat_patch_h, self.sat_patch_w
             )
 
-        rotation_angle = (idx % self.rotations_per_image) * self.rotation_deg
-        img_info["angle"] = rotation_angle
+        s_c_a_l_e = self.drone_scales[(idx % len(self.drone_scales))]
+        img_info["scale"] = s_c_a_l_e
 
         # Rotate crop center and transform image
-        # hw = np.ceil(drone_image.height // 1.1).astype(int)
-        # drone_image = F.resize(
-        #    drone_image, [hw, hw]
-        # )
-        drone_image = F.rotate(drone_image, rotation_angle)
+        h = np.ceil(drone_image.height // s_c_a_l_e).astype(int)
+        w = np.ceil(drone_image.width // s_c_a_l_e).astype(int)
+
+        drone_image = F.resize(drone_image, [h, w])
         drone_image = F.center_crop(drone_image, (self.patch_h, self.patch_w))
         drone_image = self.transforms(drone_image)
 

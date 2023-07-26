@@ -359,7 +359,8 @@ class RDS(nn.Module):
     def forward(self, heatmaps_pred, xs_gt, ys_gt, hm_w, hm_h):
         running_rds = 0.0
         for heatmap_pred, x_gt, y_gt in zip(heatmaps_pred, xs_gt, ys_gt):
-            y_pred, x_pred = torch.where(heatmap_pred == heatmap_pred.max())
+            coords = torch.where(heatmap_pred == heatmap_pred.max())
+            y_pred, x_pred = coords[0][0], coords[1][0]
             dx = torch.abs(x_pred - x_gt)
             dy = torch.abs(y_pred - y_gt)
             running_rds += torch.exp(

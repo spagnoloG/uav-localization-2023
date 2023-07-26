@@ -8,9 +8,7 @@ train:
   num_epochs: 24 # number of training epochs
   shuffle_dataset: true # shuffle dataset for each epoch
   download_dataset: false # wether to download the dataset
-  drone_view_patch_sizes: [128] # drone view patches sizes
-  heatmap_kernel_sizes: [33] # heatmap kernel sizes
-  batch_sizes: [4]
+  batch_size: 4
   train_until_convergence: false # train until convergence (ignore milestones and num_epochs)
 
   loss_fn:
@@ -35,11 +33,12 @@ train:
 dataset:
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  drone_patch_w: 128 # DO not change the drone patch size here, do it separately in the train and val sections! this is just for the dataset generation
-  drone_patch_h: 128 # !!
-  drone_rotation_deg: 360 # 360 means no rotation, 180 means 2 rotations, ec.
+  drone_scales: [1.0, 1.1, 1.2, 1.3] # drone view scales
+  tiffs: [16, 17]
+  drone_patch_w: 128
+  drone_patch_h: 128
   sat_zoom_level: 16 # satellite dataset zoom level
-  heatmap_kernel_size: 33 # Do not change the heatmap kernel size here, do it separately in the train and val sections!
+  heatmap_kernel_size: 33
   sat_patch_w: 400
   sat_patch_h: 400
   root_dir: "./dataset"

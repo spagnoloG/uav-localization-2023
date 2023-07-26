@@ -110,25 +110,23 @@ class CrossViewTrainer:
         self.current_epoch = 0
         self.download_dataset = config["train"]["download_dataset"]
         self.milestones = config["train"]["milestones"]
-        self.batch_sizes = config["train"]["batch_sizes"]
-        self.heatmap_kernel_sizes = config["train"]["heatmap_kernel_sizes"]
-        self.drone_view_patch_sizes = config["train"]["drone_view_patch_sizes"]
-        self.train_dataloaders = []
-        self.val_dataloaders = []
+        self.batch_size = config["train"]["batch_size"]
         self.train_until_convergence = config["train"]["train_until_convergence"]
         self.gamma = config["train"]["gamma"]
         self.val_loss = 0
         self.stop_training = False
         self.map_utils = MapUtils()
-        self.kernel_size = config["dataset"]["heatmap_kernel_size"]
         self.RDS = RDS(k=10)
+        self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = True
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        self.criterion = HanningLoss(kernel_size=self.kernel_size, device=self.device)
+        self.criterion = HanningLoss(
+            kernel_size=self.heatmap_kernel_size, device=self.device
+        )
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
@@ -204,84 +202,61 @@ class CrossViewTrainer:
         )
 
     def prepare_dataloaders(self, config):
-        for batch_size, heatmap_kernel_size, drone_view_patch_size in zip(
-            self.batch_sizes, self.heatmap_kernel_sizes, self.drone_view_patch_sizes
-        ):
-            if self.train_subset_size is not None:
-                logger.info(f"Using train subset of size {self.train_subset_size}")
-                subset_dataset = torch.utils.data.Subset(
-                    JoinedDataset(
-                        dataset="train",
-                        config=config,
-                        heatmap_kernel_size=heatmap_kernel_size,
-                        drone_patch_h=drone_view_patch_size,
-                        drone_patch_w=drone_view_patch_size,
-                    ),
-                    indices=range(self.train_subset_size),
-                )
-                self.train_dataloaders.append(
-                    DataLoader(
-                        subset_dataset,
-                        batch_size=batch_size,
-                        num_workers=self.num_workers,
-                        shuffle=self.shuffle_dataset,
-                    )
-                )
-            else:
-                logger.info("Using full train dataset")
-                subset_dataset = JoinedDataset(
+        if self.train_subset_size is not None:
+            logger.info(f"Using train subset of size {self.train_subset_size}")
+            subset_dataset = torch.utils.data.Subset(
+                JoinedDataset(
                     dataset="train",
                     config=config,
-                    heatmap_kernel_size=heatmap_kernel_size,
-                    drone_patch_h=drone_view_patch_size,
-                    drone_patch_w=drone_view_patch_size,
-                )
-                self.train_dataloaders.append(
-                    DataLoader(
-                        subset_dataset,
-                        batch_size=batch_size,
-                        num_workers=self.num_workers,
-                        shuffle=self.shuffle_dataset,
-                    )
-                )
+                ),
+                indices=range(self.train_subset_size),
+            )
+            self.train_dataloader = DataLoader(
+                subset_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                shuffle=self.shuffle_dataset,
+            )
+        else:
+            logger.info("Using full train dataset")
+            subset_dataset = JoinedDataset(
+                dataset="train",
+                config=config,
+            )
+            self.train_dataloader = DataLoader(
+                subset_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                shuffle=self.shuffle_dataset,
+            )
 
-            if self.val_subset_size is not None:
-                logger.info(f"Using val subset of size {self.val_subset_size}")
-                subset_dataset = torch.utils.data.Subset(
-                    JoinedDataset(
-                        dataset="test",
-                        config=config,
-                        heatmap_kernel_size=heatmap_kernel_size,
-                        drone_patch_h=drone_view_patch_size,
-                        drone_patch_w=drone_view_patch_size,
-                    ),
-                    indices=range(self.val_subset_size),
-                )
-                self.val_dataloaders.append(
-                    DataLoader(
-                        subset_dataset,
-                        batch_size=batch_size,
-                        num_workers=self.num_workers,
-                        shuffle=self.shuffle_dataset,
-                    )
-                )
-            else:
-                logger.info("Using full val dataset")
-                subset_dataset = JoinedDataset(
+        if self.val_subset_size is not None:
+            logger.info(f"Using val subset of size {self.val_subset_size}")
+            subset_dataset = torch.utils.data.Subset(
+                JoinedDataset(
                     dataset="test",
                     config=config,
-                    heatmap_kernel_size=heatmap_kernel_size,
-                    drone_patch_h=drone_view_patch_size,
-                    drone_patch_w=drone_view_patch_size,
-                )
-                self.val_dataloaders.append(
-                    DataLoader(
-                        subset_dataset,
-                        batch_size=batch_size,
-                        num_workers=self.num_workers,
-                        shuffle=self.shuffle_dataset,
-                    )
-                )
+                ),
+                indices=range(self.val_subset_size),
+            )
+            self.val_dataloader = DataLoader(
+                subset_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                shuffle=self.shuffle_dataset,
+            )
+        else:
+            logger.info("Using full val dataset")
+            subset_dataset = JoinedDataset(
+                dataset="test",
+                config=config,
+            )
+            self.val_dataloader = DataLoader(
+                subset_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                shuffle=self.shuffle_dataset,
+            )
 
     def train(self):
         """
@@ -336,14 +311,77 @@ class CrossViewTrainer:
         running_loss = 0.0
         running_RDS = 0.0
         total_samples = 0
-        for dataloader, h_kernel_size, d_patch_size in zip(
-            self.train_dataloaders,
-            self.heatmap_kernel_sizes,
-            self.drone_view_patch_sizes,
+        for i, (
+            drone_images,
+            drone_infos,
+            sat_images,
+            heatmaps_gt,
+            x_sat,
+            y_sat,
+        ) in tqdm(
+            enumerate(self.train_dataloader),
+            total=len(self.train_dataloader),
         ):
-            logger.info(
-                f"Training epoch with kernel size {h_kernel_size} and patch size {d_patch_size}"
-            )
+            drone_images = drone_images.to(self.device)
+            sat_images = sat_images.to(self.device)
+            heatmap_gt = heatmaps_gt.to(self.device)
+
+            # Zero out the gradients
+            self.optimizer.zero_grad()
+            # Forward pass
+            outputs = self.model(drone_images, sat_images)
+            # Calculate loss
+            loss = self.criterion(outputs, heatmap_gt)
+
+            # Backward pass and optimize
+            loss.backward()
+            self.optimizer.step()
+
+            ### RDS ###
+            with torch.no_grad():
+                running_RDS += self.RDS(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                    heatmaps_gt[0].shape[-1],
+                    heatmaps_gt[0].shape[-2],
+                )
+            ### RDS ###
+
+            if i == 0 and self.plot:
+                lat_gt, lon_gt = (
+                    drone_infos["coordinate"]["latitude"][0].item(),
+                    drone_infos["coordinate"]["longitude"][0].item(),
+                )
+                self.plot_results(
+                    drone_images[0].detach(),
+                    sat_images[0].detach(),
+                    heatmap_gt[0].detach(),
+                    outputs[0].detach(),
+                    lat_gt,
+                    lon_gt,
+                    x_sat[0].item(),
+                    y_sat[0].item(),
+                    i,
+                    f"train-{epoch}",
+                )
+
+            running_loss += loss.item() * drone_images.size(0)
+            total_samples += len(self.train_dataloader)
+
+        epoch_loss = running_loss / total_samples
+        logger.info(f"Training loss: {epoch_loss}")
+        logger.info(f"Training RDS: {running_RDS.cpu().item() / total_samples}")
+
+    def validate(self, epoch):
+        """
+        Perform one epoch of validation.
+        """
+        self.model.eval()
+        running_loss = 0.0
+        total_samples = 0
+        running_RDS = 0.0
+        with torch.no_grad():
             for i, (
                 drone_images,
                 drone_infos,
@@ -352,33 +390,28 @@ class CrossViewTrainer:
                 x_sat,
                 y_sat,
             ) in tqdm(
-                enumerate(dataloader),
-                total=len(dataloader),
+                enumerate(self.val_dataloader),
+                total=len(self.val_dataloader),
             ):
                 drone_images = drone_images.to(self.device)
                 sat_images = sat_images.to(self.device)
                 heatmap_gt = heatmaps_gt.to(self.device)
 
-                # Zero out the gradients
-                self.optimizer.zero_grad()
                 # Forward pass
                 outputs = self.model(drone_images, sat_images)
                 # Calculate loss
                 loss = self.criterion(outputs, heatmap_gt)
-
-                # Backward pass and optimize
-                loss.backward()
-                self.optimizer.step()
+                # Accumulate the loss
+                running_loss += loss.item() * drone_images.size(0)
 
                 ### RDS ###
-                with torch.no_grad():
-                    running_RDS += self.RDS(
-                        outputs,
-                        x_sat,
-                        y_sat,
-                        heatmaps_gt[0].shape[-1],
-                        heatmaps_gt[0].shape[-2],
-                    )
+                running_RDS += self.RDS(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                    heatmaps_gt[0].shape[-1],
+                    heatmaps_gt[0].shape[-2],
+                )
                 ### RDS ###
 
                 if i == 0 and self.plot:
@@ -396,84 +429,10 @@ class CrossViewTrainer:
                         x_sat[0].item(),
                         y_sat[0].item(),
                         i,
-                        f"train-{epoch}",
+                        f"val-{epoch}-{i}",
                     )
 
-                running_loss += loss.item() * drone_images.size(0)
-            total_samples += len(dataloader)
-
-        epoch_loss = running_loss / total_samples
-        logger.info(f"Training loss: {epoch_loss}")
-        logger.info(f"Training RDS: {running_RDS.cpu().item() / total_samples}")
-
-    def validate(self, epoch):
-        """
-        Perform one epoch of validation.
-        """
-        self.model.eval()
-        running_loss = 0.0
-        total_samples = 0
-        running_RDS = 0.0
-        with torch.no_grad():
-            for dataloader, h_kernel_size, d_patch_size in zip(
-                self.val_dataloaders,
-                self.heatmap_kernel_sizes,
-                self.drone_view_patch_sizes,
-            ):
-                logger.info(
-                    f"Validating epoch with kernel size {h_kernel_size} and patch size {d_patch_size}"
-                )
-                for i, (
-                    drone_images,
-                    drone_infos,
-                    sat_images,
-                    heatmaps_gt,
-                    x_sat,
-                    y_sat,
-                ) in tqdm(
-                    enumerate(dataloader),
-                    total=len(dataloader),
-                ):
-                    drone_images = drone_images.to(self.device)
-                    sat_images = sat_images.to(self.device)
-                    heatmap_gt = heatmaps_gt.to(self.device)
-
-                    # Forward pass
-                    outputs = self.model(drone_images, sat_images)
-                    # Calculate loss
-                    loss = self.criterion(outputs, heatmap_gt)
-                    # Accumulate the loss
-                    running_loss += loss.item() * drone_images.size(0)
-
-                    ### RDS ###
-                    running_RDS += self.RDS(
-                        outputs,
-                        x_sat,
-                        y_sat,
-                        heatmaps_gt[0].shape[-1],
-                        heatmaps_gt[0].shape[-2],
-                    )
-                    ### RDS ###
-
-                    if i == 0 and self.plot:
-                        lat_gt, lon_gt = (
-                            drone_infos["coordinate"]["latitude"][0].item(),
-                            drone_infos["coordinate"]["longitude"][0].item(),
-                        )
-                        self.plot_results(
-                            drone_images[0].detach(),
-                            sat_images[0].detach(),
-                            heatmap_gt[0].detach(),
-                            outputs[0].detach(),
-                            lat_gt,
-                            lon_gt,
-                            x_sat[0].item(),
-                            y_sat[0].item(),
-                            i,
-                            f"val-{epoch}-{i}",
-                        )
-
-                total_samples += len(dataloader)
+            total_samples += len(self.val_dataloader)
 
         epoch_loss = running_loss / total_samples
 
