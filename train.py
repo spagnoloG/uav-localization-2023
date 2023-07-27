@@ -602,9 +602,9 @@ def load_config(config_path):
 
 
 def hyperparameter_search(config):
-    lr_backbone = [0.0001, 0.00001, 0.000001]
+    lr_backbone = [0.00001, 0.000001]
     lr_fusion = [0.0004, 0.0003, 0.0002, 0.0001]
-    batch_size = [24]
+    batch_size = [24, 16]
     gamma = [0.1, 0.2, 0.3, 0.4, 0.5]
     milestones = [
         [9, 13, 15],
@@ -621,7 +621,7 @@ def hyperparameter_search(config):
     best_params = None
 
     for params in all_params:
-        print(f"Training with params: {params}")
+        logger.info(f"Training with params: {params}")
         config["train"]["lr_backbone"] = params[0]
         config["train"]["lr_fusion"] = params[1]
         config["train"]["batch_size"] = params[2]
@@ -636,7 +636,7 @@ def hyperparameter_search(config):
             best_score = train_score
             best_params = params
 
-    print(f"Best params: {best_params} with performance: {best_score}")
+    logger.info(f"Best params: {best_params} with performance: {best_score}")
 
 
 def main():
