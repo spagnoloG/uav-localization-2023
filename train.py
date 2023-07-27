@@ -305,7 +305,7 @@ class CrossViewTrainer:
                 if stop_training:
                     break
 
-            return self.best_RDS
+        return self.best_RDS
 
     def train_epoch(self, epoch):
         """
@@ -314,7 +314,6 @@ class CrossViewTrainer:
         self.model.train()
         running_loss = 0.0
         running_RDS = 0.0
-        total_samples = 0
         for i, (
             drone_images,
             drone_infos,
@@ -349,7 +348,7 @@ class CrossViewTrainer:
                     y_sat,
                     heatmaps_gt[0].shape[-1],
                     heatmaps_gt[0].shape[-2],
-                )
+                ).item()
             ### RDS ###
 
             if i == 0 and self.plot:
@@ -371,11 +370,10 @@ class CrossViewTrainer:
                 )
 
             running_loss += loss.item() * drone_images.size(0)
-            total_samples += drone_images.size(0)
 
-        epoch_loss = running_loss / total_samples
+        epoch_loss = running_loss / len(self.train_dataloader)
         logger.info(f"Training loss: {epoch_loss}")
-        logger.info(f"Training RDS: {running_RDS.cpu().item() / total_samples}")
+        logger.info(f"Training RDS: {running_RDS / len(self.train_dataloader)}")
 
     def validate(self, epoch):
         """
@@ -383,7 +381,6 @@ class CrossViewTrainer:
         """
         self.model.eval()
         running_loss = 0.0
-        total_samples = 0
         running_RDS = 0.0
         with torch.no_grad():
             for i, (
@@ -415,7 +412,7 @@ class CrossViewTrainer:
                     y_sat,
                     heatmaps_gt[0].shape[-1],
                     heatmaps_gt[0].shape[-2],
-                )
+                ).item()
                 ### RDS ###
 
                 if i == 0 and self.plot:
@@ -436,13 +433,10 @@ class CrossViewTrainer:
                         f"val-{epoch}-{i}",
                     )
 
-            total_samples += len(self.val_dataloader)
-
-        epoch_loss = running_loss / total_samples
-
+        epoch_loss = running_loss / len(self.val_dataloader)
         self.val_loss = epoch_loss
         logger.info(f"Validation loss: {epoch_loss}")
-        rds = running_RDS.cpu().item() / total_samples
+        rds = running_RDS / len(self.val_dataloader)
         logger.info(f"Validation RDS: {rds}")
         self.best_RDS = max(self.best_RDS, rds)
 
@@ -621,8 +615,8 @@ def hyperparameter_search(config):
     all_params = list(
         itertools.product(lr_backbone, lr_fusion, batch_size, gamma, milestones)
     )
-    train_subset_size = 15000
-    val_subset_size = 1500
+    train_subset_size = 18000
+    val_subset_size = 1800
     best_score = float("-inf")
     best_params = None
 
