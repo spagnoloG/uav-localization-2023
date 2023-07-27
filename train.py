@@ -19,6 +19,7 @@ import numpy as np
 from map_utils import MapUtils
 import matplotlib.patches as patches
 import json
+import itertools
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -118,6 +119,7 @@ class CrossViewTrainer:
         self.map_utils = MapUtils()
         self.RDS = RDS(k=10)
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
+        self.best_RDS = -np.inf
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
@@ -303,6 +305,8 @@ class CrossViewTrainer:
                 if stop_training:
                     break
 
+            return self.best_RDS
+
     def train_epoch(self, epoch):
         """
         Perform one epoch of training.
@@ -367,7 +371,7 @@ class CrossViewTrainer:
                 )
 
             running_loss += loss.item() * drone_images.size(0)
-            total_samples += len(self.train_dataloader)
+            total_samples += drone_images.size(0)
 
         epoch_loss = running_loss / total_samples
         logger.info(f"Training loss: {epoch_loss}")
@@ -438,7 +442,9 @@ class CrossViewTrainer:
 
         self.val_loss = epoch_loss
         logger.info(f"Validation loss: {epoch_loss}")
-        logger.info(f"Validation RDS: {running_RDS.cpu().item() / total_samples}")
+        rds = running_RDS.cpu().item() / total_samples
+        logger.info(f"Validation RDS: {rds}")
+        self.best_RDS = max(self.best_RDS, rds)
 
     def plot_results(
         self,
@@ -601,6 +607,44 @@ def load_config(config_path):
     return config
 
 
+def hyperparameter_search(config):
+    lr_backbone = [0.0001, 0.00001, 0.000001]
+    lr_fusion = [0.0004, 0.0003, 0.0002, 0.0001]
+    batch_size = [24]
+    gamma = [0.1, 0.2, 0.3, 0.4, 0.5]
+    milestones = [
+        [9, 13, 15],
+        [3, 5, 7],
+        [8, 10, 11],
+    ]
+
+    all_params = list(
+        itertools.product(lr_backbone, lr_fusion, batch_size, gamma, milestones)
+    )
+    train_subset_size = 15000
+    val_subset_size = 1500
+    best_score = float("-inf")
+    best_params = None
+
+    for params in all_params:
+        print(f"Training with params: {params}")
+        config["train"]["lr_backbone"] = params[0]
+        config["train"]["lr_fusion"] = params[1]
+        config["train"]["batch_size"] = params[2]
+        config["train"]["gamma"] = params[3]
+        config["train"]["milestones"] = params[4]
+        config["train"]["train_subset_size"] = train_subset_size
+        config["train"]["val_subset_size"] = val_subset_size
+        trainer = CrossViewTrainer(config=config)
+        train_score = trainer.train()
+
+        if train_score < best_score:
+            best_score = train_score
+            best_params = params
+
+    print(f"Best params: {best_params} with performance: {best_score}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Modified twins model for cross-view localization training script"
@@ -617,11 +661,13 @@ def main():
 
     config = load_config(f"./conf/{args.config}.yaml")
 
-    trainer = CrossViewTrainer(
-        config=config,
-    )
+    hyperparameter_search(config)
 
-    trainer.train()
+    # trainer = CrossViewTrainer(
+    #    config=config,
+    # )
+
+    # trainer.train()
 
 
 if __name__ == "__main__":
