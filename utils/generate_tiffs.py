@@ -137,7 +137,7 @@ def join_tifs(tile, i_path):
                 width=width,
                 count=3,
                 dtype="uint8",
-                crs="EPSG:4326",
+                crs="EPSG:3857",
                 transform=from_bounds(west, south, east, north, width, height),
             ) as dataset:
                 data = rasterio.open(tile_path).read()
@@ -156,7 +156,7 @@ def join_tifs(tile, i_path):
                 width=width,
                 count=3,
                 dtype="uint8",
-                crs="EPSG:4326",
+                crs="EPSG:3857",
                 transform=from_bounds(west, south, east, north, width, height),
             ) as dataset:
                 data = rasterio.open(tile_path).read()
@@ -172,11 +172,11 @@ def join_tifs(tile, i_path):
             "height": mosaic.shape[1],
             "width": mosaic.shape[2],
             "transform": out_trans,
-            "crs": "EPSG:4326",
+            "crs": "EPSG:3857",
         }
     )
 
-    i_path = i_path + "_sat.tiff"
+    i_path = i_path + f"_sat_{ZOOM_LEVEL}.tiff"
     with rasterio.open(i_path, "w", **out_meta) as dest:
         dest.write(mosaic)
         print(f"Saved {i_path} successfully!")
@@ -288,7 +288,7 @@ def validate_directory(directory, drone_dir, plot=False):
             print(f"Validation of {directory} successful!")
 
 
-def iterate_through_datasets(drone_dir="../drone/"):
+def iterate_through_datasets(drone_dir="../dataset/"):
     for directory in tqdm(os.listdir(drone_dir)):
         print(f"Downloading {directory}...")
         validate_directory(
