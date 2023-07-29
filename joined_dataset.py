@@ -36,6 +36,7 @@ class JoinedDataset(Dataset):
         sat_patch_h=None,
         heatmap_kernel_size=None,
         heatmap_type=None,
+        tiffs=None,
     ):
         config = config["dataset"]
         self.root_dir = config["root_dir"]
@@ -52,7 +53,7 @@ class JoinedDataset(Dataset):
         self.metadata_dict = {}
         self.dataset = dataset
         self.drone_scales = config["drone_scales"]
-        self.tiffs = config["tiffs"]
+        self.tiffs = tiffs if tiffs else config["tiffs"]
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.transforms = transforms.Compose(
             [
@@ -60,7 +61,6 @@ class JoinedDataset(Dataset):
                 transforms.Normalize(mean=config["mean"], std=config["std"]),
             ]
         )
-
         if self.dataset == "train":
             self.random_seed = config.get("random_seed", 42)
             self.set_seed(self.random_seed)
