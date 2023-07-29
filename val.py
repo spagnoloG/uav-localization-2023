@@ -168,23 +168,20 @@ class CrossViewValidator:
                     heatmaps_gt[0].shape[-2],
                 )
                 ### RDS ###
-
                 if self.plot:
-                    lat_gt, lon_gt = (
-                        drone_infos["coordinate"]["latitude"][0].item(),
-                        drone_infos["coordinate"]["longitude"][0].item(),
-                    )
-                    self.plot_results(
-                        drone_images[0].detach(),
-                        sat_images[0].detach(),
-                        heatmap_gt[0].detach(),
-                        outputs[0].detach(),
-                        lat_gt,
-                        lon_gt,
-                        x_sat[0].item(),
-                        y_sat[0].item(),
-                        i,
-                    )
+                    for j in range(len(outputs)):
+                        self.plot_results(
+                            drone_images[j].detach(),
+                            sat_images[j].detach(),
+                            heatmap_gt[j].detach(),
+                            outputs[j].detach(),
+                            drone_infos["coordinate"]["latitude"][j].item(),
+                            drone_infos["coordinate"]["longitude"][j].item(),
+                            x_sat[j].item(),
+                            y_sat[j].item(),
+                            i,
+                            j,
+                        )
 
             total_samples += len(self.val_dataloader)
 
@@ -217,6 +214,7 @@ class CrossViewValidator:
         x_gt,
         y_gt,
         i,
+        j,
     ):
         """
         Plot the validation results.
@@ -302,7 +300,7 @@ class CrossViewValidator:
         ax6.set_title("Satellite Image with Ground Truth Heatmap")
         ax6.axis("off")  # Save the figure
         os.makedirs(f"./vis/{self.val_hash}", exist_ok=True)
-        plt.savefig(f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}.png")
+        plt.savefig(f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.png")
         plt.close()
 
 
