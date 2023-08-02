@@ -120,15 +120,21 @@ class CrossViewTrainer:
         self.RDS = RDS(k=10)
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
         self.best_RDS = -np.inf
+        self.loss_fn = config["train"]["loss_fn"]
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = True
             torch.backends.cuda.matmul.allow_tf32 = True
 
-        self.criterion = HanningLoss(
-            kernel_size=self.heatmap_kernel_size, device=self.device
-        )
+        if self.loss_fn == "hanning":
+            self.criterion = HanningLoss(
+                kernel_size=self.heatmap_kernel_size, device=self.device
+            )
+        elif self.loss_fn == "mse":
+            self.criterion = torch.nn.MSELoss(reduction="mean")
+        else:
+            raise NotImplementedError(f"Loss function {self.loss_fn} is not implemented")
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
@@ -655,13 +661,13 @@ def main():
 
     config = load_config(f"./conf/{args.config}.yaml")
 
-    hyperparameter_search(config)
+    #hyperparameter_search(config)
 
-    # trainer = CrossViewTrainer(
-    #    config=config,
-    # )
+    trainer = CrossViewTrainer(
+       config=config,
+    )
 
-    # trainer.train()
+    trainer.train()
 
 
 if __name__ == "__main__":

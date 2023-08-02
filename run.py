@@ -425,6 +425,9 @@ class Runner:
             # find the lat and lon of the predicted position
             lon_pred, lat_pred = sat_img.xy(x_pred, y_pred)
 
+        print(f"Predicted position: {lat_pred}, {lon_pred}")
+        print(f"Ground truth position: {lat_gt}, {lon_gt}")
+
         self.dash_app.plot_data(heatmap_pred_np, lat_gt, lon_gt, lat_pred, lon_pred)
 
 

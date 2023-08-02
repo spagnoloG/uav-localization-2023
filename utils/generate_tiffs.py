@@ -20,7 +20,7 @@ from PIL import Image
 # Constants
 tiles_path = "../sat/"
 SAT_DIM_IM = 512
-ZOOM_LEVEL = 16
+ZOOM_LEVEL = 18
 
 headers = {
     "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
@@ -146,6 +146,7 @@ def join_tifs(tile, i_path):
 
         if not found:
             download_missing_tile(neighbor)
+            time.sleep(1)
             tile_path = f"{tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
             with Image.open(tile_path) as img:
                 width, height = img.size

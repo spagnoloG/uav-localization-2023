@@ -480,7 +480,7 @@ class JoinedDataset(Dataset):
         satellite_patch = self.transforms(satellite_patch)
 
         # Generate heatmap
-        heatmap = self.generate_square_heatmap(
+        heatmap = self.get_heatmap_gt(
             x_sat,
             y_sat,
             satellite_patch.shape[1],
