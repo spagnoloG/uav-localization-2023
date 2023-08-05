@@ -12,7 +12,7 @@ train:
   train_until_convergence: false # train until convergence (ignore milestones and num_epochs)
 
   loss_fn:
-    "hanning" # or "mse"
+    "hanning" # or "mse", "cwmse"
 
 
     # Dataset parameters

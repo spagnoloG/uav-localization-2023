@@ -13,7 +13,7 @@ from model import CrossViewLocalizationModel
 import yaml
 import argparse
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS
+from criterion import HanningLoss, RDS, CrossWeightedMSE
 import os
 import numpy as np
 from map_utils import MapUtils
@@ -133,8 +133,14 @@ class CrossViewTrainer:
             )
         elif self.loss_fn == "mse":
             self.criterion = torch.nn.MSELoss(reduction="mean")
+
+        elif self.loss_fn == "cwmse":
+            self.criterion = CrossWeightedMSE()
+            self.config["dataset"]["heatmap_type"] = "gaussian"
         else:
-            raise NotImplementedError(f"Loss function {self.loss_fn} is not implemented")
+            raise NotImplementedError(
+                f"Loss function {self.loss_fn} is not implemented"
+            )
 
         if self.device == "cpu":
             self.model = CrossViewLocalizationModel(
@@ -661,10 +667,10 @@ def main():
 
     config = load_config(f"./conf/{args.config}.yaml")
 
-    #hyperparameter_search(config)
+    # hyperparameter_search(config)
 
     trainer = CrossViewTrainer(
-       config=config,
+        config=config,
     )
 
     trainer.train()

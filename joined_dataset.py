@@ -407,6 +407,9 @@ class JoinedDataset(Dataset):
             : end_y - start_y, : end_x - start_x
         ]
 
+        # Normalize the heatmap
+        heatmap = heatmap / heatmap.sum()
+
         return heatmap
 
     def __getitem__(self, idx):

@@ -270,9 +270,9 @@ class DynamicWeightedMSELoss(nn.Module):
         return mse_loss.mean()
 
 
-class JustAnotherWeightedMSELoss(nn.Module):
+class CrossWeightedMSE(nn.Module):
     def __init__(self, true_weight=1, false_weight=1):
-        super(JustAnotherWeightedMSELoss, self).__init__()
+        super(CrossWeightedMSE, self).__init__()
         self.mse_loss = nn.MSELoss(reduction="mean")
         self.true_weight = true_weight
         self.false_weight = false_weight
