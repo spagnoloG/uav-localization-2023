@@ -440,8 +440,15 @@ class JoinedDataset(Dataset):
 
             # Check if key is already in self.drone_to_sat_dict
             if key in self.drone_to_sat_dict:
-                x_offset, y_offset, tiff_num = self.drone_to_sat_dict[key]
-                satellite_patch, x_sat, y_sat, _, _, _ = self.get_tiff_patch(
+                x_offset, y_offset, zoom_level = self.drone_to_sat_dict[key]
+                (
+                    satellite_patch,
+                    x_sat,
+                    y_sat,
+                    x_offset,
+                    y_offset,
+                    zoom_level,
+                ) = self.get_tiff_patch(
                     image_path,
                     lat,
                     lon,
@@ -457,14 +464,21 @@ class JoinedDataset(Dataset):
                     y_sat,
                     x_offset,
                     y_offset,
-                    tiff_num,
+                    zoom_level,
                 ) = self.get_random_tiff_patch(
                     image_path, lat, lon, self.sat_patch_h, self.sat_patch_h
                 )
-                self.drone_to_sat_dict[key] = (x_offset, y_offset, tiff_num)
+                self.drone_to_sat_dict[key] = (x_offset, y_offset, zoom_level)
 
         else:
-            satellite_patch, x_sat, y_sat, _, _, _ = self.get_random_tiff_patch(
+            (
+                satellite_patch,
+                x_sat,
+                y_sat,
+                x_offset,
+                y_offset,
+                zoom_level,
+            ) = self.get_random_tiff_patch(
                 image_path, lat, lon, self.sat_patch_h, self.sat_patch_w
             )
 
@@ -491,7 +505,13 @@ class JoinedDataset(Dataset):
             self.heatmap_kernel_size,
         )
 
-        return drone_image, img_info, satellite_patch, heatmap, x_sat, y_sat
+        img_info["x_sat"] = x_sat
+        img_info["y_sat"] = y_sat
+        img_info["x_offset"] = x_offset
+        img_info["y_offset"] = y_offset
+        img_info["zoom_level"] = zoom_level
+
+        return drone_image, img_info, satellite_patch, heatmap
 
     def extract_info_from_filename(self, filename):
         """

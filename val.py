@@ -15,6 +15,8 @@ from criterion import HanningLoss, RDS
 from map_utils import MapUtils
 import numpy as np
 import matplotlib.patches as patches
+import rasterio
+import json
 
 
 class CrossViewValidator:
@@ -143,8 +145,6 @@ class CrossViewValidator:
                 drone_infos,
                 sat_images,
                 heatmaps_gt,
-                x_sat,
-                y_sat,
             ) in tqdm(
                 enumerate(self.val_dataloader),
                 total=len(self.val_dataloader),
@@ -159,6 +159,9 @@ class CrossViewValidator:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
+                x_sat = drone_infos["x_sat"]
+                y_sat = drone_infos["y_sat"]
+
                 ### RDS ###
                 running_RDS += self.RDS(
                     outputs,
@@ -170,15 +173,23 @@ class CrossViewValidator:
                 ### RDS ###
                 if self.plot:
                     for j in range(len(outputs)):
+                        metadata = {
+                            "x_sat": drone_infos["x_sat"][j].item(),
+                            "y_sat": drone_infos["y_sat"][j].item(),
+                            "x_offset": drone_infos["x_offset"][j].item(),
+                            "y_offset": drone_infos["y_offset"][j].item(),
+                            "zoom_level": drone_infos["zoom_level"][j].item(),
+                            "lat_gt": drone_infos["coordinate"]["latitude"][j].item(),
+                            "lon_gt": drone_infos["coordinate"]["longitude"][j].item(),
+                            "filename": drone_infos["filename"][j],
+                        }
+
                         self.plot_results(
                             drone_images[j].detach(),
                             sat_images[j].detach(),
                             heatmap_gt[j].detach(),
                             outputs[j].detach(),
-                            drone_infos["coordinate"]["latitude"][j].item(),
-                            drone_infos["coordinate"]["longitude"][j].item(),
-                            x_sat[j].item(),
-                            y_sat[j].item(),
+                            metadata,
                             i,
                             j,
                         )
@@ -209,10 +220,7 @@ class CrossViewValidator:
         sat_image,
         heatmap_gt,
         heatmap_pred,
-        lat_gt,
-        lon_gt,
-        x_gt,
-        y_gt,
+        metadata,
         i,
         j,
     ):
@@ -244,64 +252,101 @@ class CrossViewValidator:
             np.argmax(heatmap_pred_np), heatmap_pred_np.shape
         )
 
+        sat_image_path = metadata["filename"]
+        zoom_level = metadata["zoom_level"]
+        x_offset = metadata["x_offset"]
+        y_offset = metadata["y_offset"]
+
+        with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+            sat_transform = s_image.transform
+            lon_pred, lat_pred = rasterio.transform.xy(
+                sat_transform, y_pred + y_offset, x_pred + x_offset
+            )
+
+        metadata["lat_pred"] = lat_pred
+        metadata["lon_pred"] = lon_pred
+
+        metadata["rds"] = self.map_utils.RDS(
+            10,
+            np.abs(metadata["x_sat"] - x_pred),
+            np.abs(metadata["y_sat"] - y_pred),
+            heatmap_gt.shape[-1],
+            heatmap_gt.shape[-2],
+        )
+
         # Initialize figure
-        fig = plt.figure(figsize=(20, 20))
+        fig, axs = plt.subplots(3, 2, figsize=(20, 30))
 
         # Subplot 1: Drone Image
-        ax1 = fig.add_subplot(2, 3, 1)
-        ax1.imshow(inverse_transforms(drone_image))
-        ax1.set_title("Drone Image")
-        ax1.axis("off")
+        axs[0, 0].imshow(inverse_transforms(drone_image))
+        axs[0, 0].set_title("Drone Image")
+        axs[0, 0].axis("off")
 
         # Subplot 2: Satellite Image
-        ax2 = fig.add_subplot(2, 3, 2)
-        ax2.imshow(inverse_transforms(sat_image))
-        ax2.set_title("Satellite Image")
-        ax2.axis("off")
+        axs[0, 1].imshow(inverse_transforms(sat_image))
+        axs[0, 1].set_title("Satellite Image")
+        axs[0, 1].axis("off")
 
         # Subplot 3: Ground Truth Heatmap
-        ax3 = fig.add_subplot(2, 3, 3)
-        ax3.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
-        ax3.set_title("Ground Truth Heatmap")
-        ax3.axis("off")
+        im3 = axs[1, 0].imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
+        axs[1, 0].set_title(
+            f"Ground Truth Heatmap, Latitute: {metadata['lat_gt']}, Longitude: {metadata['lon_gt']}"
+        )
+        axs[1, 0].axis("off")
+        fig.colorbar(im3, ax=axs[1, 0])
 
         # Subplot 4: Predicted Heatmap
-        ax4 = fig.add_subplot(2, 3, 4)
-        ax4.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
-        ax4.set_title("Predicted Heatmap")
-        ax4.axis("off")
+        im4 = axs[1, 1].imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
+        axs[1, 1].set_title(
+            "Predicted Heatmap, Latitute: {metadata['lat_pred']}, Longitude: {metadata['lon_pred']}"
+        )
+        axs[1, 1].axis("off")
+        fig.colorbar(im4, ax=axs[1, 1])
 
         # Subplot 5: Satellite Image with Predicted Heatmap and circles
-        ax5 = fig.add_subplot(2, 3, 5)
-        ax5.imshow(inverse_transforms(sat_image))
-        ax5.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
-        ax5.add_patch(
-            patches.Circle(
-                (x_pred, y_pred),
-                radius=10,
-                edgecolor="blue",
-                facecolor="none",
-                linewidth=4,
-            )
+        axs[2, 0].imshow(inverse_transforms(sat_image))
+        im5 = axs[2, 0].imshow(
+            heatmap_pred.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55
         )
-        ax5.add_patch(
-            patches.Circle(
-                (x_gt, y_gt), radius=10, edgecolor="red", facecolor="none", linewidth=4
-            )
+        pred_circle = patches.Circle(
+            (x_pred, y_pred), radius=10, edgecolor="blue", facecolor="none", linewidth=4
         )
-        ax5.set_title("Satellite Image with Predicted Heatmap")
-        ax5.legend(["Prediction", "Ground Truth"], loc="upper right")
-        ax5.axis("off")
+        gt_circle = patches.Circle(
+            (metadata["x_sat"], metadata["y_sat"]),
+            radius=10,
+            edgecolor="red",
+            facecolor="none",
+            linewidth=4,
+        )
+        axs[2, 0].add_patch(pred_circle)
+        axs[2, 0].add_patch(gt_circle)
+        axs[2, 0].set_title("Satellite Image with Predicted Heatmap")
+        axs[2, 0].legend(
+            [pred_circle, gt_circle], ["Prediction", "Ground Truth"], loc="upper right"
+        )
+        axs[2, 0].axis("off")
 
         # Subplot 6: Satellite Image with Ground Truth Heatmap
-        ax6 = fig.add_subplot(2, 3, 6)
-        ax6.imshow(inverse_transforms(sat_image))
-        ax6.imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
-        ax6.set_title("Satellite Image with Ground Truth Heatmap")
-        ax6.axis("off")  # Save the figure
+        axs[2, 1].imshow(inverse_transforms(sat_image))
+        im6 = axs[2, 1].imshow(
+            heatmap_gt.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55
+        )
+        axs[2, 1].set_title("Satellite Image with Ground Truth Heatmap")
+        axs[2, 1].axis("off")
+
+        # Add metadata as text
+        metadata_text = f'Filename: {metadata["filename"]}\nZoom Level: {metadata["zoom_level"]}\n, RDS: {metadata["rds"]}'
+        fig.text(0.5, 0.05, metadata_text, ha="center", fontsize=16)
+
+        # Save the figure
         os.makedirs(f"./vis/{self.val_hash}", exist_ok=True)
         plt.savefig(f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.png")
         plt.close()
+
+        with open(
+            f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.json", "w"
+        ) as f:
+            json.dump(metadata, f)
 
 
 def load_config(config_path):
