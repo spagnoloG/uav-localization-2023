@@ -182,6 +182,7 @@ class CrossViewValidator:
                             "lat_gt": drone_infos["coordinate"]["latitude"][j].item(),
                             "lon_gt": drone_infos["coordinate"]["longitude"][j].item(),
                             "filename": drone_infos["filename"][j],
+                            "scale": drone_infos["scale"][j].item(),
                         }
 
                         self.plot_results(
@@ -335,7 +336,7 @@ class CrossViewValidator:
         axs[2, 1].axis("off")
 
         # Add metadata as text
-        metadata_text = f'Filename: {metadata["filename"]}\nZoom Level: {metadata["zoom_level"]}\n, RDS: {metadata["rds"]}'
+        metadata_text = f'Filename: {metadata["filename"]}\nZoom Level: {metadata["zoom_level"]}\nRDS: {metadata["rds"]}\nDrone image scale: {metadata["scale"]}'
         fig.text(0.5, 0.05, metadata_text, ha="center", fontsize=16)
 
         # Save the figure
