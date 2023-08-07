@@ -33,34 +33,64 @@ class DashApp:
 
         self.app.layout = html.Div(
             children=[
-                html.H1(children="Live run"),
-                html.Div(
-                    [
-                        dcc.Graph(id="live-heatmap"),
-                    ],
+                html.H1(
+                    children="Live run",
+                    style={"textAlign": "center", "padding": "20px"},
                 ),
                 html.Div(
-                    [
-                        dcc.Graph(id="3d-heatmap"),
+                    children=[
+                        html.Div(
+                            children=[
+                                dcc.Graph(id="live-heatmap"),
+                            ],
+                            style={"width": "25%", "display": "inline-block"},
+                        ),
+                        html.Div(
+                            children=[
+                                dcc.Graph(id="3d-heatmap"),
+                            ],
+                            style={"width": "25%", "display": "inline-block"},
+                        ),
+                        html.Div(
+                            children=[
+                                dcc.Graph(id="satellite_image"),
+                            ],
+                            style={"width": "25%", "display": "inline-block"},
+                        ),
+                        html.Div(
+                            children=[
+                                dcc.Graph(id="drone_image"),
+                            ],
+                            style={"width": "25%", "display": "inline-block"},
+                        ),
                     ],
+                    style={"display": "flex"},
                 ),
                 html.Div(
-                    [
+                    children=[
                         dcc.Graph(id="live-map"),
                     ],
+                    style={"padding": "20px 0"},
                 ),
                 dcc.Interval(
                     id="graph-update",
                     interval=1 * 3000,
                     n_intervals=0,
                 ),
-            ]
+            ],
+            style={
+                "backgroundColor": "#2f2f2f",
+                "color": "#ffffff",
+                "fontFamily": "Arial, sans-serif",
+            },
         )
 
         @self.app.callback(
             Output("3d-heatmap", "figure"),
             Output("live-heatmap", "figure"),
             Output("live-map", "figure"),
+            Output("satellite_image", "figure"),
+            Output("drone_image", "figure"),
             Input("graph-update", "n_intervals"),
         )
         def update_3d_heatmap(n):
@@ -74,7 +104,7 @@ class DashApp:
                     data=[go.Surface(z=heatmap, x=xGrid, y=yGrid, colorscale="Viridis")]
                 )
                 hm_3d_fig.update_layout(
-                    title=f"Predicted Heatmap",
+                    title=f"Predicted Heatmap 3D",
                     autosize=False,
                     scene=dict(
                         xaxis_title="X Axis",
@@ -82,8 +112,8 @@ class DashApp:
                         zaxis_title="Heatmap Intensity",
                         aspectratio=dict(x=1, y=1, z=0.7),
                     ),
-                    width=500,
-                    height=500,
+                    width=400,
+                    height=400,
                     margin=dict(l=65, r=50, b=65, t=90),
                 )
                 ##  3D heatmap ##
@@ -110,28 +140,21 @@ class DashApp:
                     width=400,
                     height=400,
                 )
+                ##  2D heatmap ##
+
+                ## Satellite image ##
+                sat_image = data["sat_image"]
+                sat_image_fig = px.imshow(sat_image)
+
+                ## Drone image ##
+                drone_image = data["drone_image"]
+                drone_image_fig = px.imshow(drone_image)
 
                 lat_pred = data["lat_pred"]
                 lon_pred = data["lon_pred"]
                 lat_gt = data["lat_gt"]
                 lon_gt = data["lon_gt"]
 
-                # map_fig = px.line_mapbox(
-                #    self.pd_lat_lon,
-                #    lat="lat",
-                #    lon="lon",
-                #    color="type",
-                #    zoom=10,
-                #    height=400,
-                # )
-
-                # map_fig.update_layout(
-                #    mapbox_style="open-street-map",
-                #    mapbox_zoom=16,
-                #    mapbox_center_lat=lat_pred,
-                #    mapbox_center_lon=lon_pred,
-                #    margin={"r": 0, "t": 0, "l": 0, "b": 0},
-                # )
                 map_fig = go.Figure(
                     data=[
                         go.Scattermapbox(
@@ -160,11 +183,11 @@ class DashApp:
                 )
 
                 ##  2D heatmap ##
-                return [hm_3d_fig, hm_2d_fig, map_fig]
+                return [hm_3d_fig, hm_2d_fig, map_fig, sat_image_fig, drone_image_fig]
             else:
-                return [go.Figure(), go.Figure(), go.Figure()]
+                return [go.Figure(), go.Figure(), go.Figure(), go.Figure(), go.Figure()]
 
-    def plot_data(self, heatmap, metadata):
+    def plot_data(self, heatmap, drone_image, sat_image, metadata):
         shape_y, shape_x = heatmap.shape
 
         x_3d_hm = np.linspace(0, shape_x - 1, shape_x)
@@ -194,6 +217,8 @@ class DashApp:
         self.data.put(
             {
                 "heatmap": heatmap,
+                "sat_image": sat_image,
+                "drone_image": drone_image,
                 "x_3d_hm": x_3d_hm,
                 "y_3d_hm": y_3d_hm,
                 "lat_gt": lat_gt,
@@ -451,7 +476,12 @@ class Runner:
             heatmap_gt.shape[-2],
         )
 
-        self.dash_app.plot_data(heatmap_pred_np, metadata)
+        self.dash_app.plot_data(
+            heatmap_pred_np,
+            inverse_transforms(drone_image),
+            inverse_transforms(sat_image),
+            metadata,
+        )
 
 
 def load_config(config_path):
