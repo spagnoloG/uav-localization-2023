@@ -111,7 +111,7 @@ class JoinedDataset(Dataset):
                     entry_paths.append(entry_path)
                 if entry_path.endswith(".json"):
                     self.get_metadata(entry_path)
-        return entry_paths
+        return sorted(entry_paths, key=self.extract_info_from_filename)
 
     def prepare_kernels(self):
         """
