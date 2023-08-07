@@ -1,0 +1,31 @@
+body {
+    background-color: #2f2f2f;
+    color: #ffffff;
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    text-align: center;
+    padding: 20px;
+}
+
+#live-heatmap, #3d-heatmap, #live-map {
+    background-color: #1f1f1f;
+    border: 1px solid #4f4f4f;
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+#live-heatmap .ygrid .tick line, #3d-heatmap .ygrid .tick line, #live-map .ygrid .tick line {
+    stroke: #4f4f4f;
+}
+
+#live-heatmap .xgrid .tick line, #3d-heatmap .xgrid .tick line, #live-map .xgrid .tick line {
+    stroke: #4f4f4f;
+}
+
+#live-heatmap .legend, #3d-heatmap .legend, #live-map .legend {
+    background-color: #1f1f1f;
+    border-color: #4f4f4f;
+}

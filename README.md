@@ -35,6 +35,13 @@ Follow these steps to set up the environment and start training the model.
 Note: You can modify the `conf/configuration.yml` file for hyperparameter tuning as per your requirement.
 Note: Dataset is currently unavailable.
 
+## Examples
+
+### Example of good localization
+![Good localization](./assets/example_of_localization.jpg "Example of good localization")
+
+### Example of poor localization
+![Poor localization](./assets/poor_localization.jpg "Example of poor localization")
 
 ## Model Architecture
 
