@@ -50,12 +50,10 @@ class ConvergenceEarlyStopping:
             self.best_loss = val_loss
         elif self.best_loss <= val_loss:
             self.stale_epochs += 1
-            logger.warning(
-                f"Loss has not improved for {self.stale_epochs} epochs")
+            logger.warning(f"Loss has not improved for {self.stale_epochs} epochs")
             if self.stale_epochs == self.patience:
                 if self.stale_epochs_reseted:
-                    logger.warning(
-                        "Loss has not improved after reducing learning rate")
+                    logger.warning("Loss has not improved after reducing learning rate")
                     return True
 
                 logger.warning(
@@ -69,8 +67,7 @@ class ConvergenceEarlyStopping:
             prev_best_loss = self.best_loss
             self.best_loss = val_loss
             self.stale_epochs_reseted = False
-            logger.info(
-                f"Loss has improved from {prev_best_loss} to {val_loss}")
+            logger.info(f"Loss has improved from {prev_best_loss} to {val_loss}")
 
         return False
 
@@ -171,8 +168,7 @@ class CrossViewTrainer:
             self.params_to_update_backbone = list(
                 self.model.module.feature_extractor_UAV.parameters()
             ) + list(self.model.module.feature_extractor_satellite.parameters())
-            self.params_to_update_fusion = list(
-                self.model.module.fusion.parameters())
+            self.params_to_update_fusion = list(self.model.module.fusion.parameters())
 
         self.optimizer = AdamW(
             [
@@ -298,8 +294,7 @@ class CrossViewTrainer:
                 self.scheduler.step()
 
             if self.train_until_convergence and epoch > 10:
-                stop_training = self.convergence_early_stopping.step(
-                    self.val_loss)
+                stop_training = self.convergence_early_stopping.step(self.val_loss)
                 self.stop_training = stop_training
                 if stop_training:
                     break
@@ -318,8 +313,7 @@ class CrossViewTrainer:
                     self.scheduler.step()
 
                 if self.train_until_convergence and epoch > 4:
-                    stop_training = self.convergence_early_stopping.step(
-                        self.val_loss)
+                    stop_training = self.convergence_early_stopping.step(self.val_loss)
 
                 if stop_training:
                     break
@@ -398,8 +392,7 @@ class CrossViewTrainer:
 
         epoch_loss = running_loss / len(self.train_dataloader)
         logger.info(f"Training loss: {epoch_loss}")
-        logger.info(
-            f"Training RDS: {running_RDS / len(self.train_dataloader)}")
+        logger.info(f"Training RDS: {running_RDS / len(self.train_dataloader)}")
 
     def validate(self, epoch):
         """
@@ -540,8 +533,7 @@ class CrossViewTrainer:
         axs[0, 1].axis("off")
 
         # Subplot 3: Ground Truth Heatmap
-        im3 = axs[1, 0].imshow(heatmap_gt.squeeze(
-            0).cpu().numpy(), cmap="viridis")
+        im3 = axs[1, 0].imshow(heatmap_gt.squeeze(0).cpu().numpy(), cmap="viridis")
         axs[1, 0].set_title(
             f"Ground Truth Heatmap, Latitute: {metadata['lat_gt']}, Longitude: {metadata['lon_gt']}"
         )
@@ -549,8 +541,7 @@ class CrossViewTrainer:
         fig.colorbar(im3, ax=axs[1, 0])
 
         # Subplot 4: Predicted Heatmap
-        im4 = axs[1, 1].imshow(heatmap_pred.squeeze(
-            0).cpu().numpy(), cmap="viridis")
+        im4 = axs[1, 1].imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
         axs[1, 1].set_title(
             "Predicted Heatmap, Latitute: {metadata['lat_pred']}, Longitude: {metadata['lon_pred']}"
         )
@@ -674,8 +665,7 @@ def hyperparameter_search(config):
     ]
 
     all_params = list(
-        itertools.product(lr_backbone, lr_fusion,
-                          batch_size, gamma, milestones)
+        itertools.product(lr_backbone, lr_fusion, batch_size, gamma, milestones)
     )
     train_subset_size = 18000
     val_subset_size = 1800

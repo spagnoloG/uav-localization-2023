@@ -164,11 +164,16 @@ class DashApp:
             else:
                 return [go.Figure(), go.Figure(), go.Figure()]
 
-    def plot_data(self, heatmap, lat_gt, lon_gt, lat_pred, lon_pred):
+    def plot_data(self, heatmap, metadata):
         shape_y, shape_x = heatmap.shape
 
         x_3d_hm = np.linspace(0, shape_x - 1, shape_x)
         y_3d_hm = np.linspace(0, shape_y - 1, shape_y)
+
+        lat_gt = metadata["lat_gt"]
+        lon_gt = metadata["lon_gt"]
+        lat_pred = metadata["lat_pred"]
+        lon_pred = metadata["lon_pred"]
 
         self.pd_lat_lon = pd.concat(
             [
@@ -316,8 +321,6 @@ class Runner:
                 drone_infos,
                 sat_images,
                 heatmaps_gt,
-                x_sat,
-                y_sat,
             ) in tqdm(
                 enumerate(self.val_dataloader),
                 total=len(self.val_dataloader),
@@ -332,6 +335,9 @@ class Runner:
                 # Accumulate the loss
                 running_loss += loss.item() * drone_images.size(0)
 
+                x_sat = drone_infos["x_sat"]
+                y_sat = drone_infos["y_sat"]
+
                 ### RDS ###
                 running_RDS += self.RDS(
                     outputs,
@@ -343,16 +349,24 @@ class Runner:
 
                 ### RDS ###
                 for j in range(len(outputs)):
+                    metadata = {
+                        "x_sat": drone_infos["x_sat"][j].item(),
+                        "y_sat": drone_infos["y_sat"][j].item(),
+                        "x_offset": drone_infos["x_offset"][j].item(),
+                        "y_offset": drone_infos["y_offset"][j].item(),
+                        "zoom_level": drone_infos["zoom_level"][j].item(),
+                        "lat_gt": drone_infos["coordinate"]["latitude"][j].item(),
+                        "lon_gt": drone_infos["coordinate"]["longitude"][j].item(),
+                        "filename": drone_infos["filename"][j],
+                        "scale": drone_infos["scale"][j].item(),
+                    }
+
                     self.plot_results(
                         drone_images[j].detach(),
                         sat_images[j].detach(),
                         heatmap_gt[j].detach(),
                         outputs[j].detach(),
-                        drone_infos["coordinate"]["latitude"][j].item(),
-                        drone_infos["coordinate"]["longitude"][j].item(),
-                        drone_infos["filename"][j],
-                        x_sat[j].item(),
-                        y_sat[j].item(),
+                        metadata,
                         i,
                         j,
                     )
@@ -383,11 +397,7 @@ class Runner:
         sat_image,
         heatmap_gt,
         heatmap_pred,
-        lat_gt,
-        lon_gt,
-        filename,
-        x_gt,
-        y_gt,
+        metadata,
         i,
         j,
     ):
@@ -418,17 +428,30 @@ class Runner:
         y_pred, x_pred = np.unravel_index(
             np.argmax(heatmap_pred_np), heatmap_pred_np.shape
         )
-        sat_img_path = filename + "_sat_16.tiff"
 
-        with rasterio.open(sat_img_path) as sat_img:
-            transform = sat_img.transform
-            # find the lat and lon of the predicted position
-            lon_pred, lat_pred = sat_img.xy(x_pred, y_pred)
+        sat_image_path = metadata["filename"]
+        zoom_level = metadata["zoom_level"]
+        x_offset = metadata["x_offset"]
+        y_offset = metadata["y_offset"]
 
-        print(f"Predicted position: {lat_pred}, {lon_pred}")
-        print(f"Ground truth position: {lat_gt}, {lon_gt}")
+        with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+            sat_transform = s_image.transform
+            lon_pred, lat_pred = rasterio.transform.xy(
+                sat_transform, y_pred + y_offset, x_pred + x_offset
+            )
 
-        self.dash_app.plot_data(heatmap_pred_np, lat_gt, lon_gt, lat_pred, lon_pred)
+        metadata["lat_pred"] = lat_pred
+        metadata["lon_pred"] = lon_pred
+
+        metadata["rds"] = self.map_utils.RDS(
+            10,
+            np.abs(metadata["x_sat"] - x_pred),
+            np.abs(metadata["y_sat"] - y_pred),
+            heatmap_gt.shape[-1],
+            heatmap_gt.shape[-2],
+        )
+
+        self.dash_app.plot_data(heatmap_pred_np, metadata)
 
 
 def load_config(config_path):
