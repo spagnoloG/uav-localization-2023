@@ -74,7 +74,7 @@ class DashApp:
                 ),
                 dcc.Interval(
                     id="graph-update",
-                    interval=1 * 3000,
+                    interval=1 * 2000,
                     n_intervals=0,
                 ),
             ],
@@ -155,21 +155,26 @@ class DashApp:
                 lat_gt = data["lat_gt"]
                 lon_gt = data["lon_gt"]
 
+                lat_pred_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'pred']['lat'].tolist()
+                lon_pred_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'pred']['lon'].tolist()
+                lat_gt_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'gt']['lat'].tolist()
+                lon_gt_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'gt']['lon'].tolist()
+
                 map_fig = go.Figure(
                     data=[
                         go.Scattermapbox(
-                            lat=[lat_pred],
-                            lon=[lon_pred],
-                            mode="markers",
+                            lat=lat_pred_list,
+                            lon=lon_pred_list,
+                            mode="markers+lines",
                             marker=go.scattermapbox.Marker(size=14),
-                            text=["Predicted"],
+                            text=["Predicted"] * len(lat_pred_list),
                         ),
                         go.Scattermapbox(
-                            lat=[lat_gt],
-                            lon=[lon_gt],
-                            mode="markers",
+                            lat=lat_gt_list,
+                            lon=lon_gt_list,
+                            mode="markers+lines",
                             marker=go.scattermapbox.Marker(size=14),
-                            text=["Ground Truth"],
+                            text=["Ground Truth"] * len(lat_gt_list),
                         ),
                     ]
                 )
@@ -180,6 +185,7 @@ class DashApp:
                     mapbox_center_lat=lat_pred,
                     mapbox_center_lon=lon_pred,
                     margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                    height=1000,
                 )
 
                 ##  2D heatmap ##
