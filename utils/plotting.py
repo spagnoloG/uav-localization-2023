@@ -4,11 +4,19 @@ from scipy.stats import norm
 
 
 def hanning_2d(M):
+    """
+    Return normalized hanning window
+    """
     hanning_window = np.hanning(M)
-    return np.sqrt(np.outer(hanning_window, hanning_window))
+    hw = np.sqrt(np.outer(hanning_window, hanning_window))
+    hw = hw / np.sum(hw)
+    return hw
 
 
 def gaussian_2d(size, sigma=1):
+    """
+    Return normalized 2D Gaussian kernel
+    """
     ax = np.arange(-size // 2 + 1.0, size // 2 + 1.0)
     xx, yy = np.meshgrid(ax, ax)
     kernel = np.exp(-(xx**2 + yy**2) / (2.0 * sigma**2))
@@ -16,7 +24,7 @@ def gaussian_2d(size, sigma=1):
 
 
 def plot_kernel(kernel, title):
-    plt.imshow(kernel, cmap="hot", interpolation="nearest")
+    plt.imshow(kernel, cmap="jet", interpolation="nearest")
     plt.title(title)
     plt.colorbar()
     plt.savefig(title + ".jpg", format="jpg")
