@@ -8,3 +8,5 @@ __pycache__/
 checkpoints/*
 .idea/*
 dld/*
+castral_dataset/
+

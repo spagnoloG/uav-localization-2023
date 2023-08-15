@@ -6,6 +6,7 @@ push-ml-node:
 		--exclude='vis/*' \
 		--exclude='checkpoints/' \
 		--exclude='__pycache__/' \
+		--exclude='castral_dataset' \
 		--include='utils/**' \
 		--include='conf/**' \
 		--include='*/' \

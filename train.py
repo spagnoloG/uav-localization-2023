@@ -21,6 +21,7 @@ import matplotlib.patches as patches
 import json
 import itertools
 import rasterio
+import logging
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -200,6 +201,9 @@ class CrossViewTrainer:
             now_str = now.strftime("%Y-%m-%d-%H-%M-%S")
             now_hash = hashlib.sha1(now_str.encode()).hexdigest()
             self.checkpoint_hash = now_hash
+            os.makedirs(f"./checkpoints/{self.checkpoint_hash}/", exist_ok=True)
+
+        self.update_log_filepath(f"./checkpoints/{self.checkpoint_hash}/train.log")
 
         if self.train_until_convergence:
             self.convergence_early_stopping = ConvergenceEarlyStopping(
@@ -215,6 +219,26 @@ class CrossViewTrainer:
         logger.info(
             f"Using chekpoint hash {self.checkpoint_hash}, starting from epoch {self.current_epoch}"
         )
+
+    def update_log_filepath(self, log_filepath):
+        """
+        Update the log file path.
+
+        log_filepath: the new log file path
+        """
+        global logger
+
+        for handler in logger.handlers[:]:
+            if isinstance(handler, logging.FileHandler):
+                logger.removeHandler(handler)
+
+        updated_handler = logging.FileHandler(log_filepath)
+        logger.addHandler(updated_handler)
+        format_str = "[%(asctime)s | %(filename)s:%(lineno)d | %(levelname)s] -> %(message)s"
+        formatter = logging.Formatter(format_str)
+        updated_handler.setFormatter(formatter)
+
+        logger.addHandler(updated_handler)
 
     def prepare_dataloaders(self, config):
         if self.train_subset_size is not None:
