@@ -95,7 +95,8 @@ def get_patch_center_latlon(transform, width, height, src_crs):
 
 def split_tiff_rasterio(input_file, output_folder, tile_size_x, tile_size_y):
     with rasterio.open(input_file) as src:
-        width, height = src.shape
+        # Print the shape of the raster
+        height, width = src.shape
         transform = src.transform
 
         n_tiles_x = int((width + tile_size_x - 1) / tile_size_x)
@@ -229,5 +230,5 @@ if __name__ == "__main__":
         tif for tif in os.listdir("../castral_dataset/RGB/") if tif.endswith(".tif")
     ]
 
-    with Pool(os.cpu_count()) as pool:
+    with Pool(4) as pool:
         pool.map(process_tif, tif_files)
