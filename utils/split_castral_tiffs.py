@@ -12,6 +12,8 @@ from rasterio.transform import from_bounds
 from rasterio.merge import merge
 from pyproj import Transformer
 import rasterio.warp
+from multiprocessing import Pool
+import gc
 
 
 tiles_path = "../sat/"
@@ -96,11 +98,9 @@ def split_tiff_rasterio(input_file, output_folder, tile_size_x, tile_size_y):
         width, height = src.shape
         transform = src.transform
 
-        # Calculate the number of tiles in the x and y direction
         n_tiles_x = int((width + tile_size_x - 1) / tile_size_x)
         n_tiles_y = int((height + tile_size_y - 1) / tile_size_y)
 
-        # Create output directory if it doesn't exist
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
@@ -113,14 +113,11 @@ def split_tiff_rasterio(input_file, output_folder, tile_size_x, tile_size_y):
                     col_off=x, row_off=y, width=tile_size_x, height=tile_size_y
                 )
 
-                # Read windowed data
                 data = src.read(window=win)
 
-                # Check if there is more than 50% of black pixels in the tile
                 if (data == 0).sum() > (data.size / 2):
                     continue
 
-                # Update metadata
                 new_transform = rasterio.windows.transform(win, transform)
 
                 center_lat, center_lon = get_patch_center_latlon(
@@ -128,8 +125,7 @@ def split_tiff_rasterio(input_file, output_folder, tile_size_x, tile_size_y):
                 )
 
                 tile = get_tile_from_coord(center_lat, center_lon, ZOOM_LEVEL)
-
-                join_tifs(tile, os.path.join(output_folder, f"tile_{i}_{j}"))
+                # join_tifs(tile, os.path.join(output_folder, f"tile_{i}_{j}"))
 
                 new_meta = src.meta.copy()
                 new_meta.update(
@@ -145,6 +141,11 @@ def split_tiff_rasterio(input_file, output_folder, tile_size_x, tile_size_y):
                     os.path.join(output_folder, f"tile_{i}_{j}.tif"), "w", **new_meta
                 ) as dst:
                     dst.write(data)
+
+                # Explicitly delete the data object to release memory.
+                del data
+                #  force the garbage collector to release unused memory.
+                gc.collect()
 
 
 def join_tifs(tile, i_path):
@@ -217,10 +218,16 @@ def join_tifs(tile, i_path):
         t.close()
 
 
-if __name__ == "__main__":
+def process_tif(tif):
+    input_tiff = "../castral_dataset/RGB/" + tif
+    output_directory = f"../castral_dataset/preprocessed/{tif[:-4]}/"
+    split_tiff_rasterio(input_tiff, output_directory, 800, 800)
 
-    for tif in os.listdir("../castral_dataset/RGB/"):
-        if tif.endswith(".tif"):
-            input_tiff = "../castral_dataset/RGB/" + tif
-            output_directory = f"../castral_dataset/preprocessed/{tif[:-4]}/"
-            split_tiff_rasterio(input_tiff, output_directory, 800, 800)
+
+if __name__ == "__main__":
+    tif_files = [
+        tif for tif in os.listdir("../castral_dataset/RGB/") if tif.endswith(".tif")
+    ]
+
+    with Pool(os.cpu_count()) as pool:
+        pool.map(process_tif, tif_files)
