@@ -43,16 +43,31 @@ class CrossViewValidator:
         self.val_dataloaders = []
         self.batch_size = config["val"]["batch_size"]
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
+        self.loss_fn = config["train"]["loss_fn"]
         self.RDS = RDS()
 
-        self.criterion = HanningLoss(
-            kernel_size=self.heatmap_kernel_size, device=self.device
-        )
+        if self.loss_fn == "hanning":
+            self.criterion = HanningLoss(
+                kernel_size=self.heatmap_kernel_size, device=self.device
+            )
+        elif self.loss_fn == "mse":
+            self.criterion = torch.nn.MSELoss(reduction="mean")
+
+        elif self.loss_fn == "cwmse":
+            self.criterion = CrossWeightedMSE()
+            self.config["dataset"]["heatmap_type"] = "gaussian"
+        else:
+            raise NotImplementedError(
+                f"Loss function {self.loss_fn} is not implemented"
+            )
 
         self.prepare_dataloaders(config)
         self.map_utils = MapUtils()
 
         self.load_model()
+        self.update_log_filepath(
+                f"./checkpoints/{self.val_hash}/validation.log"
+        )
 
     def update_log_filepath(self, log_filepath):
         """

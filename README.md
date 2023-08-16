@@ -39,9 +39,13 @@ Note: Dataset is currently unavailable.
 
 ### Example of good localization
 ![Good localization](./assets/example_of_localization.jpg "Example of good localization")
+![Good localization](./assets/localizaton_2.png "Example of good localization")
+
 
 ### Example of poor localization
 ![Poor localization](./assets/poor_localization.jpg "Example of poor localization")
+![Poor localization](./assets/poor_localization_2.png "Example of poor localization")
+
 
 ## Model Architecture
 
