@@ -155,10 +155,18 @@ class DashApp:
                 lat_gt = data["lat_gt"]
                 lon_gt = data["lon_gt"]
 
-                lat_pred_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'pred']['lat'].tolist()
-                lon_pred_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'pred']['lon'].tolist()
-                lat_gt_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'gt']['lat'].tolist()
-                lon_gt_list = self.pd_lat_lon[self.pd_lat_lon['type'] == 'gt']['lon'].tolist()
+                lat_pred_list = self.pd_lat_lon[self.pd_lat_lon["type"] == "pred"][
+                    "lat"
+                ].tolist()
+                lon_pred_list = self.pd_lat_lon[self.pd_lat_lon["type"] == "pred"][
+                    "lon"
+                ].tolist()
+                lat_gt_list = self.pd_lat_lon[self.pd_lat_lon["type"] == "gt"][
+                    "lat"
+                ].tolist()
+                lon_gt_list = self.pd_lat_lon[self.pd_lat_lon["type"] == "gt"][
+                    "lon"
+                ].tolist()
 
                 map_fig = go.Figure(
                     data=[
@@ -347,12 +355,7 @@ class Runner:
         total_samples = 0
         running_RDS = 0.0
         with torch.no_grad():
-            for i, (
-                drone_images,
-                drone_infos,
-                sat_images,
-                heatmaps_gt,
-            ) in tqdm(
+            for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
                 total=len(self.val_dataloader),
             ):

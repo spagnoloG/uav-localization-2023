@@ -19,6 +19,7 @@ import rasterio
 import json
 import logging
 
+
 class CrossViewValidator:
     """Validator class for cross-view (UAV and satellite) image learning"""
 
@@ -65,9 +66,7 @@ class CrossViewValidator:
         self.map_utils = MapUtils()
 
         self.load_model()
-        self.update_log_filepath(
-                f"./checkpoints/{self.val_hash}/validation.log"
-        )
+        self.update_log_filepath(f"./checkpoints/{self.val_hash}/validation.log")
 
     def update_log_filepath(self, log_filepath):
         """
@@ -83,7 +82,9 @@ class CrossViewValidator:
 
         updated_handler = logging.FileHandler(log_filepath)
         logger.addHandler(updated_handler)
-        format_str = "[%(asctime)s | %(filename)s:%(lineno)d | %(levelname)s] -> %(message)s"
+        format_str = (
+            "[%(asctime)s | %(filename)s:%(lineno)d | %(levelname)s] -> %(message)s"
+        )
         formatter = logging.Formatter(format_str)
         updated_handler.setFormatter(formatter)
 
@@ -175,12 +176,7 @@ class CrossViewValidator:
         total_samples = 0
         running_RDS = 0.0
         with torch.no_grad():
-            for i, (
-                drone_images,
-                drone_infos,
-                sat_images,
-                heatmaps_gt,
-            ) in tqdm(
+            for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
                 total=len(self.val_dataloader),
             ):
@@ -334,7 +330,7 @@ class CrossViewValidator:
         # Subplot 4: Predicted Heatmap
         im4 = axs[1, 1].imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="viridis")
         axs[1, 1].set_title(
-            "Predicted Heatmap, Latitute: {metadata['lat_pred']}, Longitude: {metadata['lon_pred']}"
+            f"Predicted Heatmap, Latitute: {metadata['lat_pred']}, Longitude: {metadata['lon_pred']}"
         )
         axs[1, 1].axis("off")
         fig.colorbar(im4, ax=axs[1, 1])
