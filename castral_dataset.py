@@ -14,6 +14,12 @@ import random
 import torch
 import rasterio.warp
 import re
+import mercantile
+from rasterio.io import MemoryFile
+from rasterio.transform import from_bounds
+from rasterio.merge import merge
+import warnings
+from rasterio.errors import NotGeoreferencedWarning
 
 
 class CastralDataset(Dataset):
@@ -72,6 +78,32 @@ class CastralDataset(Dataset):
 
         if self.deterministic_val:
             self.drone_to_sat_dict = {}
+
+        self.headers = {
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Connection": "keep-alive",
+            "Referer": "https://www.openstreetmap.org/",
+            "Sec-Fetch-Dest": "image",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-GPC": "1",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+            "sec-ch-ua": '"Not.A/Brand";v="8", "Chromium";v="114", "Brave";v="114"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Linux"',
+        }
+
+        self.params = {
+            "access_token": "pk.eyJ1Ijoib3BlbnN0cmVldG1hcCIsImEiOiJjbGRlaGp1b3gwOGRtM250NW9sOHhuMmRjIn0.Y3mM21ciEP5Zo5amLJUugg",
+        }
+
+        self.tiles_path = "./sat"
+        self.sat_zoom_level = 16
+        
+        # Suppress the NotGeoreferencedWarning warning
+        warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
+
 
     def set_seed(self, seed):
         random.seed(seed)
@@ -150,63 +182,6 @@ class CastralDataset(Dataset):
         x_pixel, y_pixel = ~transform * (lon, lat)
         return round(x_pixel), round(y_pixel)
 
-    def get_corresponding_tiff_sat(
-        self, path, lat, lon, altitude, fov_vertical_deg, fov_horizontal_deg
-    ):
-        """ "
-        Returns the same patch from the satellite image as the given patch from the drone image.
-        """
-        mm = re.search(r"(.*\/+[^\/]+)\/+[^\/]+\.tif", path)
-        if mm:
-            path = mm.group(1) + "/sat.tiff"
-        else:
-            raise ValueError("no bueno")
-
-        with rasterio.open(path) as tif:
-            transform = tif.transform
-
-            x_res = abs(transform[0])
-            y_res = abs(transform[4])
-
-            lat2 = lat + y_res / 2
-            lon2 = lon + x_res / 2
-
-            y_res_meters = self.haversine_np(lat, lon, lat2, lon)
-            x_res_meters = self.haversine_np(lat, lon, lat, lon2)
-
-            fov_vertical_rad = np.radians(fov_vertical_deg)
-            fov_horizontal_rad = np.radians(fov_horizontal_deg)
-
-            height = np.tan(fov_vertical_rad / 2) * altitude
-            width = np.tan(fov_horizontal_rad / 2) * altitude
-
-            fov_height_pixels = int(height / y_res_meters)
-            fov_width_pixels = int(width / x_res_meters)
-
-            x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
-
-            window = Window(
-                int(x_pixel - fov_width_pixels // 2),
-                int(y_pixel - fov_height_pixels // 2),
-                fov_width_pixels,
-                fov_height_pixels,
-            )
-
-            if (
-                window.width < 0
-                or window.height < 0
-                or window.col_off < 0
-                or window.row_off < 0
-            ):
-                raise ValueError("Invalid window: ", window)
-
-            data = tif.read(window=window)
-
-            plt.imshow(data.transpose((1, 2, 0)))
-            plt.show()
-
-        return data
-
     def get_heatmap_gt(self, x, y, height, width, square_size=33):
         if self.heatmap_type == "hanning":
             return self.generate_hanning_heatmap(x, y, height, width, square_size)
@@ -217,67 +192,173 @@ class CastralDataset(Dataset):
         else:
             raise ValueError("Invalid heatmap type: ", self.heatmap_type)
 
+    def download_missing_tile(self, tile):
+        os.makedirs(f"{self.tiles_path}", exist_ok=True)
+        file_path = f"{self.tiles_path}/tiles/{tile.z}_{tile.x}_{tile.y}.jpg"
+    
+        if os.path.exists(file_path):
+            return
+    
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            print(
+                f"Downloading tile {tile.z}_{tile.x}_{tile.y} (attempt {attempt + 1}/{max_attempts})..."
+            )
+            try:
+                response = requests.get(
+                    f"https://c.tiles.mapbox.com/v4/mapbox.satellite/{tile.z}/{tile.x}/{tile.y}@2x.jpg",
+                    params=self.params,
+                    headers=self.headers,
+                )
+                response.raise_for_status()  # raises a Python exception if the response contains an HTTP error status code
+            except (
+                requests.exceptions.RequestException,
+                requests.exceptions.ConnectionError,
+            ) as e:
+                if attempt < max_attempts - 1:  # i.e., if it's not the final attempt
+                    print("Error downloading tile. Retrying...")
+                    time.sleep(5)  # wait for 5 seconds before trying again
+                    continue
+                else:
+                    print("Error downloading tile. Max retries exceeded.")
+                    break
+            else:  # executes if the try block didn't throw any exceptions
+                with open(file_path, "wb") as f:
+                    f.write(response.content)
+                break
+        else:
+            print("Error downloading tile. Max retries exceeded.")
+
+    def get_tiff_map(self, tile):
+        tile_data = []
+        neighbors = mercantile.neighbors(tile)
+        neighbors.append(tile)
+
+        for neighbor in neighbors:
+            found = False
+            west, south, east, north = mercantile.bounds(neighbor)
+            tile_path = f"{self.tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
+            if os.path.exists(tile_path):
+                found = True
+                with Image.open(tile_path) as img:
+                    width, height = img.size
+
+                memfile = MemoryFile()
+                with memfile.open(
+                    driver="GTiff",
+                    height=height,
+                    width=width,
+                    count=3,
+                    dtype="uint8",
+                    crs="EPSG:3857",
+                    transform=from_bounds(west, south, east, north, width, height),
+                ) as dataset:
+                    data = rasterio.open(tile_path).read()
+                    dataset.write(data)
+                tile_data.append(memfile.open())
+
+            if not found:
+                download_missing_tile(neighbor)
+                time.sleep(1)
+                tile_path = f"{self.tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
+                with Image.open(tile_path) as img:
+                    width, height = img.size
+                memfile = MemoryFile()
+                with memfile.open(
+                    driver="GTiff",
+                    height=height,
+                    width=width,
+                    count=3,
+                    dtype="uint8",
+                    crs="EPSG:3857",
+                    transform=from_bounds(west, south, east, north, width, height),
+                ) as dataset:
+                    data = rasterio.open(tile_path).read()
+                    dataset.write(data)
+                tile_data.append(memfile.open())
+
+        mosaic, out_trans = merge(tile_data)
+
+        out_meta = tile_data[0].meta.copy()
+        out_meta.update(
+            {
+                "driver": "GTiff",
+                "height": mosaic.shape[1],
+                "width": mosaic.shape[2],
+                "transform": out_trans,
+                "crs": "EPSG:3857",
+            }
+        )
+
+        return mosaic, out_meta
+
+    def get_tile_from_coord(self, lat, lng, zoom_level):
+        tile = mercantile.tile(lng, lat, zoom_level)
+        return tile
+
     def get_random_tiff_patch(self, path, lat, lon, patch_width, patch_height):
-        """ "
+        """ 
         Returns a random patch from the satellite image.
         """
-        mm = re.search(r"(.*\/+[^\/]+)\/+[^\/]+\.tif", path)
-        if mm:
-            path = mm.group(1) + "/sat.tiff"
-        else:
-            raise ValueError("no bueno")
+        
+        tile = self.get_tile_from_coord(lat, lon, self.sat_zoom_level)
+        mosaic, out_meta = self.get_tiff_map(tile)
+        
+        transform = out_meta["transform"]
+        x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
 
-        with rasterio.open(path) as tif:
-            transform = tif.transform
+        ks = self.heatmap_kernel_size // 2
 
-            x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
+        x_offset_range = [
+            x_pixel - patch_width + ks + 1,
+            x_pixel - ks - 1,
+        ]
+        y_offset_range = [
+            y_pixel - patch_height + ks + 1,
+            y_pixel - ks - 1,
+        ]
 
-            ks = self.heatmap_kernel_size // 2
+        # Randomly select an offset within the valid range
+        x_offset = random.randint(*x_offset_range)
+        y_offset = random.randint(*y_offset_range)
 
-            x_offset_range = [
-                x_pixel - patch_width + ks + 1,
-                x_pixel - ks - 1,
-            ]
-            y_offset_range = [
-                y_pixel - patch_height + ks + 1,
-                y_pixel - ks - 1,
-            ]
+        # Define the window based on the offsets and patch size
+        window = Window(x_offset, y_offset, patch_width, patch_height)
 
-            # Randomly select an offset within the valid range
-            x_offset = random.randint(*x_offset_range)
-            y_offset = random.randint(*y_offset_range)
-
-            # Define the window based on the offsets and patch size
-            window = Window(x_offset, y_offset, patch_width, patch_height)
-
-            # Read the data within the window
-            x, y = x_pixel - x_offset, y_pixel - y_offset
-            patch = tif.read(window=window)
+        # Read the data within the window
+        x, y = x_pixel - x_offset, y_pixel - y_offset
+        patch = mosaic[:, y:y+patch_height, x:x+patch_width]
 
         return patch, x, y, x_offset, y_offset
 
     def get_tiff_patch(
-        self, path, lat, lon, patch_width, patch_height, x_offset, y_offset
+        self, lat, lon, patch_width, patch_height, x_offset, y_offset
     ):
         """
-        Returns a patch from the satellite image. with the given offset and size.
+        Returns a patch from the satellite image with the given offset and size.
         """
-
-        mm = re.search(r"(.*\/+[^\/]+)\/+[^\/]+\.tif", path)
-        if mm:
-            path = mm.group(1) + "/sat.tiff"
-        else:
-            raise ValueError("no bueno")
-
-        with rasterio.open(path) as tif:
-            transform = tif.transform
-            x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
-            # Define the window based on the offsets and patch size
-            window = Window(x_offset, y_offset, patch_width, patch_height)
-            # Read the data within the window
-            x, y = x_pixel - x_offset, y_pixel - y_offset
-            patch = tif.read(window=window)
-
+        
+        tile = self.get_tile_from_coord(lat, lon, self.sat_zoom_level)
+        mosaic, out_meta = self.get_tiff_map(tile)
+        
+        transform = out_meta["transform"]
+        x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
+        
+        # Validate the window dimensions and offsets
+        if (
+            x_offset < 0
+            or x_offset + patch_width > mosaic.shape[2]
+            or y_offset < 0
+            or y_offset + patch_height > mosaic.shape[1]
+        ):
+            raise ValueError("Invalid patch parameters")
+        
+        # Extract the data from the mosaic based on the defined window
+        patch = mosaic[:, y_offset:y_offset+patch_height, x_offset:x_offset+patch_width]
+        
+        # Adjust pixel coordinates relative to the patch
+        x, y = x_pixel - x_offset, y_pixel - y_offset
+        
         return patch, x, y, x_offset, y_offset
 
     def generate_square_heatmap(self, x, y, height, width, square_size=33):
@@ -540,7 +621,7 @@ def test():
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     dataset = CastralDataset(config=config)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
 
     for batch in dataloader:
         drone_images, drone_infos, satellite_images, heatmaps = batch
@@ -549,6 +630,7 @@ def test():
         print("Satellite images shape: ", satellite_images.shape)
         assert drone_images.shape == (len(batch[0]), 3, 128, 128)
         assert satellite_images.shape == (len(batch[0]), 3, 400, 400)
+        print(drone_infos)
 
         # First pair of drone and satellite images
         fig, axs = plt.subplots(1, 3, figsize=(20, 6))
@@ -557,7 +639,7 @@ def test():
         axs[1].imshow(satellite_images[0].permute(1, 2, 0))
         axs[1].set_title("Corresponding Satellite image 1")
         # Scatter the drone's location on the satellite Image
-        # axs[1].scatter(x[0], y[0], c="r", s=40)
+        axs[1].scatter(drone_infos["x_sat"][0], drone_infos["y_sat"][0], c="r", s=40)
         # Display heatmap
         axs[2].imshow(heatmaps[0], cmap="hot", interpolation="nearest")
         axs[2].set_title("Heatmap 1")
@@ -570,7 +652,7 @@ def test():
         axs[1].imshow(satellite_images[1].permute(1, 2, 0))
         axs[1].set_title("Corresponding Satellite image 2")
         # Scatter the drone's location on the satellite image
-        # axs[1].scatter(x[1], y[1], c="r", s=40)
+        axs[1].scatter(drone_infos["x_sat"][1], drone_infos["y_sat"][1], c="r", s=40)
         # Display heatmap
         axs[2].imshow(heatmaps[1], cmap="hot", interpolation="nearest")
         axs[2].set_title("Heatmap 2")
