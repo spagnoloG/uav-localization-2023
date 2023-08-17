@@ -10,13 +10,14 @@ train:
   download_dataset: false # wether to download the dataset
   batch_size: 4
   train_until_convergence: false # train until convergence (ignore milestones and num_epochs)
+  dataset: "castral" # dataset to use for training
 
   loss_fn:
     "hanning" # or "mse"
 
 
     # Dataset parameters
-  train_subset_size: 500 # size of training subset. Set to null to use full dataset
+  train_subset_size: null # size of training subset. Set to null to use full dataset
   val_subset_size: 50 # size of validation subset. Set to null to use full dataset
 
   # Miscellaneous
@@ -32,8 +33,7 @@ train:
 
 dataset:
   mean: [0.485, 0.456, 0.406]
-  std:
-    [0.229, 0.224, 0.225]
+  std: [0.229, 0.224, 0.225]
   drone_scales: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0] # drone view scales during training
   #drone_scales: [1.0] # drone view scales during the run
   tiffs: [16]
@@ -45,7 +45,7 @@ dataset:
   sat_patch_h: 400
   root_dir: "./castral_dataset"
   heatmap_type:
-    "hanning" # square (to use with hanning loss function)
+    "square" # square (to use with hanning loss function)
     # gaussian (to use with mse loss function)
     # hanning (to use with mse loss function)
 

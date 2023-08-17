@@ -100,10 +100,9 @@ class CastralDataset(Dataset):
 
         self.tiles_path = "./sat"
         self.sat_zoom_level = 16
-        
+
         # Suppress the NotGeoreferencedWarning warning
         warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
-
 
     def set_seed(self, seed):
         random.seed(seed)
@@ -195,10 +194,10 @@ class CastralDataset(Dataset):
     def download_missing_tile(self, tile):
         os.makedirs(f"{self.tiles_path}", exist_ok=True)
         file_path = f"{self.tiles_path}/tiles/{tile.z}_{tile.x}_{tile.y}.jpg"
-    
+
         if os.path.exists(file_path):
             return
-    
+
         max_attempts = 5
         for attempt in range(max_attempts):
             print(
@@ -237,7 +236,9 @@ class CastralDataset(Dataset):
         for neighbor in neighbors:
             found = False
             west, south, east, north = mercantile.bounds(neighbor)
-            tile_path = f"{self.tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
+            tile_path = (
+                f"{self.tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
+            )
             if os.path.exists(tile_path):
                 found = True
                 with Image.open(tile_path) as img:
@@ -297,13 +298,13 @@ class CastralDataset(Dataset):
         return tile
 
     def get_random_tiff_patch(self, path, lat, lon, patch_width, patch_height):
-        """ 
+        """
         Returns a random patch from the satellite image.
         """
-        
+
         tile = self.get_tile_from_coord(lat, lon, self.sat_zoom_level)
         mosaic, out_meta = self.get_tiff_map(tile)
-        
+
         transform = out_meta["transform"]
         x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
 
@@ -327,23 +328,21 @@ class CastralDataset(Dataset):
 
         # Read the data within the window
         x, y = x_pixel - x_offset, y_pixel - y_offset
-        patch = mosaic[:, y:y+patch_height, x:x+patch_width]
+        patch = mosaic[:, y : y + patch_height, x : x + patch_width]
 
-        return patch, x, y, x_offset, y_offset
+        return patch, x, y, x_offset, y_offset, transform
 
-    def get_tiff_patch(
-        self, lat, lon, patch_width, patch_height, x_offset, y_offset
-    ):
+    def get_tiff_patch(self, lat, lon, patch_width, patch_height, x_offset, y_offset):
         """
         Returns a patch from the satellite image with the given offset and size.
         """
-        
+
         tile = self.get_tile_from_coord(lat, lon, self.sat_zoom_level)
         mosaic, out_meta = self.get_tiff_map(tile)
-        
+
         transform = out_meta["transform"]
         x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
-        
+
         # Validate the window dimensions and offsets
         if (
             x_offset < 0
@@ -352,14 +351,16 @@ class CastralDataset(Dataset):
             or y_offset + patch_height > mosaic.shape[1]
         ):
             raise ValueError("Invalid patch parameters")
-        
+
         # Extract the data from the mosaic based on the defined window
-        patch = mosaic[:, y_offset:y_offset+patch_height, x_offset:x_offset+patch_width]
-        
+        patch = mosaic[
+            :, y_offset : y_offset + patch_height, x_offset : x_offset + patch_width
+        ]
+
         # Adjust pixel coordinates relative to the patch
         x, y = x_pixel - x_offset, y_pixel - y_offset
-        
-        return patch, x, y, x_offset, y_offset
+
+        return patch, x, y, x_offset, y_offset, transform
 
     def generate_square_heatmap(self, x, y, height, width, square_size=33):
         """
@@ -529,6 +530,7 @@ class CastralDataset(Dataset):
                     y_sat,
                     x_offset,
                     y_offset,
+                    sat_transform,
                 ) = self.get_tiff_patch(
                     image_path,
                     lat,
@@ -545,6 +547,7 @@ class CastralDataset(Dataset):
                     y_sat,
                     x_offset,
                     y_offset,
+                    sat_transform,
                 ) = self.get_random_tiff_patch(
                     image_path, lat, lon, self.sat_patch_h, self.sat_patch_h
                 )
@@ -557,6 +560,7 @@ class CastralDataset(Dataset):
                 y_sat,
                 x_offset,
                 y_offset,
+                sat_transform,
             ) = self.get_random_tiff_patch(
                 image_path, lat, lon, self.sat_patch_h, self.sat_patch_w
             )
@@ -586,6 +590,9 @@ class CastralDataset(Dataset):
         img_info["x_offset"] = x_offset
         img_info["y_offset"] = y_offset
         img_info["zoom_level"] = 16
+        img_info["lat"] = lat
+        img_info["lon"] = lon
+        img_info["sat_transform"] = sat_transform
 
         return drone_image, img_info, satellite_patch, heatmap
 

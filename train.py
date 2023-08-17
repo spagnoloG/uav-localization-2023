@@ -4,6 +4,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import MultiStepLR
 from tqdm import tqdm
 from joined_dataset import JoinedDataset
+from castral_dataset import CastralDataset
 from torch.utils.data import DataLoader
 from logger import logger
 import hashlib
@@ -22,6 +23,7 @@ import json
 import itertools
 import rasterio
 import logging
+from affine import Affine
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -123,6 +125,12 @@ class CrossViewTrainer:
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
         self.best_RDS = -np.inf
         self.loss_fn = config["train"]["loss_fn"]
+        self.dataset_type = config["train"]["dataset"]
+
+        if self.dataset_type == "castral":
+            self.dataset = CastralDataset
+        else:
+            self.dataset = JoinedDataset
 
         if "cuda" in self.device:
             torch.backends.cudnn.benchmark = True
@@ -246,7 +254,7 @@ class CrossViewTrainer:
         if self.train_subset_size is not None:
             logger.info(f"Using train subset of size {self.train_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(
+                self.dataset(
                     dataset="train",
                     config=config,
                 ),
@@ -260,7 +268,7 @@ class CrossViewTrainer:
             )
         else:
             logger.info("Using full train dataset")
-            subset_dataset = JoinedDataset(
+            subset_dataset = self.dataset(
                 dataset="train",
                 config=config,
             )
@@ -274,7 +282,7 @@ class CrossViewTrainer:
         if self.val_subset_size is not None:
             logger.info(f"Using val subset of size {self.val_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(
+                self.dataset(
                     dataset="test",
                     config=config,
                 ),
@@ -288,7 +296,7 @@ class CrossViewTrainer:
             )
         else:
             logger.info("Using full val dataset")
-            subset_dataset = JoinedDataset(
+            subset_dataset = self.dataset(
                 dataset="test",
                 config=config,
             )
@@ -393,11 +401,20 @@ class CrossViewTrainer:
                     "x_offset": drone_infos["x_offset"][0].item(),
                     "y_offset": drone_infos["y_offset"][0].item(),
                     "zoom_level": drone_infos["zoom_level"][0].item(),
-                    "lat_gt": drone_infos["coordinate"]["latitude"][0].item(),
-                    "lon_gt": drone_infos["coordinate"]["longitude"][0].item(),
+                    "lat_gt": drone_infos["lat"][0].item()
+                    if self.dataset_type == "castral"
+                    else drone_infos["coordinate"]["latitude"][0].item(),
+                    "lon_gt": drone_infos["lon"][0].item()
+                    if self.dataset_type == "castral"
+                    else drone_infos["coordinate"]["longitude"][0].item(),
                     "filename": drone_infos["filename"][0],
                     "scale": drone_infos["scale"][0].item(),
                 }
+
+                if self.dataset_type == "castral":
+                    metadata["sat_transform"] = (
+                        drone_infos["sat_transform"][0].cpu().numpy()
+                    )
 
                 self.plot_results(
                     drone_images[0].detach(),
@@ -458,11 +475,20 @@ class CrossViewTrainer:
                         "x_offset": drone_infos["x_offset"][0].item(),
                         "y_offset": drone_infos["y_offset"][0].item(),
                         "zoom_level": drone_infos["zoom_level"][0].item(),
-                        "lat_gt": drone_infos["coordinate"]["latitude"][0].item(),
-                        "lon_gt": drone_infos["coordinate"]["longitude"][0].item(),
+                        "lat_gt": drone_infos["lat"][0].item()
+                        if self.dataset_type == "castral"
+                        else drone_infos["coordinate"]["latitude"][0].item(),
+                        "lon_gt": drone_infos["lon"][0].item()
+                        if self.dataset_type == "castral"
+                        else drone_infos["coordinate"]["longitude"][0].item(),
                         "filename": drone_infos["filename"][0],
                         "scale": drone_infos["scale"][0].item(),
                     }
+
+                    if self.dataset_type == "castral":
+                        metadata["sat_transform"] = (
+                            drone_infos["sat_transform"][0].cpu().numpy()
+                        )
 
                     self.plot_results(
                         drone_images[0].detach(),
@@ -518,11 +544,25 @@ class CrossViewTrainer:
         x_offset = metadata["x_offset"]
         y_offset = metadata["y_offset"]
 
-        with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
-            sat_transform = s_image.transform
+        if self.dataset_type == "castral":
+            tensor_values = metadata["sat_transform"]
+            sat_transform = Affine(
+                tensor_values[0],
+                0,
+                tensor_values[2],
+                0,
+                tensor_values[1],
+                tensor_values[3],
+            )
             lon_pred, lat_pred = rasterio.transform.xy(
                 sat_transform, y_pred + y_offset, x_pred + x_offset
             )
+        else:
+            with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+                sat_transform = s_image.transform
+                lon_pred, lat_pred = rasterio.transform.xy(
+                    sat_transform, y_pred + y_offset, x_pred + x_offset
+                )
 
         metadata["lat_pred"] = lat_pred
         metadata["lon_pred"] = lon_pred
@@ -609,6 +649,8 @@ class CrossViewTrainer:
             f"./vis/{self.checkpoint_hash}/{s_dir}/{call_f}-{self.checkpoint_hash}-{i}.png"
         )
         plt.close()
+
+        del metadata["sat_transform"]
 
         # Save the metadata
         with open(
