@@ -306,6 +306,7 @@ class CastralDataset(Dataset):
         mosaic, out_meta = self.get_tiff_map(tile)
 
         transform = out_meta["transform"]
+
         x_pixel, y_pixel = self.geo_to_pixel_coordinates(lat, lon, transform)
 
         ks = self.heatmap_kernel_size // 2
@@ -500,7 +501,6 @@ class CastralDataset(Dataset):
 
         """
         image_path = self.image_paths[idx]
-        drone_image = Image.open(image_path).convert("RGB")  # Ensure 3-channel image
 
         drone_im_tif = None
         img_info = {

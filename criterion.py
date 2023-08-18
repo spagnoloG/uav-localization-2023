@@ -370,6 +370,24 @@ class RDS(nn.Module):
         return running_rds / len(heatmaps_pred)
 
 
+class MA(nn.Module):
+    def __init__(self, k=10):
+        super(MA, self).__init__()
+        self.k = k
+
+    def forward(self, heatmaps_pred, xs_gt, ys_gt):
+
+        running_MA = 0.0
+        for heatmap_pred, x_gt, y_gt in zip(heatmaps_pred, xs_gt, ys_gt):
+            coords = torch.where(heatmap_pred == heatmap_pred.max())
+            y_pred, x_pred = coords[0][0], coords[1][0]
+            dx = torch.abs(x_pred - x_gt)
+            dy = torch.abs(y_pred - y_gt)
+            running_MA += torch.sqrt(dx**2 + dy**2)
+
+        return running_MA / len(heatmaps_pred)
+
+
 def test():
     input = torch.randn(4, 400, 400)
     target = torch.zeros(4, 400, 400)
@@ -377,6 +395,14 @@ def test():
     loss = HanningLoss()
     output = loss(input, target)
     print(output)
+
+    xs_pred = torch.tensor([15, 5.0, 7.0, 10.0])
+    ys_pred = torch.tensor([3.5, 5.5, 8.0, 21.0])
+    xs_gt = torch.tensor([20, 4.5, 7.5, 7.5])
+    ys_gt = torch.tensor([3.0, 6.0, 8.5, 10.5])
+
+    ma_module = MA()
+    print(ma_module(xs_pred, ys_pred, xs_gt, ys_gt))
 
 
 if __name__ == "__main__":

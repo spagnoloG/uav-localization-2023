@@ -14,7 +14,7 @@ from model import CrossViewLocalizationModel
 import yaml
 import argparse
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS, CrossWeightedMSE
+from criterion import HanningLoss, RDS, CrossWeightedMSE, MA
 import os
 import numpy as np
 from map_utils import MapUtils
@@ -122,6 +122,7 @@ class CrossViewTrainer:
         self.stop_training = False
         self.map_utils = MapUtils()
         self.RDS = RDS(k=10)
+        self.MA = MA(k=10)
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
         self.best_RDS = -np.inf
         self.loss_fn = config["train"]["loss_fn"]
@@ -361,6 +362,7 @@ class CrossViewTrainer:
         self.model.train()
         running_loss = 0.0
         running_RDS = 0.0
+        running_MA = 0.0
         for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
             enumerate(self.train_dataloader),
             total=len(self.train_dataloader),
@@ -393,6 +395,15 @@ class CrossViewTrainer:
                     heatmaps_gt[0].shape[-2],
                 ).item()
             ### RDS ###
+
+            ### MA ###
+            with torch.no_grad():
+                running_MA += self.MA(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                ).item()
+            ### MA ###
 
             if i == 0 and self.plot:
                 metadata = {
@@ -439,6 +450,7 @@ class CrossViewTrainer:
         self.model.eval()
         running_loss = 0.0
         running_RDS = 0.0
+        running_MA = 0.0
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
@@ -467,6 +479,14 @@ class CrossViewTrainer:
                     heatmaps_gt[0].shape[-2],
                 ).item()
                 ### RDS ###
+
+                ### MA ###
+                running_MA += self.MA(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                ).item()
+                ### MA ###
 
                 if i == 0 and self.plot:
                     metadata = {
@@ -506,6 +526,7 @@ class CrossViewTrainer:
         rds = running_RDS / len(self.val_dataloader)
         logger.info(f"Validation RDS: {rds}")
         self.best_RDS = max(self.best_RDS, rds)
+        logger.info(f"Validation MA: {running_MA / len(self.val_dataloader)}")
 
     def plot_results(
         self,

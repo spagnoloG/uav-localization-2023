@@ -43,7 +43,7 @@ dataset:
   heatmap_kernel_size: 33
   sat_patch_w: 400
   sat_patch_h: 400
-  root_dir: "./castral_dataset"
+  root_dir: "./castral_dataset/preprocessed"
   heatmap_type:
     "square" # square (to use with hanning loss function)
     # gaussian (to use with mse loss function)
