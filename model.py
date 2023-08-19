@@ -282,7 +282,7 @@ class ModifiedPCPVT(nn.Module):
 
     """
 
-    def __init__(self, original_model):
+    def __init__(self, original_model, drops):
         super(ModifiedPCPVT, self).__init__()
 
         # Change the structure of the PCPVT model
@@ -304,6 +304,28 @@ class ModifiedPCPVT(nn.Module):
         self.model.pos_block[0].proj.add_module("save_l0", self.save_l0)
         self.model.pos_block[1].proj.add_module("save_l1", self.save_l1)
         self.model.pos_block[2].proj.add_module("save_l2", self.save_l2)
+
+        if drops is not None:
+            self._set_dropout_values(self.model, drops)
+
+    def _set_dropout_values(self, model, dropout_values):
+        """
+        Regulates the dropout values of the model.
+        """
+        for module in model.modules():
+            if hasattr(module, "attn_drop"):
+                module.attn_drop.p = dropout_values.get("attn_drop", module.attn_drop.p)
+            if hasattr(module, "proj_drop"):
+                module.proj_drop.p = dropout_values.get("proj_drop", module.proj_drop.p)
+            if hasattr(module, "head_drop"):
+                module.head_drop.p = dropout_values.get("head_drop", module.head_drop.p)
+            if hasattr(module, "drop1"):
+                module.drop1.p = dropout_values.get("mlp_drop1", module.drop1.p)
+            if hasattr(module, "drop2"):
+                module.drop2.p = dropout_values.get("mlp_drop2", module.drop2.p)
+            if hasattr(module, "pos_drops"):
+                for drop in module.pos_drops:
+                    drop.p = dropout_values.get("pos_drops", drop.p)
 
     def forward(self, x):
         self.save_l0.clear()
@@ -333,20 +355,22 @@ class CrossViewLocalizationModel(nn.Module):
 
     """
 
-    def __init__(self, satellite_resolution):
+    def __init__(self, satellite_resolution, drops_UAV, drops_satellite):
         super(CrossViewLocalizationModel, self).__init__()
 
         self.satellite_resolution = satellite_resolution
 
         # Feature extraction module
         self.backbone_UAV = timm.create_model("twins_pcpvt_small", pretrained=True)
-        self.feature_extractor_UAV = ModifiedPCPVT(self.backbone_UAV)
+        self.feature_extractor_UAV = ModifiedPCPVT(self.backbone_UAV, drops_UAV)
 
         self.backbone_satellite = timm.create_model(
             "twins_pcpvt_small", pretrained=True
         )
 
-        self.feature_extractor_satellite = ModifiedPCPVT(self.backbone_satellite)
+        self.feature_extractor_satellite = ModifiedPCPVT(
+            self.backbone_satellite, drops_satellite
+        )
 
         self.fusion = Fusion(
             in_channels=[320, 128, 64],

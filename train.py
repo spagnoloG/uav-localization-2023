@@ -158,7 +158,9 @@ class CrossViewTrainer:
                 satellite_resolution=(
                     config["dataset"]["sat_patch_w"],
                     config["dataset"]["sat_patch_h"],
-                )
+                ),
+                drops_UAV=config["train"]["dropout_uav"],
+                drops_satellite=config["train"]["dropout_satellite"],
             ).to(self.device)
 
             self.params_to_update_backbone = list(
@@ -172,6 +174,8 @@ class CrossViewTrainer:
                         config["dataset"]["sat_patch_w"],
                         config["dataset"]["sat_patch_h"],
                     ),
+                    drops_UAV=config["train"]["dropout_uav"],
+                    drops_satellite=config["train"]["dropout_satellite"],
                 )
             )
 
@@ -671,7 +675,9 @@ class CrossViewTrainer:
         )
         plt.close()
 
-        del metadata["sat_transform"]
+        if "sat_transform" in metadata:
+            if metadata["sat_transform"]:
+                del metadata["sat_transform"]
 
         # Save the metadata
         with open(

@@ -10,9 +10,10 @@ train:
   download_dataset: false # wether to download the dataset
   batch_size: 4
   train_until_convergence: false # train until convergence (ignore milestones and num_epochs)
+  dataset: "drone"
 
   loss_fn:
-    "hanning" # or "mse", "cwmse"
+    "hanning" # or "mse" / "cwmse"
 
 
     # Dataset parameters
@@ -26,6 +27,24 @@ train:
   checkpoint_hash: null # the hash of the checkpoint
   checkpoint_epoch: null # the epoch of the checkpoint
 
+  dropout_uav:
+    dropout: 0.1
+    attn_drop: 0.1
+    proj_drop: 0.1
+    head_drop: 0.1
+    mlp_drop1: 0.1
+    mlp_drop2: 0.1
+    pos_drops: 0.05
+
+  dropout_satellite:
+    dropout: 0.1
+    attn_drop: 0.1
+    proj_drop: 0.1
+    head_drop: 0.1
+    mlp_drop1: 0.1
+    mlp_drop2: 0.1
+    pos_drops: 0.05
+
 # must be divisible by 4 becouse of the Twins model architecture
 # twins model was trained on:
 # >>> config {'input_size': (3, 224, 224), 'interpolation': 'bicubic', 'mean': (0.485, 0.456, 0.406), 'std': (0.229, 0.224, 0.225), 'crop_pct': 0.9, 'crop_mode': 'center'}
@@ -33,8 +52,8 @@ train:
 dataset:
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
-  drone_scales: [1.0, 1.1, 1.2, 1.3] # drone view scales
-  tiffs: [16, 17]
+  drone_scales: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0] # drone view scales during training
+  tiffs: [16]
   drone_patch_w: 128
   drone_patch_h: 128
   sat_zoom_level: 16 # satellite dataset zoom level
@@ -43,19 +62,25 @@ dataset:
   sat_patch_h: 400
   root_dir: "./dataset"
   heatmap_type:
-    "gaussian" # square (to use with hanning loss function)
+    "square" # square (to use with hanning loss function)
     # gaussian (to use with mse loss function)
     # hanning (to use with mse loss function)
 
 val:
   device: "cuda:0"
-  checkpoint_hash: "e7089e4421fa67dee5c70fd227be0510fc1bc504" # the hash of the checkpoint
-  checkpoint_epoch: 11
+  checkpoint_hash: "7d2a3e9041eabdb084b818dba32124f94ffc3c9d" # the hash of the checkpoint
+  checkpoint_epoch: 23
   val_subset_size: null # size of validation subset. Set to null to use full dataset
   num_workers: 16 # number of worker threads for dataloading
-  shuffle_dataset: true # shuffle dataset for each epoch
-  drone_view_patch_sizes: [256] # drone view patches sizes
-  heatmap_kernel_sizes: [33] # heatmap kernel sizes
-  batch_sizes: [6]
+  shuffle_dataset: false # shuffle dataset for each epoch
+  batch_size: 6
   download_dataset: false # wether to download the dataset
   plot: true
+
+run:
+  device: "cuda:0"
+  checkpoint_hash: "b6af30dfbe8d4ed9192df0871146e6f6ba773711" # the hash of the checkpoint
+  checkpoint_epoch: 23
+  run_subset_size: null # size of validation subset. Set to null to use full dataset
+  num_workers: 16 # number of worker threads for dataloading
+  batch_size: 1
