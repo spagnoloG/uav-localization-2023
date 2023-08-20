@@ -87,7 +87,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.conv2_UAV = nn.Sequential(
             nn.Conv2d(
@@ -99,7 +99,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.conv3_UAV = nn.Sequential(
             nn.Conv2d(
@@ -111,7 +111,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
 
         # SAT convolutions
@@ -125,7 +125,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.conv2_SAT = nn.Sequential(
             nn.Conv2d(
@@ -137,7 +137,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.conv3_SAT = nn.Sequential(
             nn.Conv2d(
@@ -149,7 +149,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
 
         self.corrU1 = Xcorr()
@@ -167,7 +167,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.convU2_UAV = nn.Sequential(
             nn.Conv2d(
@@ -180,7 +180,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.convU3_UAV = nn.Sequential(
             nn.Conv2d(
@@ -193,7 +193,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
         self.convU3_SAT = nn.Sequential(
             nn.Conv2d(
@@ -206,7 +206,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.3),
         )
 
         self.upsample_size = upsample_size
