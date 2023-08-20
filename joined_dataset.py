@@ -49,11 +49,13 @@ class JoinedDataset(Dataset):
             if heatmap_kernel_size
             else config["heatmap_kernel_size"]
         )
+        self.test_from_train_ratio = config["test_from_train_ratio"]
         self.heatmap_type = config["heatmap_type"]
         self.metadata_dict = {}
         self.dataset = dataset
         self.drone_scales = config["drone_scales"]
         self.tiffs = tiffs if tiffs else config["tiffs"]
+        self.total_train_samples = self.count_total_train_samples(self.root_dir)
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.transforms = transforms.Compose(
             [
@@ -84,6 +86,18 @@ class JoinedDataset(Dataset):
                 True  # Slows down a bit, but ensures reproducibility
             )
 
+    def count_total_train_samples(self, path):
+        total_train_samples = 0
+
+        for dirpath, dirnames, filenames in os.walk(path):
+            # Skip the test folder
+            if "Test" not in dirpath:
+                for filename in filenames:
+                    if filename.endswith(".jpeg"):
+                        total_train_samples += 1
+
+        return total_train_samples
+
     def get_entry_paths(self, path):
         """
         Recursively retrieves paths to image and metadata files in the given directory.
@@ -97,20 +111,46 @@ class JoinedDataset(Dataset):
         """
         entry_paths = []
         entries = os.listdir(path)
+
+        # Calculate the number of images to take per folder
+        images_to_take_per_folder = int(
+            self.total_train_samples * self.test_from_train_ratio / 10
+        )  # 10 is the number of train folders
+
         for entry in entries:
-            entry_path = path + "/" + entry
+            entry_path = os.path.join(path, entry)
+
+            # If it's a directory, recurse into it
             if os.path.isdir(entry_path):
-                entry_paths += self.get_entry_paths(entry_path + "/")
-            if self.dataset == "train" and "Train" in entry_path:
-                if entry_path.endswith(".jpeg"):
-                    entry_paths.append(entry_path)
+                entry_paths += self.get_entry_paths(entry_path)
+
+            # Handle train dataset
+            elif self.dataset == "train" and "Train" in entry_path:
+                _, number = self.extract_info_from_filename(entry_path)
                 if entry_path.endswith(".json"):
                     self.get_metadata(entry_path)
-            elif self.dataset == "test" and "Test" in entry_path:
-                if entry_path.endswith(".jpeg"):
-                    entry_paths.append(entry_path)
+                if number == None:
+                    continue
+                if (
+                    number >= images_to_take_per_folder
+                ):  # Only include images beyond the ones taken for test
+                    if entry_path.endswith(".jpeg"):
+                        entry_paths.append(entry_path)
+
+            # Handle test dataset
+            elif self.dataset == "test":
+                _, number = self.extract_info_from_filename(entry_path)
                 if entry_path.endswith(".json"):
                     self.get_metadata(entry_path)
+
+                if number == None:
+                    continue
+                if "Test" in entry_path or (
+                    number < images_to_take_per_folder and "Train" in entry_path
+                ):
+                    if entry_path.endswith(".jpeg"):
+                        entry_paths.append(entry_path)
+
         return sorted(entry_paths, key=self.extract_info_from_filename)
 
     def prepare_kernels(self):

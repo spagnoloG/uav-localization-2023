@@ -56,6 +56,7 @@ dataset:
   tiffs: [16]
   drone_patch_w: 128
   drone_patch_h: 128
+  test_from_train_ratio: 0.10 # Include 10% of the training set in the validation set
   sat_zoom_level: 16 # satellite dataset zoom level
   heatmap_kernel_size: 33
   sat_patch_w: 400
