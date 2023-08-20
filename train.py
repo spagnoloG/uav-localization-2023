@@ -446,6 +446,7 @@ class CrossViewTrainer:
         epoch_loss = running_loss / len(self.train_dataloader)
         logger.info(f"Training loss: {epoch_loss}")
         logger.info(f"Training RDS: {running_RDS / len(self.train_dataloader)}")
+        logger.info(f"Training MA: {running_MA / len(self.train_dataloader)}")
 
     def validate(self, epoch):
         """

@@ -111,6 +111,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
 
         # SAT convolutions

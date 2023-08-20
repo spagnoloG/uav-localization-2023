@@ -11,7 +11,7 @@ import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS
+from criterion import HanningLoss, RDS, MA
 from map_utils import MapUtils
 import numpy as np
 import matplotlib.patches as patches
@@ -46,6 +46,8 @@ class CrossViewValidator:
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
         self.loss_fn = config["train"]["loss_fn"]
         self.RDS = RDS()
+        self.MA = MA(k=10)
+        self.dataset_type = config["train"]["dataset"]
 
         if self.loss_fn == "hanning":
             self.criterion = HanningLoss(
@@ -143,7 +145,9 @@ class CrossViewValidator:
                 satellite_resolution=(
                     self.config["dataset"]["sat_patch_w"],
                     self.config["dataset"]["sat_patch_h"],
-                )
+                ),
+                drops_UAV=None,
+                drops_satellite=None,
             )
         )
         # load the state dict into the model
@@ -171,10 +175,11 @@ class CrossViewValidator:
         """
         Perform one epoch of validation.
         """
-        self.model.eval()
+        self.model.eval()  # Necessary to disable all the dropouts!
         running_loss = 0.0
         total_samples = 0
         running_RDS = 0.0
+        running_MA = 0.0
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
@@ -202,19 +207,37 @@ class CrossViewValidator:
                     heatmaps_gt[0].shape[-2],
                 )
                 ### RDS ###
+
+                ### MA ###
+                running_MA += self.MA(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                ).item()
+                ### MA ###
+
                 if self.plot:
                     for j in range(len(outputs)):
                         metadata = {
-                            "x_sat": drone_infos["x_sat"][j].item(),
-                            "y_sat": drone_infos["y_sat"][j].item(),
-                            "x_offset": drone_infos["x_offset"][j].item(),
-                            "y_offset": drone_infos["y_offset"][j].item(),
-                            "zoom_level": drone_infos["zoom_level"][j].item(),
-                            "lat_gt": drone_infos["coordinate"]["latitude"][j].item(),
-                            "lon_gt": drone_infos["coordinate"]["longitude"][j].item(),
-                            "filename": drone_infos["filename"][j],
-                            "scale": drone_infos["scale"][j].item(),
+                            "x_sat": drone_infos["x_sat"][0].item(),
+                            "y_sat": drone_infos["y_sat"][0].item(),
+                            "x_offset": drone_infos["x_offset"][0].item(),
+                            "y_offset": drone_infos["y_offset"][0].item(),
+                            "zoom_level": drone_infos["zoom_level"][0].item(),
+                            "lat_gt": drone_infos["lat"][0].item()
+                            if self.dataset_type == "castral"
+                            else drone_infos["coordinate"]["latitude"][0].item(),
+                            "lon_gt": drone_infos["lon"][0].item()
+                            if self.dataset_type == "castral"
+                            else drone_infos["coordinate"]["longitude"][0].item(),
+                            "filename": drone_infos["filename"][0],
+                            "scale": drone_infos["scale"][0].item(),
                         }
+
+                        if self.dataset_type == "castral":
+                            metadata["sat_transform"] = (
+                                drone_infos["sat_transform"][0].cpu().numpy()
+                            )
 
                         self.plot_results(
                             drone_images[j].detach(),
@@ -234,6 +257,7 @@ class CrossViewValidator:
 
         logger.info(f"Validation loss: {epoch_loss}")
         logger.info(f"Validation RDS: {running_RDS.cpu().item() / total_samples}")
+        logger.info(f"Validation MA: {running_MA / total_samples}")
 
     def visualize_model(self):
         tensor_uav = torch.randn(1, 128, 128, 3)
@@ -289,11 +313,25 @@ class CrossViewValidator:
         x_offset = metadata["x_offset"]
         y_offset = metadata["y_offset"]
 
-        with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
-            sat_transform = s_image.transform
+        if self.dataset_type == "castral":
+            tensor_values = metadata["sat_transform"]
+            sat_transform = Affine(
+                tensor_values[0],
+                0,
+                tensor_values[2],
+                0,
+                tensor_values[1],
+                tensor_values[3],
+            )
             lon_pred, lat_pred = rasterio.transform.xy(
                 sat_transform, y_pred + y_offset, x_pred + x_offset
             )
+        else:
+            with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+                sat_transform = s_image.transform
+                lon_pred, lat_pred = rasterio.transform.xy(
+                    sat_transform, y_pred + y_offset, x_pred + x_offset
+                )
 
         metadata["lat_pred"] = lat_pred
         metadata["lon_pred"] = lon_pred
@@ -365,6 +403,10 @@ class CrossViewValidator:
         )
         axs[2, 1].set_title("Satellite Image with Ground Truth Heatmap")
         axs[2, 1].axis("off")
+
+        if "sat_transform" in metadata:
+            if metadata["sat_transform"]:
+                del metadata["sat_transform"]
 
         # Add metadata as text
         metadata_text = f'Filename: {metadata["filename"]}\nZoom Level: {metadata["zoom_level"]}\nRDS: {metadata["rds"]}\nDrone image scale: {metadata["scale"]}'

@@ -10,7 +10,7 @@ import yaml
 import argparse
 from torchviz import make_dot
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS
+from criterion import HanningLoss, RDS, MA
 from map_utils import MapUtils
 import numpy as np
 import plotly.graph_objects as go
@@ -255,8 +255,10 @@ class Runner:
         self.val_subset_size = self.config["run"]["run_subset_size"]
         self.batch_size = config["run"]["batch_size"]
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
-        self.RDS = RDS()
+        self.dataset_type = config["train"]["dataset"]
+        self.RDS = RDS(k=10)
         self.dash_app = DashApp()
+        self.MA = MA(k=10)
 
         self.criterion = HanningLoss(
             kernel_size=self.heatmap_kernel_size, device=self.device
@@ -322,7 +324,9 @@ class Runner:
                 satellite_resolution=(
                     self.config["dataset"]["sat_patch_w"],
                     self.config["dataset"]["sat_patch_h"],
-                )
+                ),
+                drops_UAV=None,
+                drops_satellite=None,
             )
         )
         # load the state dict into the model
@@ -354,6 +358,7 @@ class Runner:
         running_loss = 0.0
         total_samples = 0
         running_RDS = 0.0
+        running_MA = 0.0
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
@@ -382,18 +387,35 @@ class Runner:
                 )
 
                 ### RDS ###
+
+                ### MA ###
+                running_MA += self.MA(
+                    outputs,
+                    x_sat,
+                    y_sat,
+                ).item()
+                ### MA ###
+
                 for j in range(len(outputs)):
                     metadata = {
-                        "x_sat": drone_infos["x_sat"][j].item(),
-                        "y_sat": drone_infos["y_sat"][j].item(),
-                        "x_offset": drone_infos["x_offset"][j].item(),
-                        "y_offset": drone_infos["y_offset"][j].item(),
-                        "zoom_level": drone_infos["zoom_level"][j].item(),
-                        "lat_gt": drone_infos["coordinate"]["latitude"][j].item(),
-                        "lon_gt": drone_infos["coordinate"]["longitude"][j].item(),
-                        "filename": drone_infos["filename"][j],
-                        "scale": drone_infos["scale"][j].item(),
+                        "x_sat": drone_infos["x_sat"][0].item(),
+                        "y_sat": drone_infos["y_sat"][0].item(),
+                        "x_offset": drone_infos["x_offset"][0].item(),
+                        "y_offset": drone_infos["y_offset"][0].item(),
+                        "zoom_level": drone_infos["zoom_level"][0].item(),
+                        "lat_gt": drone_infos["lat"][0].item()
+                        if self.dataset_type == "castral"
+                        else drone_infos["coordinate"]["latitude"][0].item(),
+                        "lon_gt": drone_infos["lon"][0].item()
+                        if self.dataset_type == "castral"
+                        else drone_infos["coordinate"]["longitude"][0].item(),
+                        "filename": drone_infos["filename"][0],
+                        "scale": drone_infos["scale"][0].item(),
                     }
+                    if self.dataset_type == "castral":
+                        metadata["sat_transform"] = (
+                            drone_infos["sat_transform"][0].cpu().numpy()
+                        )
 
                     self.plot_results(
                         drone_images[j].detach(),
@@ -468,11 +490,25 @@ class Runner:
         x_offset = metadata["x_offset"]
         y_offset = metadata["y_offset"]
 
-        with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
-            sat_transform = s_image.transform
+        if self.dataset_type == "castral":
+            tensor_values = metadata["sat_transform"]
+            sat_transform = Affine(
+                tensor_values[0],
+                0,
+                tensor_values[2],
+                0,
+                tensor_values[1],
+                tensor_values[3],
+            )
             lon_pred, lat_pred = rasterio.transform.xy(
                 sat_transform, y_pred + y_offset, x_pred + x_offset
             )
+        else:
+            with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+                sat_transform = s_image.transform
+                lon_pred, lat_pred = rasterio.transform.xy(
+                    sat_transform, y_pred + y_offset, x_pred + x_offset
+                )
 
         metadata["lat_pred"] = lat_pred
         metadata["lon_pred"] = lon_pred
@@ -484,6 +520,10 @@ class Runner:
             heatmap_gt.shape[-1],
             heatmap_gt.shape[-2],
         )
+
+        if "sat_transform" in metadata:
+            if metadata["sat_transform"]:
+                del metadata["sat_transform"]
 
         self.dash_app.plot_data(
             heatmap_pred_np,
