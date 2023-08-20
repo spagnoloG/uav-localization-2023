@@ -87,6 +87,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.conv2_UAV = nn.Sequential(
             nn.Conv2d(
@@ -98,6 +99,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.conv3_UAV = nn.Sequential(
             nn.Conv2d(
@@ -122,6 +124,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.conv2_SAT = nn.Sequential(
             nn.Conv2d(
@@ -133,6 +136,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.conv3_SAT = nn.Sequential(
             nn.Conv2d(
@@ -144,6 +148,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
 
         self.corrU1 = Xcorr()
@@ -161,6 +166,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.convU2_UAV = nn.Sequential(
             nn.Conv2d(
@@ -173,6 +179,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.convU3_UAV = nn.Sequential(
             nn.Conv2d(
@@ -185,6 +192,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
         self.convU3_SAT = nn.Sequential(
             nn.Conv2d(
@@ -197,6 +205,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
         )
 
         self.upsample_size = upsample_size
