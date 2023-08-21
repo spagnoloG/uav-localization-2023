@@ -17,8 +17,8 @@ train:
 
 
     # Dataset parameters
-  train_subset_size: 100 # size of training subset. Set to null to use full dataset
-  val_subset_size: 50 # size of validation subset. Set to null to use full dataset
+  train_subset_size: null # size of training subset. Set to null to use full dataset
+  val_subset_size: null # size of validation subset. Set to null to use full dataset
 
   # Miscellaneous
   plot: true # whether to plot the outputs and ground truth during validation

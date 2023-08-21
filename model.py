@@ -56,7 +56,7 @@ class Xcorr(nn.Module):
 
 
 class Fusion(nn.Module):
-    def __init__(self, in_channels, out_channels, upsample_size):
+    def __init__(self, in_channels, out_channels, upsample_size, fusion_dropout):
         """
         Fusion module which is a type of convolutional neural network.
 
@@ -77,6 +77,11 @@ class Fusion(nn.Module):
 
         super(Fusion, self).__init__()
         # UAV convolutions
+        self.fusion_dropout = fusion_dropout
+
+        if self.fusion_dropout is None:
+            self.fusion_dropout = 0
+
         self.conv1_UAV = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[0],
@@ -87,7 +92,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.conv2_UAV = nn.Sequential(
             nn.Conv2d(
@@ -99,7 +104,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.conv3_UAV = nn.Sequential(
             nn.Conv2d(
@@ -111,7 +116,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
 
         # SAT convolutions
@@ -125,7 +130,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.conv2_SAT = nn.Sequential(
             nn.Conv2d(
@@ -137,7 +142,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.conv3_SAT = nn.Sequential(
             nn.Conv2d(
@@ -149,7 +154,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
 
         self.corrU1 = Xcorr()
@@ -167,7 +172,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.convU2_UAV = nn.Sequential(
             nn.Conv2d(
@@ -180,7 +185,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.convU3_UAV = nn.Sequential(
             nn.Conv2d(
@@ -193,7 +198,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
         self.convU3_SAT = nn.Sequential(
             nn.Conv2d(
@@ -206,7 +211,7 @@ class Fusion(nn.Module):
             ),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout(p=0.3),
+            nn.Dropout(p=self.fusion_dropout),
         )
 
         self.upsample_size = upsample_size
@@ -365,10 +370,13 @@ class CrossViewLocalizationModel(nn.Module):
 
     """
 
-    def __init__(self, satellite_resolution, drops_UAV, drops_satellite):
+    def __init__(
+        self, satellite_resolution, drops_UAV, drops_satellite, fusion_dropout
+    ):
         super(CrossViewLocalizationModel, self).__init__()
 
         self.satellite_resolution = satellite_resolution
+        self.fusion_dropout = fusion_dropout
 
         # Feature extraction module
         self.backbone_UAV = timm.create_model("twins_pcpvt_small", pretrained=True)
@@ -386,6 +394,7 @@ class CrossViewLocalizationModel(nn.Module):
             in_channels=[320, 128, 64],
             out_channels=64,
             upsample_size=self.satellite_resolution,
+            fusion_dropout=self.fusion_dropout,
         )
 
     def forward(self, x_UAV, x_satellite):

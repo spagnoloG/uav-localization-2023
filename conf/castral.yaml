@@ -27,6 +27,24 @@ train:
   checkpoint_hash: null # the hash of the checkpoint
   checkpoint_epoch: null # the epoch of the checkpoint
 
+  dropout_uav:
+    dropout: 0.1
+    attn_drop: 0.1
+    proj_drop: 0.1
+    head_drop: 0.1
+    mlp_drop1: 0.1
+    mlp_drop2: 0.1
+    pos_drops: 0.05
+
+  dropout_satellite:
+    dropout: 0.1
+    attn_drop: 0.1
+    proj_drop: 0.1
+    head_drop: 0.1
+    mlp_drop1: 0.1
+    mlp_drop2: 0.1
+    pos_drops: 0.05
+
 # must be divisible by 4 becouse of the Twins model architecture
 # twins model was trained on:
 # >>> config {'input_size': (3, 224, 224), 'interpolation': 'bicubic', 'mean': (0.485, 0.456, 0.406), 'std': (0.229, 0.224, 0.225), 'crop_pct': 0.9, 'crop_mode': 'center'}
@@ -36,6 +54,7 @@ dataset:
   std: [0.229, 0.224, 0.225]
   drone_scales: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0] # drone view scales during training
   #drone_scales: [1.0] # drone view scales during the run
+  test_from_train_ratio: 0.0 # Include 10% of the training set in the validation set
   tiffs: [16]
   drone_patch_w: 128
   drone_patch_h: 128

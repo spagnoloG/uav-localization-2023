@@ -327,6 +327,7 @@ class Runner:
                 ),
                 drops_UAV=None,
                 drops_satellite=None,
+                fusion_dropout=None,
             )
         )
         # load the state dict into the model

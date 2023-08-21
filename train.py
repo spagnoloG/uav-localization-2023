@@ -127,6 +127,7 @@ class CrossViewTrainer:
         self.best_RDS = -np.inf
         self.loss_fn = config["train"]["loss_fn"]
         self.dataset_type = config["train"]["dataset"]
+        self.fusion_dropout = config["train"]["fusion_dropout"]
 
         if self.dataset_type == "castral":
             self.dataset = CastralDataset
@@ -161,6 +162,7 @@ class CrossViewTrainer:
                 ),
                 drops_UAV=config["train"]["dropout_uav"],
                 drops_satellite=config["train"]["dropout_satellite"],
+                fusion_dropout=self.fusion_dropout,
             ).to(self.device)
 
             self.params_to_update_backbone = list(
@@ -176,6 +178,7 @@ class CrossViewTrainer:
                     ),
                     drops_UAV=config["train"]["dropout_uav"],
                     drops_satellite=config["train"]["dropout_satellite"],
+                    fusion_dropout=self.fusion_dropout,
                 )
             )
 
