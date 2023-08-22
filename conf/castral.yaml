@@ -55,7 +55,7 @@ dataset:
   drone_scales: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0] # drone view scales during training
   #drone_scales: [1.0] # drone view scales during the run
   test_from_train_ratio: 0.0 # Include 10% of the training set in the validation set
-  tiffs: [16]
+  tiffs: [17]
   drone_patch_w: 128
   drone_patch_h: 128
   sat_zoom_level: 16 # satellite dataset zoom level

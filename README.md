@@ -5,6 +5,9 @@ The model uses a modified version of the PCPVT (pyramid vision transformer) mode
 from both UAV and satellite images. These extracted features are then combined using a custom fusion module. 
 This module operates in multiple stages and balances the contributions from each image source.
 
+## Model Architecture
+![Model architecture](./assets/model.svg "Model architecture")
+
 ## Getting Started
 Follow these steps to set up the environment and start training the model.
 
@@ -47,7 +50,7 @@ Note: Dataset is currently unavailable.
 ![Poor localization](./assets/poor_localization_2.png "Example of poor localization")
 
 
-## Model Architecture
+## Backbone Architecture
 
 ### Goal modified Twins backbone (to extract features for fusion)
 
