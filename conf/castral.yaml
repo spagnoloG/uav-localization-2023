@@ -12,8 +12,10 @@ train:
   train_until_convergence: false # train until convergence (ignore milestones and num_epochs)
   dataset: "castral" # dataset to use for training
 
-  loss_fn:
-    "hanning" # or "mse"
+  loss_fn: "hanning" # or "mse"
+
+  pretrained_twins:
+    true # use pretrained twins model
 
 
     # Dataset parameters
@@ -78,6 +80,7 @@ val:
   batch_size: 6
   download_dataset: false # wether to download the dataset
   plot: true
+  pretrained_twins: true # use pretrained twins model
 
 run:
   device: "cuda:0"
@@ -86,3 +89,4 @@ run:
   run_subset_size: null # size of validation subset. Set to null to use full dataset
   num_workers: 16 # number of worker threads for dataloading
   batch_size: 1
+  pretrained_twins: true # use pretrained twins model

@@ -371,19 +371,29 @@ class CrossViewLocalizationModel(nn.Module):
     """
 
     def __init__(
-        self, satellite_resolution, drops_UAV, drops_satellite, fusion_dropout
+        self,
+        satellite_resolution,
+        drops_UAV,
+        drops_satellite,
+        fusion_dropout,
+        pretrained_twins,
     ):
         super(CrossViewLocalizationModel, self).__init__()
 
         self.satellite_resolution = satellite_resolution
         self.fusion_dropout = fusion_dropout
 
+        if pretrained_twins is None:
+            pretrained_twins = True
+
         # Feature extraction module
-        self.backbone_UAV = timm.create_model("twins_pcpvt_small", pretrained=True)
+        self.backbone_UAV = timm.create_model(
+            "twins_pcpvt_small", pretrained=pretrained_twins
+        )
         self.feature_extractor_UAV = ModifiedPCPVT(self.backbone_UAV, drops_UAV)
 
         self.backbone_satellite = timm.create_model(
-            "twins_pcpvt_small", pretrained=True
+            "twins_pcpvt_small", pretrained=pretrained_twins
         )
 
         self.feature_extractor_satellite = ModifiedPCPVT(

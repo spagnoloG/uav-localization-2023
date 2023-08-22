@@ -163,6 +163,7 @@ class CrossViewTrainer:
                 drops_UAV=config["train"]["dropout_uav"],
                 drops_satellite=config["train"]["dropout_satellite"],
                 fusion_dropout=self.fusion_dropout,
+                pretrained_twins=config["train"]["pretrained_twins"],
             ).to(self.device)
 
             self.params_to_update_backbone = list(
@@ -179,6 +180,7 @@ class CrossViewTrainer:
                     drops_UAV=config["train"]["dropout_uav"],
                     drops_satellite=config["train"]["dropout_satellite"],
                     fusion_dropout=self.fusion_dropout,
+                    pretrained_twins=config["train"]["pretrained_twins"],
                 )
             )
 

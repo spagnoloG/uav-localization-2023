@@ -328,6 +328,7 @@ class Runner:
                 drops_UAV=None,
                 drops_satellite=None,
                 fusion_dropout=None,
+                pretrained_twins=self.config["run"]["pretrained_twins"],
             )
         )
         # load the state dict into the model
