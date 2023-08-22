@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import mercantile
 from matplotlib.colors import LinearSegmentedColormap
 from functools import lru_cache
+import torch
 
 
 class MapUtils:
@@ -207,3 +208,8 @@ class MapUtils:
 
     def RDS(self, k, dx, dy, hm_w, hm_h):
         return np.exp(-k * np.sqrt(((dx / hm_w) ** 2 + (dy / hm_h) ** 2)) / 2)
+
+    def MA(self, x_pred, y_pred, x_gt, y_gt, k=10):
+        dx = abs(x_pred.item() - x_gt)
+        dy = abs(y_pred.item() - y_gt)
+        return (dx**2 + dy**2) ** 0.5

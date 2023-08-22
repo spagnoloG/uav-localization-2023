@@ -522,6 +522,13 @@ class Runner:
             heatmap_gt.shape[-2],
         )
 
+        metadata["ma"] = self.map_utils.MA(
+            x_pred,
+            y_pred,
+            metadata["x_sat"],
+            metadata["y_sat"],
+        )
+
         if "sat_transform" in metadata:
             if metadata["sat_transform"]:
                 del metadata["sat_transform"]

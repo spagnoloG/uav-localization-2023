@@ -220,24 +220,24 @@ class CrossViewValidator:
                 if self.plot:
                     for j in range(len(outputs)):
                         metadata = {
-                            "x_sat": drone_infos["x_sat"][0].item(),
-                            "y_sat": drone_infos["y_sat"][0].item(),
-                            "x_offset": drone_infos["x_offset"][0].item(),
-                            "y_offset": drone_infos["y_offset"][0].item(),
-                            "zoom_level": drone_infos["zoom_level"][0].item(),
-                            "lat_gt": drone_infos["lat"][0].item()
+                            "x_sat": drone_infos["x_sat"][j].item(),
+                            "y_sat": drone_infos["y_sat"][j].item(),
+                            "x_offset": drone_infos["x_offset"][j].item(),
+                            "y_offset": drone_infos["y_offset"][j].item(),
+                            "zoom_level": drone_infos["zoom_level"][j].item(),
+                            "lat_gt": drone_infos["lat"][j].item()
                             if self.dataset_type == "castral"
-                            else drone_infos["coordinate"]["latitude"][0].item(),
-                            "lon_gt": drone_infos["lon"][0].item()
+                            else drone_infos["coordinate"]["latitude"][j].item(),
+                            "lon_gt": drone_infos["lon"][j].item()
                             if self.dataset_type == "castral"
-                            else drone_infos["coordinate"]["longitude"][0].item(),
-                            "filename": drone_infos["filename"][0],
-                            "scale": drone_infos["scale"][0].item(),
+                            else drone_infos["coordinate"]["longitude"][j].item(),
+                            "filename": drone_infos["filename"][j],
+                            "scale": drone_infos["scale"][j].item(),
                         }
 
                         if self.dataset_type == "castral":
                             metadata["sat_transform"] = (
-                                drone_infos["sat_transform"][0].cpu().numpy()
+                                drone_infos["sat_transform"][j].cpu().numpy()
                             )
 
                         self.plot_results(
@@ -343,6 +343,13 @@ class CrossViewValidator:
             np.abs(metadata["y_sat"] - y_pred),
             heatmap_gt.shape[-1],
             heatmap_gt.shape[-2],
+        )
+
+        metadata["ma"] = self.map_utils.MA(
+            x_pred,
+            y_pred,
+            metadata["x_sat"],
+            metadata["y_sat"],
         )
 
         # Initialize figure

@@ -604,6 +604,13 @@ class CrossViewTrainer:
             heatmap_gt.shape[-2],
         )
 
+        metadata["ma"] = self.map_utils.MA(
+            x_pred,
+            y_pred,
+            metadata["x_sat"],
+            metadata["y_sat"],
+        )
+
         # Initialize figure
         fig, axs = plt.subplots(3, 2, figsize=(20, 30))
 
