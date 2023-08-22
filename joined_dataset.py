@@ -55,7 +55,9 @@ class JoinedDataset(Dataset):
         self.dataset = dataset
         self.drone_scales = config["drone_scales"]
         self.tiffs = tiffs if tiffs else config["tiffs"]
-        self.total_train_samples = self.count_total_train_samples(self.root_dir)
+        self.total_train_test_samples = self.count_total_train_test_samples(
+            self.root_dir
+        )
         self.image_paths = self.get_entry_paths(self.root_dir)
         self.transforms = transforms.Compose(
             [
@@ -86,17 +88,16 @@ class JoinedDataset(Dataset):
                 True  # Slows down a bit, but ensures reproducibility
             )
 
-    def count_total_train_samples(self, path):
-        total_train_samples = 0
+    def count_total_train_test_samples(self, path):
+        total_train_test_samples = 0
 
         for dirpath, dirnames, filenames in os.walk(path):
             # Skip the test folder
-            if "Test" not in dirpath:
-                for filename in filenames:
-                    if filename.endswith(".jpeg"):
-                        total_train_samples += 1
+            for filename in filenames:
+                if filename.endswith(".jpeg"):
+                    total_train_test_samples += 1
 
-        return total_train_samples
+        return total_train_test_samples
 
     def get_entry_paths(self, path):
         """
@@ -112,10 +113,9 @@ class JoinedDataset(Dataset):
         entry_paths = []
         entries = os.listdir(path)
 
-        # Calculate the number of images to take per folder
         images_to_take_per_folder = int(
-            self.total_train_samples * self.test_from_train_ratio / 10
-        )  # 10 is the number of train folders
+            self.total_train_test_samples * self.test_from_train_ratio / 11
+        )  # 11 is the number of train and test folders
 
         for entry in entries:
             entry_path = os.path.join(path, entry)
@@ -125,7 +125,11 @@ class JoinedDataset(Dataset):
                 entry_paths += self.get_entry_paths(entry_path)
 
             # Handle train dataset
-            elif self.dataset == "train" and "Train" in entry_path:
+            elif (self.dataset == "train" and "Train" in entry_path) or (
+                self.dataset == "train"
+                and self.test_from_train_ratio > 0
+                and "Test" in entry_path
+            ):
                 _, number = self.extract_info_from_filename(entry_path)
                 if entry_path.endswith(".json"):
                     self.get_metadata(entry_path)
