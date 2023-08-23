@@ -577,14 +577,7 @@ class CrossViewTrainer:
 
         if self.dataset_type == "castral":
             tensor_values = metadata["sat_transform"]
-            sat_transform = Affine(
-                tensor_values[0],
-                0,
-                tensor_values[2],
-                0,
-                tensor_values[1],
-                tensor_values[3],
-            )
+            sat_transform = Affine(*tensor_values)
             lon_pred, lat_pred = rasterio.transform.xy(
                 sat_transform, y_pred + y_offset, x_pred + x_offset
             )

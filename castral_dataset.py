@@ -606,7 +606,7 @@ class CastralDataset(Dataset):
         img_info["zoom_level"] = 16
         img_info["lat"] = lat
         img_info["lon"] = lon
-        img_info["sat_transform"] = sat_transform
+        img_info["sat_transform"] = torch.Tensor(sat_transform)
 
         return drone_image, img_info, satellite_patch, heatmap
 
@@ -649,7 +649,7 @@ def test():
 
         print("Drone images shape: ", drone_images.shape)
         print("Satellite images shape: ", satellite_images.shape)
-        assert drone_images.shape == (len(batch[0]), 3, 128, 128)
+        assert drone_images.shape == (len(batch[0]), 3, 256, 256)
         assert satellite_images.shape == (len(batch[0]), 3, 400, 400)
         print(drone_infos)
 
