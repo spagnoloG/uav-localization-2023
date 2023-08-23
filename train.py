@@ -688,9 +688,8 @@ class CrossViewTrainer:
         )
         plt.close()
 
-        if "sat_transform" in metadata:
-            if metadata["sat_transform"]:
-                del metadata["sat_transform"]
+        if self.dataset_type == "castral":
+            del metadata["sat_transform"]
 
         # Save the metadata
         with open(

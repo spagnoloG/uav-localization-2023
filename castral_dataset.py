@@ -20,6 +20,9 @@ from rasterio.transform import from_bounds
 from rasterio.merge import merge
 import warnings
 from rasterio.errors import NotGeoreferencedWarning
+import time
+import requests
+import gc
 
 
 class CastralDataset(Dataset):
@@ -258,8 +261,10 @@ class CastralDataset(Dataset):
                     dataset.write(data)
                 tile_data.append(memfile.open())
 
+                del memfile
+
             if not found:
-                download_missing_tile(neighbor)
+                self.download_missing_tile(neighbor)
                 time.sleep(1)
                 tile_path = f"{self.tiles_path}/tiles/{neighbor.z}_{neighbor.x}_{neighbor.y}.jpg"
                 with Image.open(tile_path) as img:
@@ -277,6 +282,7 @@ class CastralDataset(Dataset):
                     data = rasterio.open(tile_path).read()
                     dataset.write(data)
                 tile_data.append(memfile.open())
+                del memfile
 
         mosaic, out_trans = merge(tile_data)
 
@@ -290,6 +296,14 @@ class CastralDataset(Dataset):
                 "crs": "EPSG:3857",
             }
         )
+
+        # Clean up MemoryFile instances to free up memory
+        for td in tile_data:
+            td.close()
+
+        del neighbors
+        del tile_data
+        gc.collect()
 
         return mosaic, out_meta
 

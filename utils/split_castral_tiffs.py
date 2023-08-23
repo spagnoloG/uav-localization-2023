@@ -177,6 +177,8 @@ def join_tifs(tile, i_path):
                 dataset.write(data)
             tile_data.append(memfile.open())
 
+            del memfile
+
         if not found:
             download_missing_tile(neighbor)
             time.sleep(1)
@@ -196,6 +198,7 @@ def join_tifs(tile, i_path):
                 data = rasterio.open(tile_path).read()
                 dataset.write(data)
             tile_data.append(memfile.open())
+            del memfile
 
     mosaic, out_trans = merge(tile_data)
 
@@ -218,11 +221,18 @@ def join_tifs(tile, i_path):
     for t in tile_data:  # Close all datasets
         t.close()
 
+    del neighbors
+    del tile_data
+    del mosaic
+    del out_meta
+
+    gc.collect()
+
 
 def process_tif(tif):
     input_tiff = "../castral_dataset/RGB/" + tif
     output_directory = f"../castral_dataset/preprocessed/{tif[:-4]}/"
-    split_tiff_rasterio(input_tiff, output_directory, 800, 800)
+    split_tiff_rasterio(input_tiff, output_directory, 2000, 2000)
 
 
 if __name__ == "__main__":

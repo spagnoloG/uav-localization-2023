@@ -413,9 +413,8 @@ class CrossViewValidator:
         axs[2, 1].set_title("Satellite Image with Ground Truth Heatmap")
         axs[2, 1].axis("off")
 
-        if "sat_transform" in metadata:
-            if metadata["sat_transform"]:
-                del metadata["sat_transform"]
+        if self.dataset_type == "castral":
+            del metadata["sat_transform"]
 
         # Add metadata as text
         metadata_text = f'Filename: {metadata["filename"]}\nZoom Level: {metadata["zoom_level"]}\nRDS: {metadata["rds"]}\nDrone image scale: {metadata["scale"]}'

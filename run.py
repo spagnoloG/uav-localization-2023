@@ -530,9 +530,8 @@ class Runner:
             metadata["y_sat"],
         )
 
-        if "sat_transform" in metadata:
-            if metadata["sat_transform"]:
-                del metadata["sat_transform"]
+        if self.dataset_type == "castral":
+            del metadata["sat_transform"]
 
         self.dash_app.plot_data(
             heatmap_pred_np,
