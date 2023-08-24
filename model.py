@@ -118,7 +118,6 @@ class Fusion(nn.Module):
             nn.ReLU(),
             nn.Dropout(p=self.fusion_dropout),
         )
-
         # SAT convolutions
         self.conv1_SAT = nn.Sequential(
             nn.Conv2d(
