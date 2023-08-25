@@ -11,7 +11,7 @@ import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS, MA
+from criterion import HanningLoss, RDS, CrossWeightedMSE, MA
 from map_utils import MapUtils
 import numpy as np
 import matplotlib.patches as patches

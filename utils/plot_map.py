@@ -3,12 +3,14 @@ import folium
 # Initialize the map, centered on Central Europe
 m = folium.Map(location=[46.5, 13.5], zoom_start=6)
 
-folium.TileLayer('openstreetmap').add_to(m)
-folium.TileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 
-    attr='Esri', 
-    name='Esri Satellite', 
-    overlay=False, 
-    control=True).add_to(m)
+folium.TileLayer("openstreetmap").add_to(m)
+folium.TileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attr="Esri",
+    name="Esri Satellite",
+    overlay=False,
+    control=True,
+).add_to(m)
 
 # The city data (city name, latitude, longitude)
 mesta = [
@@ -22,7 +24,7 @@ mesta = [
     ("Pordenone", 45.9564, 12.6615),
     ("Szombathely", 47.2307, 16.6218),
     ("Benetke", 45.4408, 12.3155),
-    ("Ljubljana", 46.0569, 14.5058)
+    ("Ljubljana", 46.0569, 14.5058),
 ]
 
 for mesto, lat, lon in mesta:
@@ -30,4 +32,4 @@ for mesto, lat, lon in mesta:
     folium.Marker([lat, lon], popup=popup).add_to(m)
 
 # Display the map
-m.save('map.html')
+m.save("map.html")

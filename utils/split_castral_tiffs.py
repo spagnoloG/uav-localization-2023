@@ -232,7 +232,7 @@ def join_tifs(tile, i_path):
 def process_tif(tif):
     input_tiff = "../castral_dataset/RGB/" + tif
     output_directory = f"../castral_dataset/preprocessed/{tif[:-4]}/"
-    split_tiff_rasterio(input_tiff, output_directory, 2000, 2000)
+    split_tiff_rasterio(input_tiff, output_directory, 3000, 3000)
 
 
 if __name__ == "__main__":
