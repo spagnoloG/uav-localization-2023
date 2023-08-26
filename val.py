@@ -425,6 +425,42 @@ class CrossViewValidator:
         plt.savefig(f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.png")
         plt.close()
 
+        ### 3D HEATMAP PLOT ###
+
+        x_3d_hm = np.linspace(0, heatmap_pred.shape[1] - 1, heatmap_pred.shape[1])
+        y_3d_hm = np.linspace(0, heatmap_pred.shape[0] - 1, heatmap_pred.shape[0])
+        xGrid, yGrid = np.meshgrid(x_3d_hm, y_3d_hm)
+
+        fig_3d_hm = plt.figure(figsize=(8, 6))
+        ax_3d_hm = fig_3d_hm.add_subplot(111, projection="3d")
+        heatmap_pred_np = (
+            heatmap_pred.detach().cpu().numpy()
+        )  # Convert tensor to numpy array
+        ax_3d_hm.plot_surface(xGrid, yGrid, heatmap_pred_np, cmap="viridis")
+        ax_3d_hm.set_title("Predicted Heatmap 3D")
+        ax_3d_hm.set_xlabel("X Axis")
+        ax_3d_hm.set_ylabel("Y Axis")
+        ax_3d_hm.set_zlabel("Heatmap Intensity")
+
+        plt.savefig(
+            f"./vis/{self.val_hash}/validation_3d_hm_{self.val_hash}-{i}-{j}.png"
+        )
+        plt.close()
+
+        ### 2D HEATMAP PLOT ###
+        fig_2d_hm = plt.figure(figsize=(8, 6))
+        ax_2d_hm = fig_2d_hm.add_subplot(111)
+        ax_2d_hm.imshow(heatmap_pred.detach().cpu().numpy(), cmap="viridis")
+        ax_2d_hm.set_title("Predicted Heatmap 2D")
+        ax_2d_hm.set_xlabel("X Axis")
+        ax_2d_hm.set_ylabel("Y Axis")
+
+        plt.savefig(
+            f"./vis/{self.val_hash}/validation_2d_hm_{self.val_hash}-{i}-{j}.png"
+        )
+        plt.close()
+
+        ### METADATA ###
         with open(
             f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.json", "w"
         ) as f:
