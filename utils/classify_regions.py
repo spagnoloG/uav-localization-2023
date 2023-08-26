@@ -2,11 +2,12 @@
 
 import cv2
 import os
+import json
 
 DRONE_DATASET_DIR = "../dataset/"
 
 
-def is_green_region(image_path, threshold=0.51):
+def is_green_region(image_path, threshold=0.40):
     image = cv2.imread(image_path)
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -54,6 +55,7 @@ def main():
     classify_images(res_dict)
     with open("./res/region_structures.json", "w") as f:
         json.dump(res_dict, f, indent=4)
+
 
 if __name__ == "__main__":
     main()

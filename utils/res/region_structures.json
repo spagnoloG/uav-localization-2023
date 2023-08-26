@@ -1,46 +1,46 @@
 {
     "Test1_Ljubljana_150m_80fov_90deg": {
-        "green-field": 150,
-        "building": 851
+        "green-field": 264,
+        "building": 737
     },
     "Train10_Venice_150m_80fov_90deg": {
-        "green-field": 28,
-        "building": 973
+        "green-field": 57,
+        "building": 944
     },
     "Train1_MB_150m_80fov_90deg": {
-        "green-field": 128,
-        "building": 873
+        "green-field": 245,
+        "building": 756
     },
     "Train2_Trieste_150m_80fov_90deg": {
-        "green-field": 2,
-        "building": 999
+        "green-field": 12,
+        "building": 989
     },
     "Train3_Zagreb_150m_80fov_90deg": {
-        "green-field": 268,
-        "building": 733
+        "green-field": 436,
+        "building": 565
     },
     "Train4_Graz_150m_80fov_90deg": {
         "green-field": 0,
         "building": 1001
     },
     "Train5_Klagenfurt_150m_80fov_90deg": {
-        "green-field": 23,
-        "building": 978
+        "green-field": 73,
+        "building": 928
     },
     "Train6_Udine_150m_80fov_90deg": {
-        "green-field": 48,
-        "building": 953
+        "green-field": 130,
+        "building": 871
     },
     "Train7_Pula_150m_80fov_90deg": {
         "green-field": 0,
         "building": 1001
     },
     "Train8_Pordenone_150m_80fov_90deg": {
-        "green-field": 32,
-        "building": 969
+        "green-field": 69,
+        "building": 932
     },
     "Train9_Szombathely_150m_80fov_90deg": {
-        "green-field": 7,
-        "building": 994
+        "green-field": 35,
+        "building": 966
     }
 }
