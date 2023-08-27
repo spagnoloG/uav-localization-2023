@@ -73,3 +73,7 @@ download-weights:
 	@echo  "Downloading weights from ml-node"
 	mkdir -p checkpoints
 	rsync -rav ml-node:/home/ml-node/Documents/uav-localization-2023/checkpoints/ ./checkpoints/
+
+search-heatmap:
+	@test -n "$(HEATMAP_VALUE)" || (echo "HEATMAP_VALUE is not set"; exit 1)
+	@find ./results -type f -iname "config.json" -exec sh -c 'value=$$(jq ".dataset | .heatmap_kernel_size" "$$1"); if [ "$$value" == "$(HEATMAP_VALUE)" ]; then echo "$$1: $$value"; fi' _ {} \;
