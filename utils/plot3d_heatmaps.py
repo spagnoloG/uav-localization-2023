@@ -30,6 +30,7 @@ def get_kernel_size_from_file(file, hash_to_kernel):
     hash_value = hash_value.split("-")[0].strip()
     return int(hash_to_kernel.get(hash_value, 0))
 
+
 def plot_images_from_directory(directory, hash_to_kernel):
     """
     Plot images from a directory with Hann kernel size as title.
@@ -62,7 +63,7 @@ def plot_images_from_directory(directory, hash_to_kernel):
             ax.imshow(img)
             ax.axis("off")  # Hide axes
             ax.set_title(f"Velikost hanningovega okna: {kernel_size}", fontsize=14)
-        
+
         plt.tight_layout()
         plt.savefig(f"res/heatmaps3d_{plot_idx + 1}.png")
 
