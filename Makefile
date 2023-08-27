@@ -19,13 +19,13 @@ push-ml-node:
 push-vicos:
 	@echo "Pushing code to vicos"
 	find . \
-    -path './.venv' -prune -o \
-    -path './.git' -prune -o \
-    -path './checkpoints' -prune -o \
-    -path './__pycache__' -prune -o \
-    -type f \( -name '*.py' -o -name '*.csv' -o -name '*.txt' -o -name '*.yaml' \) -print0 | \
+    	-path './.venv' -prune -o \
+    	-path './.git' -prune -o \
+    	-path './checkpoints' -prune -o \
+    	-path './__pycache__' -prune -o \
+    	-type f \( -name '*.py' -o -name '*.csv' -o -name '*.txt' -o -name '*.yaml' \) -print0 | \
     tar cf - --null -T - | \
-    ssh vicos 'dir="/home/gasper/uav-localization-2023_`date +%Y%m%d_%H%M%S`"; mkdir -p "$$dir" && cd "$$dir" && tar xf -'
+    	ssh vicos 'dir="/home/gasper/uav-localization-2023_`date +%Y%m%d_%H%M%S`"; mkdir -p "$$dir" && cd "$$dir" && tar xf -'
 
 init_venv:
 	@echo "Initializing virtual environment"

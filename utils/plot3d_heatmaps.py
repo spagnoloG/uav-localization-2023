@@ -30,7 +30,6 @@ def get_kernel_size_from_file(file, hash_to_kernel):
     hash_value = hash_value.split("-")[0].strip()
     return int(hash_to_kernel.get(hash_value, 0))
 
-
 def plot_images_from_directory(directory, hash_to_kernel):
     """
     Plot images from a directory with Hann kernel size as title.
@@ -42,25 +41,30 @@ def plot_images_from_directory(directory, hash_to_kernel):
     # Sort files by kernel size
     files = sorted(files, key=lambda f: get_kernel_size_from_file(f, hash_to_kernel))
 
-    n_cols = math.ceil(len(files) / 2)
+    images_per_plot = 6
+    n_plots = math.ceil(len(files) / images_per_plot)
 
-    plt.figure(figsize=(10 * n_cols, 20))
+    for plot_idx in range(n_plots):
+        start_idx = plot_idx * images_per_plot
+        end_idx = start_idx + images_per_plot
 
-    for idx, file in enumerate(files):
-        hash_value = file.split("_")[-1]
-        hash_value = hash_value.split("-")[0].strip()
-        kernel_size = hash_to_kernel.get(hash_value, "Unknown")
+        plt.figure(figsize=(16, 16))
 
-        img_path = os.path.join(directory, file)
-        img = mpimg.imread(img_path)
+        for idx, file in enumerate(files[start_idx:end_idx]):
+            hash_value = file.split("_")[-1]
+            hash_value = hash_value.split("-")[0].strip()
+            kernel_size = hash_to_kernel.get(hash_value, "Unknown")
 
-        ax = plt.subplot(2, n_cols, idx + 1)
-        ax.imshow(img)
-        ax.axis("off")  # Hide axes
-        ax.set_title(f"Velikost hanningovega okna: {kernel_size}")
+            img_path = os.path.join(directory, file)
+            img = mpimg.imread(img_path)
 
-    plt.tight_layout()
-    plt.savefig("res/heatmaps3d.png")
+            ax = plt.subplot(2, 3, idx + 1)  # 2 rows, 3 columns for 6 images
+            ax.imshow(img)
+            ax.axis("off")  # Hide axes
+            ax.set_title(f"Velikost hanningovega okna: {kernel_size}", fontsize=14)
+        
+        plt.tight_layout()
+        plt.savefig(f"res/heatmaps3d_{plot_idx + 1}.png")
 
 
 if __name__ == "__main__":
