@@ -1,0 +1,7 @@
+[2023-08-23 08:25:50,249 | train.py:231 | INFO] -> Preparing dataloaders...
+[2023-08-23 08:25:50,249 | train.py:280 | INFO] -> Using full train dataset
+[2023-08-23 08:25:50,267 | train.py:308 | INFO] -> Using full val dataset
+[2023-08-23 08:25:50,281 | train.py:233 | INFO] -> Dataloaders ready.
+[2023-08-23 08:25:50,282 | train.py:237 | INFO] -> Using chekpoint hash 3e62fea84e5d434bafc51e0bc596dbc3ba8270a8, starting from epoch 0
+[2023-08-23 08:25:50,282 | train.py:326 | INFO] -> Starting training...
+[2023-08-23 08:25:50,282 | train.py:328 | INFO] -> Epoch 0

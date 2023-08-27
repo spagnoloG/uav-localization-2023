@@ -1,0 +1,189 @@
+[2023-08-20 12:28:10,640 | train.py:226 | INFO] -> Preparing dataloaders...
+[2023-08-20 12:28:10,640 | train.py:275 | INFO] -> Using full train dataset
+[2023-08-20 12:28:11,479 | train.py:303 | INFO] -> Using full val dataset
+[2023-08-20 12:28:12,078 | train.py:228 | INFO] -> Dataloaders ready.
+[2023-08-20 12:28:12,078 | train.py:232 | INFO] -> Using chekpoint hash 0c9f995e43196f7406013adbf0db21d05aea82f6, starting from epoch 0
+[2023-08-20 12:28:12,078 | train.py:321 | INFO] -> Starting training...
+[2023-08-20 12:28:12,078 | train.py:323 | INFO] -> Epoch 0
+[2023-08-20 13:12:09,713 | train.py:447 | INFO] -> Training loss: 6.974145303319578
+[2023-08-20 13:12:09,720 | train.py:448 | INFO] -> Training RDS: 0.4664923776060207
+[2023-08-20 13:12:09,720 | train.py:449 | INFO] -> Training MA: 108.54376274461616
+[2023-08-20 13:14:47,317 | train.py:530 | INFO] -> Validation loss: 8.629967005965916
+[2023-08-20 13:14:47,317 | train.py:532 | INFO] -> Validation RDS: 0.65367829758827
+[2023-08-20 13:14:47,317 | train.py:534 | INFO] -> Validation MA: 70.31346230637537
+[2023-08-20 13:14:47,319 | train.py:323 | INFO] -> Epoch 1
+[2023-08-20 13:58:08,920 | train.py:447 | INFO] -> Training loss: 4.99828690615691
+[2023-08-20 13:58:08,923 | train.py:448 | INFO] -> Training RDS: 0.6038061925469468
+[2023-08-20 13:58:08,923 | train.py:449 | INFO] -> Training MA: 77.66660872529087
+[2023-08-20 14:00:32,598 | train.py:530 | INFO] -> Validation loss: 13.775742673166267
+[2023-08-20 14:00:32,598 | train.py:532 | INFO] -> Validation RDS: 0.6622901824239182
+[2023-08-20 14:00:32,598 | train.py:534 | INFO] -> Validation MA: 68.08775544275431
+[2023-08-20 14:00:32,600 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 14:00:32,954 | train.py:323 | INFO] -> Epoch 2
+[2023-08-20 14:43:55,373 | train.py:447 | INFO] -> Training loss: 4.334185505307973
+[2023-08-20 14:43:55,379 | train.py:448 | INFO] -> Training RDS: 0.6419712038651176
+[2023-08-20 14:43:55,379 | train.py:449 | INFO] -> Training MA: 67.74533021112555
+[2023-08-20 14:46:19,604 | train.py:530 | INFO] -> Validation loss: 14.842992494639741
+[2023-08-20 14:46:19,605 | train.py:532 | INFO] -> Validation RDS: 0.6962611725613407
+[2023-08-20 14:46:19,605 | train.py:534 | INFO] -> Validation MA: 58.94840357837067
+[2023-08-20 14:46:19,607 | train.py:323 | INFO] -> Epoch 3
+[2023-08-20 15:29:40,427 | train.py:447 | INFO] -> Training loss: 3.9306142054192006
+[2023-08-20 15:29:40,431 | train.py:448 | INFO] -> Training RDS: 0.661380006719942
+[2023-08-20 15:29:40,431 | train.py:449 | INFO] -> Training MA: 63.004797799402176
+[2023-08-20 15:32:04,608 | train.py:530 | INFO] -> Validation loss: 12.599913723120407
+[2023-08-20 15:32:04,608 | train.py:532 | INFO] -> Validation RDS: 0.7004531093928368
+[2023-08-20 15:32:04,609 | train.py:534 | INFO] -> Validation MA: 56.85016495343213
+[2023-08-20 15:32:04,610 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 15:32:04,968 | train.py:323 | INFO] -> Epoch 4
+[2023-08-20 16:15:27,419 | train.py:447 | INFO] -> Training loss: 3.622463765046368
+[2023-08-20 16:15:27,423 | train.py:448 | INFO] -> Training RDS: 0.6783698098436338
+[2023-08-20 16:15:27,423 | train.py:449 | INFO] -> Training MA: 58.831818352333485
+[2023-08-20 16:17:51,338 | train.py:530 | INFO] -> Validation loss: 11.25104154734851
+[2023-08-20 16:17:51,338 | train.py:532 | INFO] -> Validation RDS: 0.7091940363112106
+[2023-08-20 16:17:51,338 | train.py:534 | INFO] -> Validation MA: 54.4315369161841
+[2023-08-20 16:17:51,340 | train.py:323 | INFO] -> Epoch 5
+[2023-08-20 17:01:12,178 | train.py:447 | INFO] -> Training loss: 3.402498459149169
+[2023-08-20 17:01:12,185 | train.py:448 | INFO] -> Training RDS: 0.6883949412602812
+[2023-08-20 17:01:12,185 | train.py:449 | INFO] -> Training MA: 56.496909351544836
+[2023-08-20 17:03:36,907 | train.py:530 | INFO] -> Validation loss: 14.557468788264549
+[2023-08-20 17:03:36,907 | train.py:532 | INFO] -> Validation RDS: 0.7117049911795141
+[2023-08-20 17:03:36,907 | train.py:534 | INFO] -> Validation MA: 56.14412784032081
+[2023-08-20 17:03:36,909 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 17:03:37,270 | train.py:323 | INFO] -> Epoch 6
+[2023-08-20 17:47:01,116 | train.py:447 | INFO] -> Training loss: 3.196252351373298
+[2023-08-20 17:47:01,119 | train.py:448 | INFO] -> Training RDS: 0.7006694140159376
+[2023-08-20 17:47:01,119 | train.py:449 | INFO] -> Training MA: 53.446244135403745
+[2023-08-20 17:49:24,986 | train.py:530 | INFO] -> Validation loss: 11.29115041682165
+[2023-08-20 17:49:24,986 | train.py:532 | INFO] -> Validation RDS: 0.7180145220941605
+[2023-08-20 17:49:24,986 | train.py:534 | INFO] -> Validation MA: 52.68381702083431
+[2023-08-20 17:49:24,988 | train.py:323 | INFO] -> Epoch 7
+[2023-08-20 18:32:43,963 | train.py:447 | INFO] -> Training loss: 3.0188436695157663
+[2023-08-20 18:32:43,969 | train.py:448 | INFO] -> Training RDS: 0.7118359094749303
+[2023-08-20 18:32:43,970 | train.py:449 | INFO] -> Training MA: 50.777857611603935
+[2023-08-20 18:35:08,475 | train.py:530 | INFO] -> Validation loss: 13.371246063545959
+[2023-08-20 18:35:08,476 | train.py:532 | INFO] -> Validation RDS: 0.7193427631571957
+[2023-08-20 18:35:08,476 | train.py:534 | INFO] -> Validation MA: 53.71531763468703
+[2023-08-20 18:35:08,477 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 18:35:08,830 | train.py:323 | INFO] -> Epoch 8
+[2023-08-20 19:18:28,209 | train.py:447 | INFO] -> Training loss: 2.879176068931954
+[2023-08-20 19:18:28,214 | train.py:448 | INFO] -> Training RDS: 0.7173959771315801
+[2023-08-20 19:18:28,214 | train.py:449 | INFO] -> Training MA: 49.52305052487273
+[2023-08-20 19:20:52,200 | train.py:530 | INFO] -> Validation loss: 14.443681172856458
+[2023-08-20 19:20:52,200 | train.py:532 | INFO] -> Validation RDS: 0.7143881717637249
+[2023-08-20 19:20:52,200 | train.py:534 | INFO] -> Validation MA: 55.838575352272485
+[2023-08-20 19:20:52,202 | train.py:323 | INFO] -> Epoch 9
+[2023-08-20 20:04:13,147 | train.py:447 | INFO] -> Training loss: 2.75300349372707
+[2023-08-20 20:04:13,151 | train.py:448 | INFO] -> Training RDS: 0.726987557834414
+[2023-08-20 20:04:13,152 | train.py:449 | INFO] -> Training MA: 46.96153509366458
+[2023-08-20 20:06:37,101 | train.py:530 | INFO] -> Validation loss: 13.332853531728597
+[2023-08-20 20:06:37,101 | train.py:532 | INFO] -> Validation RDS: 0.7296842292427472
+[2023-08-20 20:06:37,101 | train.py:534 | INFO] -> Validation MA: 50.66902756582112
+[2023-08-20 20:06:37,103 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 20:06:37,450 | train.py:332 | INFO] -> Stepping scheduler...
+[2023-08-20 20:06:37,450 | train.py:323 | INFO] -> Epoch 10
+[2023-08-20 20:49:57,201 | train.py:447 | INFO] -> Training loss: 2.6346462402339665
+[2023-08-20 20:49:57,204 | train.py:448 | INFO] -> Training RDS: 0.7324060828310169
+[2023-08-20 20:49:57,204 | train.py:449 | INFO] -> Training MA: 46.17447962477871
+[2023-08-20 20:52:20,966 | train.py:530 | INFO] -> Validation loss: 14.626526715820782
+[2023-08-20 20:52:20,966 | train.py:532 | INFO] -> Validation RDS: 0.7412775373213911
+[2023-08-20 20:52:20,966 | train.py:534 | INFO] -> Validation MA: 48.60997625028706
+[2023-08-20 20:52:20,968 | train.py:323 | INFO] -> Epoch 11
+[2023-08-20 21:35:41,516 | train.py:447 | INFO] -> Training loss: 2.54375195589648
+[2023-08-20 21:35:41,520 | train.py:448 | INFO] -> Training RDS: 0.7412463520759861
+[2023-08-20 21:35:41,520 | train.py:449 | INFO] -> Training MA: 43.8668131509328
+[2023-08-20 21:38:05,429 | train.py:530 | INFO] -> Validation loss: 14.795453138003067
+[2023-08-20 21:38:05,429 | train.py:532 | INFO] -> Validation RDS: 0.7337359190667601
+[2023-08-20 21:38:05,429 | train.py:534 | INFO] -> Validation MA: 50.67199064825223
+[2023-08-20 21:38:05,431 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 21:38:05,785 | train.py:323 | INFO] -> Epoch 12
+[2023-08-20 22:21:21,556 | train.py:447 | INFO] -> Training loss: 2.4438801803273154
+[2023-08-20 22:21:21,563 | train.py:448 | INFO] -> Training RDS: 0.7460833850380493
+[2023-08-20 22:21:21,563 | train.py:449 | INFO] -> Training MA: 42.98172545890286
+[2023-08-20 22:23:46,207 | train.py:530 | INFO] -> Validation loss: 14.858780828104717
+[2023-08-20 22:23:46,207 | train.py:532 | INFO] -> Validation RDS: 0.7364124562506262
+[2023-08-20 22:23:46,207 | train.py:534 | INFO] -> Validation MA: 48.81997617085775
+[2023-08-20 22:23:46,209 | train.py:323 | INFO] -> Epoch 13
+[2023-08-20 23:07:06,271 | train.py:447 | INFO] -> Training loss: 2.376958397275781
+[2023-08-20 23:07:06,280 | train.py:448 | INFO] -> Training RDS: 0.7492920124911826
+[2023-08-20 23:07:06,280 | train.py:449 | INFO] -> Training MA: 42.13167268130333
+[2023-08-20 23:09:31,446 | train.py:530 | INFO] -> Validation loss: 14.889002810330151
+[2023-08-20 23:09:31,446 | train.py:532 | INFO] -> Validation RDS: 0.7425129690534993
+[2023-08-20 23:09:31,446 | train.py:534 | INFO] -> Validation MA: 47.19609902220774
+[2023-08-20 23:09:31,448 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-20 23:09:31,907 | train.py:332 | INFO] -> Stepping scheduler...
+[2023-08-20 23:09:31,907 | train.py:323 | INFO] -> Epoch 14
+[2023-08-20 23:52:55,998 | train.py:447 | INFO] -> Training loss: 2.302761789020066
+[2023-08-20 23:52:56,003 | train.py:448 | INFO] -> Training RDS: 0.7578337509202087
+[2023-08-20 23:52:56,003 | train.py:449 | INFO] -> Training MA: 40.37232184366548
+[2023-08-20 23:55:19,616 | train.py:530 | INFO] -> Validation loss: 14.60934599880214
+[2023-08-20 23:55:19,616 | train.py:532 | INFO] -> Validation RDS: 0.741612922247142
+[2023-08-20 23:55:19,616 | train.py:534 | INFO] -> Validation MA: 48.693125889181545
+[2023-08-20 23:55:19,618 | train.py:323 | INFO] -> Epoch 15
+[2023-08-21 00:38:42,970 | train.py:447 | INFO] -> Training loss: 2.2209846179507093
+[2023-08-21 00:38:42,977 | train.py:448 | INFO] -> Training RDS: 0.7632451582853108
+[2023-08-21 00:38:42,977 | train.py:449 | INFO] -> Training MA: 39.011894946991035
+[2023-08-21 00:41:07,320 | train.py:530 | INFO] -> Validation loss: 15.445627681332637
+[2023-08-21 00:41:07,320 | train.py:532 | INFO] -> Validation RDS: 0.7391549823763164
+[2023-08-21 00:41:07,320 | train.py:534 | INFO] -> Validation MA: 49.20131467139884
+[2023-08-21 00:41:07,322 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-21 00:41:09,197 | train.py:332 | INFO] -> Stepping scheduler...
+[2023-08-21 00:41:09,197 | train.py:323 | INFO] -> Epoch 16
+[2023-08-21 01:24:35,801 | train.py:447 | INFO] -> Training loss: 2.1572915265277097
+[2023-08-21 01:24:35,811 | train.py:448 | INFO] -> Training RDS: 0.7649576275792296
+[2023-08-21 01:24:35,811 | train.py:449 | INFO] -> Training MA: 38.843635117626626
+[2023-08-21 01:27:01,413 | train.py:530 | INFO] -> Validation loss: 15.608336982389563
+[2023-08-21 01:27:01,413 | train.py:532 | INFO] -> Validation RDS: 0.7402267208382419
+[2023-08-21 01:27:01,413 | train.py:534 | INFO] -> Validation MA: 49.632844345754684
+[2023-08-21 01:27:01,415 | train.py:323 | INFO] -> Epoch 17
+[2023-08-21 02:10:25,967 | train.py:447 | INFO] -> Training loss: 2.1023350529236606
+[2023-08-21 02:10:25,979 | train.py:448 | INFO] -> Training RDS: 0.7709411430168369
+[2023-08-21 02:10:25,979 | train.py:449 | INFO] -> Training MA: 37.31820296261409
+[2023-08-21 02:12:50,808 | train.py:530 | INFO] -> Validation loss: 14.730185614873285
+[2023-08-21 02:12:50,808 | train.py:532 | INFO] -> Validation RDS: 0.7472378049539105
+[2023-08-21 02:12:50,808 | train.py:534 | INFO] -> Validation MA: 46.478308097412594
+[2023-08-21 02:12:50,810 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-21 02:12:51,183 | train.py:323 | INFO] -> Epoch 18
+[2023-08-21 02:56:16,541 | train.py:447 | INFO] -> Training loss: 2.0489983703583885
+[2023-08-21 02:56:16,550 | train.py:448 | INFO] -> Training RDS: 0.7745241773182943
+[2023-08-21 02:56:16,550 | train.py:449 | INFO] -> Training MA: 36.61989470518888
+[2023-08-21 02:58:40,959 | train.py:530 | INFO] -> Validation loss: 17.195044764917192
+[2023-08-21 02:58:40,959 | train.py:532 | INFO] -> Validation RDS: 0.7491441015239175
+[2023-08-21 02:58:40,959 | train.py:534 | INFO] -> Validation MA: 46.83102256740065
+[2023-08-21 02:58:40,961 | train.py:323 | INFO] -> Epoch 19
+[2023-08-21 03:42:06,216 | train.py:447 | INFO] -> Training loss: 2.0020525109652243
+[2023-08-21 03:42:06,221 | train.py:448 | INFO] -> Training RDS: 0.7775432347298757
+[2023-08-21 03:42:06,221 | train.py:449 | INFO] -> Training MA: 35.966184291992015
+[2023-08-21 03:44:31,028 | train.py:530 | INFO] -> Validation loss: 15.435854190016446
+[2023-08-21 03:44:31,028 | train.py:532 | INFO] -> Validation RDS: 0.7601227747386994
+[2023-08-21 03:44:31,028 | train.py:534 | INFO] -> Validation MA: 43.89502142771194
+[2023-08-21 03:44:31,031 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-21 03:44:31,516 | train.py:323 | INFO] -> Epoch 20
+[2023-08-21 04:27:55,150 | train.py:447 | INFO] -> Training loss: 1.954896442551319
+[2023-08-21 04:27:55,157 | train.py:448 | INFO] -> Training RDS: 0.7825077150442284
+[2023-08-21 04:27:55,157 | train.py:449 | INFO] -> Training MA: 34.79165793640973
+[2023-08-21 04:30:19,585 | train.py:530 | INFO] -> Validation loss: 17.187071979318034
+[2023-08-21 04:30:19,586 | train.py:532 | INFO] -> Validation RDS: 0.7507104774316152
+[2023-08-21 04:30:19,586 | train.py:534 | INFO] -> Validation MA: 46.909391209415105
+[2023-08-21 04:30:19,587 | train.py:323 | INFO] -> Epoch 21
+[2023-08-21 05:13:44,456 | train.py:447 | INFO] -> Training loss: 1.9163161190439304
+[2023-08-21 05:13:44,460 | train.py:448 | INFO] -> Training RDS: 0.784712633660667
+[2023-08-21 05:13:44,460 | train.py:449 | INFO] -> Training MA: 34.28051115317976
+[2023-08-21 05:16:08,509 | train.py:530 | INFO] -> Validation loss: 15.349699212808043
+[2023-08-21 05:16:08,509 | train.py:532 | INFO] -> Validation RDS: 0.746863942031991
+[2023-08-21 05:16:08,509 | train.py:534 | INFO] -> Validation MA: 47.73170603246994
+[2023-08-21 05:16:08,511 | train.py:328 | INFO] -> Saving checkpoint...
+[2023-08-21 05:16:08,977 | train.py:323 | INFO] -> Epoch 22
+[2023-08-21 05:59:35,175 | train.py:447 | INFO] -> Training loss: 1.874620490755937
+[2023-08-21 05:59:35,185 | train.py:448 | INFO] -> Training RDS: 0.787278667269232
+[2023-08-21 05:59:35,185 | train.py:449 | INFO] -> Training MA: 33.725167910911175
+[2023-08-21 06:02:01,227 | train.py:530 | INFO] -> Validation loss: 18.428699904380867
+[2023-08-21 06:02:01,227 | train.py:532 | INFO] -> Validation RDS: 0.7454972248099166
+[2023-08-21 06:02:01,227 | train.py:534 | INFO] -> Validation MA: 48.07275809871552
+[2023-08-21 06:02:01,229 | train.py:323 | INFO] -> Epoch 23
+[2023-08-21 06:45:29,618 | train.py:447 | INFO] -> Training loss: 1.8343220835475071
+[2023-08-21 06:45:29,622 | train.py:448 | INFO] -> Training RDS: 0.7917363120472595
+[2023-08-21 06:45:29,622 | train.py:449 | INFO] -> Training MA: 32.8081972232148
+[2023-08-21 06:47:53,870 | train.py:530 | INFO] -> Validation loss: 16.108179989470738
+[2023-08-21 06:47:53,870 | train.py:532 | INFO] -> Validation RDS: 0.7565655332722075
+[2023-08-21 06:47:53,870 | train.py:534 | INFO] -> Validation MA: 44.397981589243294
+[2023-08-21 06:47:53,872 | train.py:328 | INFO] -> Saving checkpoint...

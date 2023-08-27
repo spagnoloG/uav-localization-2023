@@ -1,0 +1,7 @@
+[2023-08-19 21:18:41,570 | train.py:226 | INFO] -> Preparing dataloaders...
+[2023-08-19 21:18:41,570 | train.py:260 | INFO] -> Using train subset of size 100
+[2023-08-19 21:18:41,775 | train.py:288 | INFO] -> Using val subset of size 50
+[2023-08-19 21:18:41,920 | train.py:228 | INFO] -> Dataloaders ready.
+[2023-08-19 21:18:41,920 | train.py:232 | INFO] -> Using chekpoint hash 5bc3f7354af03703f6f442c9ae425a82e66683e9, starting from epoch 0
+[2023-08-19 21:18:41,920 | train.py:321 | INFO] -> Starting training...
+[2023-08-19 21:18:41,921 | train.py:323 | INFO] -> Epoch 0

@@ -44,6 +44,10 @@ lint:
 	@echo "Linting configuration files"
 	prettier --write conf/*.yaml # npm i -g prettier
 
+add_results:
+	@echo "Adding results to git"
+	@for dir in checkpoints/*; do [ -d "$$dir" ] && (mkdir -p results/$$(basename $$dir) && cp "$$dir/train.log" "$$dir/config.json" results/$$(basename $$dir)/); done
+
 val:
 	@echo "Running validation"
 	python3 val.py
