@@ -76,4 +76,30 @@ download-weights:
 
 search-heatmap:
 	@test -n "$(HEATMAP_VALUE)" || (echo "HEATMAP_VALUE is not set"; exit 1)
-	@find ./results -type f -iname "config.json" -exec sh -c 'value=$$(jq ".dataset | .heatmap_kernel_size" "$$1"); if [ "$$value" == "$(HEATMAP_VALUE)" ]; then echo "$$1: $$value"; fi' _ {} \;
+	@find ./results -type f -iname "config.json" -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- | while read -r file; do \
+		value=$$(jq ".dataset | .heatmap_kernel_size" "$$file"); \
+		if [ "$$value" == "$(HEATMAP_VALUE)" ]; then \
+			echo "$$file: $$value"; \
+		fi \
+	done
+
+move3dplots:
+	@CSV_FILE="./utils/res/hann_kers.csv"; \
+	TARGET_DIR="./utils/res/heatmaps3d"; \
+	\
+	if [ ! -f "$$CSV_FILE" ]; then \
+		echo "$$CSV_FILE not found!"; \
+		exit 1; \
+	fi; \
+	\
+	mkdir -p "$$TARGET_DIR"; \
+	\
+	tail -n +2 "$$CSV_FILE" | while IFS=", " read -r size hash; do \
+		SOURCE_FILE="./vis/$$hash/validation_3d_hm_$$hash-3-1.png"; \
+		if [ -f "$$SOURCE_FILE" ]; then \
+			cp "$$SOURCE_FILE" "$$TARGET_DIR/"; \
+			echo "Copied $$SOURCE_FILE to $$TARGET_DIR/"; \
+		else \
+			echo "File $$SOURCE_FILE not found!"; \
+		fi; \
+	done
