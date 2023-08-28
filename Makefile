@@ -95,11 +95,20 @@ move3dplots:
 	mkdir -p "$$TARGET_DIR"; \
 	\
 	tail -n +2 "$$CSV_FILE" | while IFS=", " read -r size hash; do \
-		SOURCE_FILE="./vis/$$hash/validation_3d_hm_$$hash-3-1.png"; \
-		if [ -f "$$SOURCE_FILE" ]; then \
-			cp "$$SOURCE_FILE" "$$TARGET_DIR/"; \
-			echo "Copied $$SOURCE_FILE to $$TARGET_DIR/"; \
+		SOURCE_PNG_FILE="./vis/$$hash/validation_3d_hm_$$hash-0-0.png"; \
+		SOURCE_JSON_FILE="./vis/$$hash/validation_$$hash-0-0.json"; \
+		\
+		if [ -f "$$SOURCE_PNG_FILE" ]; then \
+			cp "$$SOURCE_PNG_FILE" "$$TARGET_DIR/"; \
+			echo "Copied $$SOURCE_PNG_FILE to $$TARGET_DIR/"; \
 		else \
-			echo "File $$SOURCE_FILE not found!"; \
+			echo "File $$SOURCE_PNG_FILE not found!"; \
+		fi; \
+		\
+		if [ -f "$$SOURCE_JSON_FILE" ]; then \
+			cp "$$SOURCE_JSON_FILE" "$$TARGET_DIR/"; \
+			echo "Copied $$SOURCE_JSON_FILE to $$TARGET_DIR/"; \
+		else \
+			echo "File $$SOURCE_JSON_FILE not found!"; \
 		fi; \
 	done
