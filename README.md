@@ -1,9 +1,17 @@
 # Custom Twins transformer for Multi-View Image Fusion
-This repository contains a custom Vision Transformer model, designed to handle multi-view image fusion. 
-The model is tasked with merging the features from Unmanned Aerial Vehicle (UAV) and satellite images.
-The model uses a modified version of the PCPVT (pyramid vision transformer) model that has been pretrained on ResNet50 for feature extraction 
-from both UAV and satellite images. These extracted features are then combined using a custom fusion module. 
-This module operates in multiple stages and balances the contributions from each image source.
+
+In this repository, we have focused on a approach to multi-view image fusion from Unmanned Aerial Vehicle (UAV) and satellite imagery. 
+Recognizing the significant advancements and potential of the [WAMF-FPI](https://www.mdpi.com/2072-4292/15/4/910) method, 
+we have adopted it as the foundation for our implementation, making it the first of its kind to be publicly accessible.
+
+Our adaptation does not merely replicate the original method but enhances its capabilities. 
+Key technical improvements have been integrated, most notably the inclusion of ReLU and Batch Normalization within the fusion module. 
+To further enhance the robustness of our approach, we've integrated dropouts during the feature extraction process, 
+ensuring that the model is both efficient and resilient against potential overfitting.
+
+Central to our methodology is the custom Vision Transformer model. 
+This model is an extension of the well-established PCPVT (pyramid vision transformer) that has been pretrained on the ResNet50 dataset. 
+The primary role of this model is to extract features from both UAV and satellite data sources. 
 
 ## Model Architecture
 ![Model architecture](./assets/model.svg "Model architecture")
