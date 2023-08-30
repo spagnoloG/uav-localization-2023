@@ -207,9 +207,31 @@ class MapUtils:
         )
 
     def RDS(self, k, dx, dy, hm_w, hm_h):
+        """
+        Computes the Relative Distance Score (RDS) for given distances and heatmap dimensions.
+
+        Args:
+            k (float): Decay coefficient.
+            dx, dy (float): Distances in x and y directions, respectively.
+            hm_w, hm_h (int): Width and height of the heatmap.
+
+        Returns:
+            float: Relative Distance Score.
+        """
         return np.exp(-k * np.sqrt(((dx / hm_w) ** 2 + (dy / hm_h) ** 2)) / 2)
 
     def MA(self, x_pred, y_pred, x_gt, y_gt, k=10):
+        """
+        Calculates the Metre Level Accuracy (MA) between predicted and ground truth positions.
+
+        Args:
+            x_pred, y_pred (float): Predicted coordinates.
+            x_gt, y_gt (float): Ground truth coordinates.
+            k (int, optional): Unused parameter (for potential future use). Default is 10.
+
+        Returns:
+            float: Metre Level Accuracy between predicted and ground truth.
+        """
         dx = abs(x_pred.item() - x_gt)
         dy = abs(y_pred.item() - y_gt)
         return (dx**2 + dy**2) ** 0.5

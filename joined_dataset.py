@@ -197,6 +197,23 @@ class JoinedDataset(Dataset):
         return len(self.image_paths) * len(self.drone_scales)
 
     def equirectangular_np(self, lat1, lon1, lat2, lon2):
+        """
+        Calculate the distance between two latitude and longitude points using
+        the equirectangular approximation.
+
+        Args:
+            lat1 (float): Latitude of the first point.
+            lon1 (float): Longitude of the first point.
+            lat2 (float): Latitude of the second point.
+            lon2 (float): Longitude of the second point.
+
+        Returns:
+            float: Approximate distance between the two points in meters.
+
+        Note:
+            This approach is simpler and faster but less accurate than the
+            haversine formula for small distances.
+        """
         lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
         dlon = lon2 - lon1
         dlat = lat2 - lat1
@@ -206,6 +223,23 @@ class JoinedDataset(Dataset):
         return np.sqrt(x * x + y * y) * radius_earth * 1000
 
     def haversine_np(self, lat1, lon1, lat2, lon2):
+        """
+        Calculate the distance between two latitude and longitude points using
+        the haversine formula.
+
+        Args:
+            lat1 (float): Latitude of the first point.
+            lon1 (float): Longitude of the first point.
+            lat2 (float): Latitude of the second point.
+            lon2 (float): Longitude of the second point.
+
+        Returns:
+            float: Distance between the two points in meters.
+
+        Note:
+            The haversine formula is used to find the shortest distance between
+            two points on the surface of a sphere.
+        """
         lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
         dlon = lon2 - lon1
         dlat = lat2 - lat1
@@ -217,14 +251,43 @@ class JoinedDataset(Dataset):
         return 6371.0 * 1000 * c
 
     def geo_to_pixel_coordinates(self, lat, lon, transform):
+        """
+        Convert geographic coordinates (latitude and longitude) to pixel
+        coordinates using the provided transform.
+
+        Args:
+            lat (float): Latitude of the geographic point.
+            lon (float): Longitude of the geographic point.
+            transform (affine.Affine): Transform object that defines the
+                                       transformation from geographic to pixel
+                                       coordinates.
+
+        Returns:
+            tuple: Pixel coordinates (x_pixel, y_pixel) of the geographic point.
+        """
         x_pixel, y_pixel = ~transform * (lon, lat)
         return round(x_pixel), round(y_pixel)
 
     def get_corresponding_tiff_sat(
         self, path, lat, lon, altitude, fov_vertical_deg, fov_horizontal_deg
     ):
-        """ "
-        Returns the same patch from the satellite image as the given patch from the drone image.
+        """
+        Extracts a satellite image patch corresponding to a given drone image patch.
+
+        Args:
+            path (str): Path to the drone image (satellite image should have '_sat.tiff' suffix).
+            lat, lon (float): Geographic coordinates of the drone.
+            altitude (float): Drone altitude in meters.
+            fov_vertical_deg, fov_horizontal_deg (float): Drone's camera field-of-view in degrees.
+
+        Returns:
+            numpy.ndarray: Extracted satellite image patch.
+
+        Raises:
+            ValueError: If the extracted window is invalid.
+
+        Note:
+            Also visualizes the extracted patch using matplotlib.
         """
         path = path + "_sat.tiff"
 
@@ -274,6 +337,20 @@ class JoinedDataset(Dataset):
         return data
 
     def get_heatmap_gt(self, x, y, height, width, square_size=33):
+        """
+        Generates a heatmap based on the specified type (hanning, gaussian, or square).
+
+        Args:
+            x, y (int): Center coordinates of the heatmap.
+            height, width (int): Dimensions of the output heatmap.
+            square_size (int, optional): Size of the square for the heatmap. Default is 33.
+
+        Returns:
+            numpy.ndarray: Generated heatmap.
+
+        Raises:
+            ValueError: If the heatmap type is not recognized.
+        """
         if self.heatmap_type == "hanning":
             return self.generate_hanning_heatmap(x, y, height, width, square_size)
         elif self.heatmap_type == "gaussian":
@@ -284,8 +361,24 @@ class JoinedDataset(Dataset):
             raise ValueError("Invalid heatmap type: ", self.heatmap_type)
 
     def get_random_tiff_patch(self, path, lat, lon, patch_width, patch_height):
-        """ "
-        Returns a random patch from the satellite image.
+        """
+        Extracts a random patch from a randomly selected satellite image based on
+        given geographic coordinates and patch dimensions.
+
+        Args:
+            path (str): Base path to the satellite image.
+            lat, lon (float): Geographic coordinates used as a reference.
+            patch_width, patch_height (int): Dimensions of the desired patch.
+
+        Returns:
+            tuple:
+                - numpy.ndarray: Extracted patch.
+                - int: x and y position of the patch center within the window.
+                - int: x_offset and y_offset defining the top-left corner of the patch.
+                - int: Randomly chosen tiff number.
+
+        Raises:
+            ValueError: If there's an issue accessing the specified satellite image.
         """
         tiff_num = random.choice(self.tiffs)
         path = path + f"_sat_{tiff_num}.tiff"
@@ -323,7 +416,22 @@ class JoinedDataset(Dataset):
         self, path, lat, lon, patch_width, patch_height, x_offset, y_offset, tiff_num
     ):
         """
-        Returns a patch from the satellite image. with the given offset and size.
+        Extracts a specified patch from a given satellite image based on
+        geographic coordinates, patch dimensions, and specified offsets.
+
+        Args:
+            path (str): Base path to the satellite image.
+            lat, lon (float): Geographic coordinates used as a reference.
+            patch_width, patch_height (int): Dimensions of the desired patch.
+            x_offset, y_offset (int): Offsets defining the top-left corner of the patch.
+            tiff_num (int): Identifier for the satellite image.
+
+        Returns:
+            tuple:
+                - numpy.ndarray: Extracted patch.
+                - int: x and y position of the patch center within the window.
+                - int: x_offset and y_offset defining the top-left corner of the patch.
+
         """
 
         path = path + f"_sat_{tiff_num}.tiff"
@@ -378,6 +486,17 @@ class JoinedDataset(Dataset):
         return heatmap
 
     def generate_hanning_heatmap(self, x, y, height, width, square_size=33):
+        """
+        Generates a heatmap using a Hanning window centered at the specified coordinates.
+
+        Args:
+            x, y (int): Center coordinates of the Hanning window on the heatmap.
+            height, width (int): Dimensions of the resulting heatmap.
+            square_size (int, optional): Size of the square for the heatmap. Default is 33.
+
+        Returns:
+            torch.Tensor: Heatmap with the Hanning window applied.
+        """
         x_map, y_map = x, y
 
         height, width = height, width
@@ -458,14 +577,18 @@ class JoinedDataset(Dataset):
 
     def __getitem__(self, idx):
         """
-        Retrieves and preprocesses the image and its corresponding metadata at the given index.
+        Retrieves a sample given its index, returning the preprocessed drone and satellite images,
+        along with their associated heatmap and metadata.
 
         Args:
-            idx (int): Index of the sample.
+            idx (int): Index of the desired sample in the dataset.
 
         Returns:
-            tuple: Tuple containing the preprocessed image tensor and the metadata dictionary.
-
+            tuple:
+                - torch.Tensor: Preprocessed drone image.
+                - dict: Metadata associated with the drone image, containing coordinates, filename, etc.
+                - torch.Tensor: Corresponding preprocessed satellite patch.
+                - torch.Tensor: Heatmap indicating the drone's position within the satellite patch.
         """
         image_path = self.image_paths[idx // len(self.drone_scales)]
         drone_image = Image.open(image_path).convert("RGB")  # Ensure 3-channel image
@@ -634,7 +757,6 @@ def test():
         axs[1].set_title("Corresponding Satellite image 2")
         # Scatter the drone's location on the satellite image
         axs[1].scatter(x[1], y[1], c="r", s=40)
-        # Display heatmap
         axs[2].imshow(heatmaps[1], cmap="hot", interpolation="nearest")
         axs[2].set_title("Heatmap 2")
         plt.show()

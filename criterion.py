@@ -271,6 +271,15 @@ class DynamicWeightedMSELoss(nn.Module):
 
 
 class CrossWeightedMSE(nn.Module):
+    """
+    Custom loss function that computes the Mean Squared Error (MSE) but applies
+    different weights for positive and negative examples in the target tensor.
+
+    Attributes:
+        true_weight: Weight assigned to positive examples in the target tensor.
+        false_weight: Weight assigned to negative examples in the target tensor.
+    """
+
     def __init__(self, true_weight=1, false_weight=1):
         super(CrossWeightedMSE, self).__init__()
         self.mse_loss = nn.MSELoss(reduction="mean")
@@ -297,6 +306,16 @@ class CrossWeightedMSE(nn.Module):
 
 
 class HanningLoss(nn.Module):
+    """
+    Computes a weighted Binary Cross-Entropy loss, emphasizing the central part
+    of positive regions in the target tensor.
+
+    Attributes:
+        kernel_size: Size of the Hanning window.
+        device: Device to which the model is deployed.
+        negative_weight: Weight for negative samples.
+    """
+
     def __init__(self, kernel_size=33, negative_weight=1, device="cuda:0"):
         super(HanningLoss, self).__init__()
         self.kernel_size = kernel_size
@@ -352,6 +371,11 @@ class HanningLoss(nn.Module):
 
 
 class RDS(nn.Module):
+    """
+    Computes the Relative Distance Score (RDS) between predicted heatmaps and
+    ground truth coordinates.
+    """
+
     def __init__(self, k=10):
         super(RDS, self).__init__()
         self.k = k
@@ -371,6 +395,14 @@ class RDS(nn.Module):
 
 
 class MA(nn.Module):
+    """
+    Computes the Metre Level Accuracy (MA) between predicted heatmaps and ground
+    truth coordinates.
+
+    Attributes:
+        k: A constant (might be used to adjust calculations).
+    """
+
     def __init__(self, k=10):
         super(MA, self).__init__()
         self.k = k

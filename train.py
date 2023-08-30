@@ -797,8 +797,6 @@ def main():
 
     config = load_config(f"./conf/{args.config}.yaml")
 
-    # hyperparameter_search(config)
-
     trainer = CrossViewTrainer(
         config=config,
     )

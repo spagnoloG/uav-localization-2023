@@ -2,7 +2,6 @@
 
 # Pytorch: [batch_size, channels, height, width]
 # numpy: [height, width, channels]
-# [batch_size, height, width, channels] -> [batch_size, channels, height, width]
 
 import torch.nn as nn
 import timm
@@ -17,6 +16,7 @@ class Xcorr(nn.Module):
 
     def __init__(self):
         super(Xcorr, self).__init__()
+
         self.batch_norm = nn.BatchNorm2d(1)
 
     def forward(self, query, search_map):
@@ -30,7 +30,7 @@ class Xcorr(nn.Module):
         Returns:
         corr_maps: A tensor of correlation maps.
         """
-        # Group convolution as correlation
+
         # Pad search map to maintain spatial resolution
         search_map_padded = F.pad(
             search_map,
@@ -76,12 +76,13 @@ class Fusion(nn.Module):
         """
 
         super(Fusion, self).__init__()
-        # UAV convolutions
+
         self.fusion_dropout = fusion_dropout
 
         if self.fusion_dropout is None:
             self.fusion_dropout = 0
 
+        # UAV convolutions
         self.conv1_UAV = nn.Sequential(
             nn.Conv2d(
                 in_channels=in_channels[0],
@@ -118,6 +119,7 @@ class Fusion(nn.Module):
             nn.ReLU(),
             nn.Dropout(p=self.fusion_dropout),
         )
+
         # SAT convolutions
         self.conv1_SAT = nn.Sequential(
             nn.Conv2d(
@@ -407,8 +409,6 @@ class CrossViewLocalizationModel(nn.Module):
         )
 
     def forward(self, x_UAV, x_satellite):
-        # Pytorch: [batch_size, channels, height, width]
-        # numpy: [height, width, channels]
 
         feature_pyramid_UAV = self.feature_extractor_UAV(x_UAV)
         feature_pyramid_satellite = self.feature_extractor_satellite(x_satellite)
