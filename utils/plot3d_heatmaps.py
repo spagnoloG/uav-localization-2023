@@ -59,14 +59,14 @@ def plot_images_from_directory(directory, hash_to_kernel):
     # Sort files by kernel size
     files = sorted(files, key=lambda f: get_kernel_size_from_file(f, hash_to_kernel))
 
-    images_per_plot = 6
+    images_per_plot = 2
     n_plots = math.ceil(len(files) / images_per_plot)
 
     for plot_idx in range(n_plots):
         start_idx = plot_idx * images_per_plot
         end_idx = start_idx + images_per_plot
 
-        plt.figure(figsize=(16, 16))
+        plt.figure(figsize=(12, 12))
 
         for idx, file in enumerate(files[start_idx:end_idx]):
             hash_value = file.split("_")[-1]
@@ -82,7 +82,11 @@ def plot_images_from_directory(directory, hash_to_kernel):
             img_path = os.path.join(directory, file)
             img = mpimg.imread(img_path)
 
-            ax = plt.subplot(2, 3, idx + 1)  # 2 rows, 3 columns for 6 images
+            if len(files[start_idx:end_idx]) <= 3:
+                ax = plt.subplot(1, len(files[start_idx:end_idx]), idx + 1)  # 1 row
+            else:
+                ax = plt.subplot(2, 3, idx + 1)  # 2 rows, 3 columns for 6 images
+
             ax.imshow(img)
             ax.axis("off")  # Hide axes
             ax.set_title(title, fontsize=14)
