@@ -30,13 +30,13 @@ train:
   checkpoint_epoch: 5 # the epoch of the checkpoint
 
   dropout_uav:
-    dropout: 0.15
-    attn_drop: 0.15
-    proj_drop: 0.15
-    head_drop: 0.15
-    mlp_drop1: 0.15
-    mlp_drop2: 0.15
-    pos_drops: 0.1
+    dropout: 0.05
+    attn_drop: 0.05
+    proj_drop: 0.05
+    head_drop: 0.05
+    mlp_drop1: 0.05
+    mlp_drop2: 0.05
+    pos_drops: 0.05
 
   dropout_satellite:
     dropout: 0.05
@@ -59,9 +59,9 @@ dataset:
   drone_scales: [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0] # drone view scales during training
   #drone_scales: [1.0] # drone view scales during the run
   test_from_train_ratio: 0.0 # Include 10% of the training set in the validation set
-  tiffs: [17]
-  drone_patch_w: 256
-  drone_patch_h: 256
+  tiffs: [18]
+  drone_patch_w: 128
+  drone_patch_h: 128
   heatmap_kernel_size: 33
   sat_patch_w: 400
   sat_patch_h: 400
@@ -73,12 +73,12 @@ dataset:
 
 val:
   device: "cuda:0"
-  checkpoint_hash: "7d2a3e9041eabdb084b818dba32124f94ffc3c9d" # the hash of the checkpoint
-  checkpoint_epoch: 23
+  checkpoint_hash: "castral_checkpoint" # the hash of the checkpoint
+  checkpoint_epoch: 9
   val_subset_size: null # size of validation subset. Set to null to use full dataset
   num_workers: 16 # number of worker threads for dataloading
   shuffle_dataset: false # shuffle dataset for each epoch
-  batch_size: 6
+  batch_size: 1
   download_dataset: false # wether to download the dataset
   plot: true
   pretrained_twins: true # use pretrained twins model

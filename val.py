@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from logger import logger
 from joined_dataset import JoinedDataset
+from castral_dataset import CastralDataset
 import torch
 from torch.utils.data import DataLoader
 from model import CrossViewLocalizationModel
@@ -18,6 +19,7 @@ import matplotlib.patches as patches
 import rasterio
 import json
 import logging
+from affine import Affine
 
 
 class CrossViewValidator:
@@ -48,6 +50,11 @@ class CrossViewValidator:
         self.RDS = RDS()
         self.MA = MA(k=10)
         self.dataset_type = config["train"]["dataset"]
+
+        if self.dataset_type == "castral":
+            self.dataset = CastralDataset
+        else:
+            self.dataset = JoinedDataset
 
         if self.loss_fn == "hanning":
             self.criterion = HanningLoss(
@@ -96,7 +103,7 @@ class CrossViewValidator:
         if self.val_subset_size is not None:
             logger.info(f"Using val subset of size {self.val_subset_size}")
             subset_dataset = torch.utils.data.Subset(
-                JoinedDataset(
+                self.dataset(
                     dataset="test",
                     config=config,
                 ),
@@ -110,7 +117,7 @@ class CrossViewValidator:
             )
         else:
             logger.info("Using full val dataset")
-            subset_dataset = JoinedDataset(
+            subset_dataset = self.dataset(
                 dataset="test",
                 config=config,
             )
