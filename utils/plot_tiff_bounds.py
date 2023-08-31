@@ -60,8 +60,10 @@ def plot_with_grid(image, fname="grid.png"):
 
 def main():
     tiff_paths = [
-        "../dataset/Test1_Ljubljana_150m_80fov_90deg/footage/Test1_Ljubljana_150m_80fov_90deg_0023.jpeg_sat_16.tiff",
-        "../dataset/Train2_Trieste_150m_80fov_90deg/footage/Train2_Trieste_150m_80fov_90deg_0000.jpeg_sat_16.tiff",
+        "../dataset/Train3_Zagreb_150m_80fov_90deg/footage/Train3_Zagreb_150m_80fov_90deg_0016.jpeg_sat_16.tiff",
+        "../dataset/Test1_Ljubljana_150m_80fov_90deg/footage/Test1_Ljubljana_150m_80fov_90deg_0205.jpeg_sat_16.tiff",
+        "../dataset/Train10_Venice_150m_80fov_90deg/footage/Train10_Venice_150m_80fov_90deg_0018.jpeg_sat_16.tiff",
+        "../dataset/Train8_Pordenone_150m_80fov_90deg/footage/Train8_Pordenone_150m_80fov_90deg_0138.jpeg_sat_16.tiff",
     ]
 
     for p in tiff_paths:
