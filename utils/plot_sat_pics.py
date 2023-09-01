@@ -7,7 +7,7 @@ def main():
     satellite_pics = {
         "Zagreb, gozdna površina": "./res/Train3_Zagreb_150m_80fov_90deg_0016_grid.png",
         "Ljubljana, jedro mesta": "./res/Test1_Ljubljana_150m_80fov_90deg_0023_grid.png",
-        "Benetke, mesto ob morju": "./res/Train10_Venice_150m_80fov_90deg_0018_grid.png",
+        "Benetke, mesto na morju": "./res/Train10_Venice_150m_80fov_90deg_0018_grid.png",
         "Pordenone, travnata površina": "./res/Train8_Pordenone_150m_80fov_90deg_0138_grid.png",
     }
 

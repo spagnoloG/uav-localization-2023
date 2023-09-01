@@ -7,7 +7,7 @@ def main():
     pics = {
         "Zagreb, gozdna površina": "../dataset/Train3_Zagreb_150m_80fov_90deg/footage/Train3_Zagreb_150m_80fov_90deg_0016.jpeg",
         "Ljubljana, jedro mesta": "../dataset/Test1_Ljubljana_150m_80fov_90deg/footage/Test1_Ljubljana_150m_80fov_90deg_0205.jpeg",
-        "Benetke, mesto ob morju": "../dataset/Train10_Venice_150m_80fov_90deg/footage/Train10_Venice_150m_80fov_90deg_0018.jpeg",
+        "Benetke, mesto na morju": "../dataset/Train10_Venice_150m_80fov_90deg/footage/Train10_Venice_150m_80fov_90deg_0018.jpeg",
         "Pordenone, travnata površina": "../dataset/Train8_Pordenone_150m_80fov_90deg/footage/Train8_Pordenone_150m_80fov_90deg_0138.jpeg",
     }
 
