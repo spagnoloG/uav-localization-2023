@@ -9,6 +9,7 @@ from torchvision.transforms import functional as F
 import rasterio
 from rasterio.windows import Window
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 import random
 import torch
@@ -758,51 +759,78 @@ def test():
 
         drone_images, drone_infos, satellite_images, _ = batch  # We don't need heatmaps
 
-        fig, axs = plt.subplots(1, 4, figsize=(30, 6))  # Adjusted for 4 images in a row
+        fig, axs = plt.subplots(1, 4, figsize=(30, 8))
 
         # Drone Image 1
         axs[0].imshow(inverse_transforms(drone_images[0]))
         axs[0].set_title(
-            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][0]}"
+            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][0]}",
+            fontsize=16,
         )
+        axs[0].axis("off")
 
         # Satellite Image 1
         axs[1].imshow(inverse_transforms(satellite_images[0]))
-        axs[1].set_title(f"Pripadajoča satelitska slika")
+        axs[1].set_title(f"Pripadajoča satelitska slika", fontsize=16)
         axs[1].scatter(
             drone_infos["x_sat"][0],
             drone_infos["y_sat"][0],
             c="r",
-            s=100,
+            s=300,
             edgecolor="yellow",
             linewidths=1.5,
         )
+        axs[1].axis("off")
+
+        # Adjusting the positions
+        axs[0].set_position([0.05, 0.125, 0.2, 0.775])  # [left, bottom, width, height]
+        axs[1].set_position([0.255, 0.125, 0.2, 0.775])
+        axs[2].set_position([0.55, 0.125, 0.2, 0.775])
+        axs[3].set_position([0.755, 0.125, 0.2, 0.775])
 
         # Drone Image 2
         axs[2].imshow(inverse_transforms(drone_images[1]))
         axs[2].set_title(
-            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][1]}"
+            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][1]}",
+            fontsize=16,
         )
+        axs[2].axis("off")
 
         # Satellite Image 2
         axs[3].imshow(inverse_transforms(satellite_images[1]))
-        axs[3].set_title(f"Pripadajoča satelitska slika")
+        axs[3].set_title(f"Pripadajoča satelitska slika", fontsize=16)
         axs[3].scatter(
             drone_infos["x_sat"][1],
             drone_infos["y_sat"][1],
             c="r",
-            s=100,
+            s=300,
             edgecolor="yellow",
             linewidths=1.5,
         )
+        axs[3].axis("off")
 
-        plt.tight_layout()
-        plt.savefig(f"./utils/res/drone_sat_examples/drone_sat_example_{count + 1}.png")
+        plt.savefig(
+            f"./utils/res/drone_sat_examples/drone_sat_example_{count + 1}.png", dpi=120
+        )
         plt.close()
+
+        def tensor_to_list(obj):
+            if isinstance(obj, dict):
+                return {k: tensor_to_list(v) for k, v in obj.items()}
+            elif isinstance(obj, torch.Tensor):
+                return obj.tolist()
+            else:
+                return obj
+
+        with open(
+            f"./utils/res/drone_sat_examples/drone_sat_example_{count + 1}.json", "w"
+        ) as f:
+            drone_infos_serializable = tensor_to_list(drone_infos)
+            json.dump(drone_infos_serializable, f, indent=4)
 
         count += 1
 
-    print("Test successful!")
+    print("Done")
 
 
 if __name__ == "__main__":
