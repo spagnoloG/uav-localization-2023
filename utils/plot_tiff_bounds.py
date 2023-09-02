@@ -64,6 +64,10 @@ def main():
         "../dataset/Test1_Ljubljana_150m_80fov_90deg/footage/Test1_Ljubljana_150m_80fov_90deg_0205.jpeg_sat_16.tiff",
         "../dataset/Train10_Venice_150m_80fov_90deg/footage/Train10_Venice_150m_80fov_90deg_0018.jpeg_sat_16.tiff",
         "../dataset/Train8_Pordenone_150m_80fov_90deg/footage/Train8_Pordenone_150m_80fov_90deg_0138.jpeg_sat_16.tiff",
+        "../dataset/Train9_Szombathely_150m_80fov_90deg/footage/Train9_Szombathely_150m_80fov_90deg_0194.jpeg_sat_16.tiff",
+        "../dataset/Train7_Pula_150m_80fov_90deg/footage/Train7_Pula_150m_80fov_90deg_0101.jpeg_sat_16.tiff",
+        "../dataset/Train6_Udine_150m_80fov_90deg/footage/Train6_Udine_150m_80fov_90deg_0197.jpeg_sat_16.tiff",
+        "../dataset/Train4_Graz_150m_80fov_90deg/footage/Train4_Graz_150m_80fov_90deg_0218.jpeg_sat_16.tiff",
     ]
 
     for p in tiff_paths:
