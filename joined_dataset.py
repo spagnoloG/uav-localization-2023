@@ -732,34 +732,75 @@ def test():
     # axs[1].set_title("Satellite patch with offset")
     # plt.show()
 
-    for batch in dataloader:
-        drone_images, drone_infos, satellite_images, heatmaps, x, y = batch
-        assert drone_images.shape == (len(batch[0]), 3, 128, 128)
-        assert satellite_images.shape == (len(batch[0]), 3, 400, 400)
-        # First pair of drone and satellite images
-        fig, axs = plt.subplots(1, 3, figsize=(20, 6))
-        axs[0].imshow(drone_images[0].permute(1, 2, 0))
-        axs[0].set_title("Drone image 1")
-        axs[1].imshow(satellite_images[0].permute(1, 2, 0))
-        axs[1].set_title("Corresponding Satellite image 1")
-        # Scatter the drone's location on the satellite Image
-        axs[1].scatter(x[0], y[0], c="r", s=40)
-        # Display heatmap
-        axs[2].imshow(heatmaps[0], cmap="hot", interpolation="nearest")
-        axs[2].set_title("Heatmap 1")
-        plt.show()
+    inverse_transforms = transforms.Compose(
+        [
+            transforms.Normalize(
+                mean=[
+                    -m / s
+                    for m, s in zip(
+                        config["dataset"]["mean"],
+                        config["dataset"]["std"],
+                    )
+                ],
+                std=[1 / s for s in config["dataset"]["std"]],
+            ),
+            transforms.ToPILImage(),
+        ]
+    )
 
-        # Second pair of drone and satellite images
-        fig, axs = plt.subplots(1, 3, figsize=(20, 6))
-        axs[0].imshow(drone_images[1].permute(1, 2, 0))
-        axs[0].set_title("Drone image 2")
-        axs[1].imshow(satellite_images[1].permute(1, 2, 0))
-        axs[1].set_title("Corresponding Satellite image 2")
-        # Scatter the drone's location on the satellite image
-        axs[1].scatter(x[1], y[1], c="r", s=40)
-        axs[2].imshow(heatmaps[1], cmap="hot", interpolation="nearest")
-        axs[2].set_title("Heatmap 2")
-        plt.show()
+    count = 0
+    if not os.path.exists("./utils/res/drone_sat_examples"):
+        os.makedirs("./utils/res/drone_sat_examples")
+
+    for batch in dataloader:
+        if count >= 200:
+            break
+
+        drone_images, drone_infos, satellite_images, _ = batch  # We don't need heatmaps
+
+        fig, axs = plt.subplots(1, 4, figsize=(30, 6))  # Adjusted for 4 images in a row
+
+        # Drone Image 1
+        axs[0].imshow(inverse_transforms(drone_images[0]))
+        axs[0].set_title(
+            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][0]}"
+        )
+
+        # Satellite Image 1
+        axs[1].imshow(inverse_transforms(satellite_images[0]))
+        axs[1].set_title(f"Pripadajoča satelitska slika")
+        axs[1].scatter(
+            drone_infos["x_sat"][0],
+            drone_infos["y_sat"][0],
+            c="r",
+            s=100,
+            edgecolor="yellow",
+            linewidths=1.5,
+        )
+
+        # Drone Image 2
+        axs[2].imshow(inverse_transforms(drone_images[1]))
+        axs[2].set_title(
+            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][1]}"
+        )
+
+        # Satellite Image 2
+        axs[3].imshow(inverse_transforms(satellite_images[1]))
+        axs[3].set_title(f"Pripadajoča satelitska slika")
+        axs[3].scatter(
+            drone_infos["x_sat"][1],
+            drone_infos["y_sat"][1],
+            c="r",
+            s=100,
+            edgecolor="yellow",
+            linewidths=1.5,
+        )
+
+        plt.tight_layout()
+        plt.savefig(f"./utils/res/drone_sat_examples/drone_sat_example_{count + 1}.png")
+        plt.close()
+
+        count += 1
 
     print("Test successful!")
 
