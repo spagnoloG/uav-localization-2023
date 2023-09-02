@@ -2,6 +2,7 @@
 
 import json
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 # English to Slovene City Name Dictionary
 city_translations = {
@@ -21,7 +22,6 @@ city_translations = {
 
 def extract_and_translate_city(full_name, translations):
     city_name = full_name.split("_")[1]
-
     return translations.get(city_name, city_name)
 
 
@@ -48,14 +48,22 @@ def plot(data):
     bar_width = 0.35
     index = range(len(regions))
 
+    # Set Seaborn style
+    sns.set_style("whitegrid")
+
+    # Use Seaborn's color palette
+    colors = sns.color_palette("husl", 2)  # "husl" palette is vibrant and distinct
+
     fig, ax = plt.subplots(figsize=(12, 8))
-    bars1 = ax.bar(index, green_counts, bar_width, label="Zelena površina", color="g")
+    bars1 = ax.bar(
+        index, green_counts, bar_width, label="Zelena površina", color=colors[0]
+    )
     bars2 = ax.bar(
         [i + bar_width for i in index],
         building_counts,
         bar_width,
         label="Zgradba",
-        color="b",
+        color=colors[1],
     )
 
     # Add counts on top of the bars
@@ -69,7 +77,7 @@ def plot(data):
     ax.set_xticklabels(regions, rotation=45, ha="right")
     ax.legend()
 
-    plt.savefig("./res/region_structures.png", bbox_inches="tight", dpi=200)
+    plt.savefig("./res/region_structures.png", bbox_inches="tight", dpi=220)
 
 
 if __name__ == "__main__":
