@@ -229,6 +229,7 @@ class CrossViewValidator:
 
                 ### Meter Distance ###
                 running_MeterDistance += self.MeterDistance(outputs, drone_infos)
+                ### Meter Distance ###
 
                 for j in range(len(outputs)):
                     metadata = {
@@ -275,10 +276,7 @@ class CrossViewValidator:
                             j,
                         )
 
-            total_samples += len(self.val_dataloader)
-
-        epoch_loss = running_loss / total_samples
-
+        epoch_loss = running_loss / len(self.val_dataloader)
         self.val_loss = epoch_loss
 
         logger.info(f"Validation loss: {epoch_loss}")

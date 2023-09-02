@@ -14,7 +14,7 @@ from model import CrossViewLocalizationModel
 import yaml
 import argparse
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS, CrossWeightedMSE, MA
+from criterion import HanningLoss, RDS, CrossWeightedMSE, MA, MeterDistance
 import os
 import numpy as np
 from map_utils import MapUtils
@@ -123,6 +123,7 @@ class CrossViewTrainer:
         self.map_utils = MapUtils()
         self.RDS = RDS(k=10)
         self.MA = MA(k=10)
+        self.MeterDistance = MeterDistance()
         self.heatmap_kernel_size = config["dataset"]["heatmap_kernel_size"]
         self.best_RDS = -np.inf
         self.loss_fn = config["train"]["loss_fn"]
@@ -372,6 +373,7 @@ class CrossViewTrainer:
         running_loss = 0.0
         running_RDS = 0.0
         running_MA = 0.0
+        running_MeterDistance = 0.0
         for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
             enumerate(self.train_dataloader),
             total=len(self.train_dataloader),
@@ -414,6 +416,10 @@ class CrossViewTrainer:
                 ).item()
             ### MA ###
 
+            ### Meter Distance ###
+            running_MeterDistance += self.MeterDistance(outputs, drone_infos)
+            ### Meter Distance ###
+
             if i == 0 and self.plot:
                 metadata = {
                     "x_sat": drone_infos["x_sat"][0].item(),
@@ -452,6 +458,9 @@ class CrossViewTrainer:
         logger.info(f"Training loss: {epoch_loss}")
         logger.info(f"Training RDS: {running_RDS / len(self.train_dataloader)}")
         logger.info(f"Training MA: {running_MA / len(self.train_dataloader)}")
+        logger.info(
+            f"Training Meter Distance: {running_MeterDistance / len(self.train_dataloader)}"
+        )
 
     def validate(self, epoch):
         """
@@ -461,6 +470,7 @@ class CrossViewTrainer:
         running_loss = 0.0
         running_RDS = 0.0
         running_MA = 0.0
+        running_MeterDistance = 0.0
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
@@ -497,6 +507,10 @@ class CrossViewTrainer:
                     y_sat,
                 ).item()
                 ### MA ###
+
+                ### Meter Distance ###
+                running_MeterDistance += self.MeterDistance(outputs, drone_infos)
+                ### Meter Distance ###
 
                 if i == 0 and self.plot:
                     metadata = {
@@ -537,6 +551,9 @@ class CrossViewTrainer:
         logger.info(f"Validation RDS: {rds}")
         self.best_RDS = max(self.best_RDS, rds)
         logger.info(f"Validation MA: {running_MA / len(self.val_dataloader)}")
+        logger.info(
+            f"Validation Meter Distance: {running_MeterDistance / len(self.val_dataloader)}"
+        )
 
     def plot_results(
         self,
@@ -604,6 +621,13 @@ class CrossViewTrainer:
             y_pred,
             metadata["x_sat"],
             metadata["y_sat"],
+        )
+
+        metadata["distance_in_meters"] = self.map_utils.metre_distance(
+            metadata["lat_gt"],
+            metadata["lon_gt"],
+            lat_pred,
+            lon_pred,
         )
 
         # Initialize figure
