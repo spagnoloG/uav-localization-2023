@@ -12,7 +12,7 @@ import argparse
 from torchviz import make_dot
 from matplotlib import pyplot as plt
 import torchvision.transforms as transforms
-from criterion import HanningLoss, RDS, CrossWeightedMSE, MA
+from criterion import HanningLoss, RDS, CrossWeightedMSE, MA, MeterDistance
 from map_utils import MapUtils
 import numpy as np
 import matplotlib.patches as patches
@@ -49,6 +49,7 @@ class CrossViewValidator:
         self.loss_fn = config["train"]["loss_fn"]
         self.RDS = RDS()
         self.MA = MA(k=10)
+        self.MeterDistance = MeterDistance()
         self.dataset_type = config["train"]["dataset"]
 
         if self.dataset_type == "castral":
@@ -189,6 +190,7 @@ class CrossViewValidator:
         total_samples = 0
         running_RDS = 0.0
         running_MA = 0.0
+        running_MeterDistance = 0.0
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
@@ -224,6 +226,9 @@ class CrossViewValidator:
                     y_sat,
                 ).item()
                 ### MA ###
+
+                ### Meter Distance ###
+                running_MeterDistance += self.MeterDistance(outputs, drone_infos)
 
                 for j in range(len(outputs)):
                     metadata = {
@@ -279,6 +284,9 @@ class CrossViewValidator:
         logger.info(f"Validation loss: {epoch_loss}")
         logger.info(f"Validation RDS: {running_RDS.cpu().item() / total_samples}")
         logger.info(f"Validation MA: {running_MA / total_samples}")
+        logger.info(
+            f"Validation Meter Distance: {running_MeterDistance / len(self.val_dataloader)}"
+        )
 
     def visualize_model(self):
         tensor_uav = torch.randn(1, 128, 128, 3)

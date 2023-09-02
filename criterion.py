@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import torch
 import torch.nn as nn
+import rasterio
 import torch.nn.functional as F
+import math
 
 
 class BalanceLoss(nn.Module):
@@ -418,6 +420,69 @@ class MA(nn.Module):
             running_MA += torch.sqrt(dx**2 + dy**2)
 
         return running_MA / len(heatmaps_pred)
+
+
+class MeterDistance(nn.Module):
+    """
+    Computes the Metre Distance (MD) between predicted lat-lon and ground
+    truth lat-lon coordinates.
+    """
+
+    def forward(self, heatmaps_pred, drone_infos):
+        """
+        Args:
+            heatmaps_pred: The predicted x, y offsets.
+            drone_infos: Information about drones which includes ground truth latitudes and longitudes, as well as satellite image details.
+
+        Returns:
+            Meter Distance value.
+        """
+
+        running_distance = 0.0
+        for idx in range(len(heatmaps_pred)):
+
+            coords = torch.where(heatmaps_pred[idx] == heatmaps_pred[idx].max())
+            y_pred, x_pred = coords[0][0].item(), coords[1][0].item()
+
+            sat_image_path = drone_infos["filename"][idx]
+            zoom_level = drone_infos["zoom_level"][idx]
+            x_offset = drone_infos["x_offset"][idx]
+            y_offset = drone_infos["y_offset"][idx]
+
+            with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+                sat_transform = s_image.transform
+                lon_pred, lat_pred = rasterio.transform.xy(
+                    sat_transform, y_pred + y_offset, x_pred + x_offset
+                )
+
+            lat_gt, lon_gt = (
+                drone_infos["coordinate"]["latitude"][idx].item(),
+                drone_infos["coordinate"]["longitude"][idx].item(),
+            )
+            distance = self.haversine(lon_pred[0], lat_pred[0], lon_gt, lat_gt)
+            running_distance += distance
+
+        return running_distance / len(heatmaps_pred)
+
+    def haversine(self, lon1, lat1, lon2, lat2):
+        """
+        Calculate the great circle distance in meters between two points
+        on the earth (specified in decimal degrees)
+        """
+        # Convert decimal degrees to radians
+        lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
+
+        # Haversine formula
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = (
+            math.sin(dlat / 2) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        )
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        distance = 6371 * c * 1000  # Multiply by 1000 to get meters
+
+        return distance
 
 
 def test():
