@@ -280,8 +280,10 @@ class CrossViewValidator:
         self.val_loss = epoch_loss
 
         logger.info(f"Validation loss: {epoch_loss}")
-        logger.info(f"Validation RDS: {running_RDS.cpu().item() / total_samples}")
-        logger.info(f"Validation MA: {running_MA / total_samples}")
+        logger.info(
+            f"Validation RDS: {running_RDS.cpu().item() / len(self.val_dataloader)}"
+        )
+        logger.info(f"Validation MA: {running_MA / len(self.val_dataloader)}")
         logger.info(
             f"Validation Meter Distance: {running_MeterDistance / len(self.val_dataloader)}"
         )
@@ -497,6 +499,54 @@ class CrossViewValidator:
             f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.json", "w"
         ) as f:
             json.dump(metadata, f)
+
+        ### Drone image
+        self.save_drone_image(drone_image, i, j, inverse_transforms)
+
+        ### Satellite image with heatmap overlay
+        self.save_satellite_overlay(
+            sat_image, heatmap_pred, x_pred, y_pred, metadata, i, j, inverse_transforms
+        )
+
+    def save_drone_image(self, drone_image, i, j, inverse_transforms):
+        """Save just the drone image."""
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.imshow(inverse_transforms(drone_image))
+        ax.axis("off")
+        plt.savefig(f"./vis/{self.val_hash}/drone_image_{self.val_hash}-{i}-{j}.png", bbox_inches='tight', pad_inches=0)
+        plt.close()
+    
+    def save_satellite_overlay(
+        self,
+        sat_image,
+        heatmap_pred,
+        x_pred,
+        y_pred,
+        metadata,
+        i,
+        j,
+        inverse_transforms,
+    ):
+        """Save the satellite image overlayed with the heatmap and circles."""
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.imshow(inverse_transforms(sat_image))
+        ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
+    
+        pred_circle = patches.Circle(
+            (x_pred, y_pred), radius=10, edgecolor="blue", facecolor="none", linewidth=4
+        )
+        gt_circle = patches.Circle(
+            (metadata["x_sat"], metadata["y_sat"]),
+            radius=10,
+            edgecolor="red",
+            facecolor="none",
+            linewidth=4,
+        )
+        ax.add_patch(pred_circle)
+        ax.add_patch(gt_circle)
+        ax.axis("off")
+        plt.savefig(f"./vis/{self.val_hash}/sat_overlay_{self.val_hash}-{i}-{j}.png", bbox_inches='tight', pad_inches=0)
+        plt.close()
 
     def compute_metadata(
         self,
