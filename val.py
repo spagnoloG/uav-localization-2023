@@ -513,9 +513,13 @@ class CrossViewValidator:
         fig, ax = plt.subplots(figsize=(10, 10))
         ax.imshow(inverse_transforms(drone_image))
         ax.axis("off")
-        plt.savefig(f"./vis/{self.val_hash}/drone_image_{self.val_hash}-{i}-{j}.png", bbox_inches='tight', pad_inches=0)
+        plt.savefig(
+            f"./vis/{self.val_hash}/drone_image_{self.val_hash}-{i}-{j}.png",
+            bbox_inches="tight",
+            pad_inches=0,
+        )
         plt.close()
-    
+
     def save_satellite_overlay(
         self,
         sat_image,
@@ -531,7 +535,7 @@ class CrossViewValidator:
         fig, ax = plt.subplots(figsize=(10, 10))
         ax.imshow(inverse_transforms(sat_image))
         ax.imshow(heatmap_pred.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.55)
-    
+
         pred_circle = patches.Circle(
             (x_pred, y_pred), radius=10, edgecolor="blue", facecolor="none", linewidth=4
         )
@@ -545,7 +549,11 @@ class CrossViewValidator:
         ax.add_patch(pred_circle)
         ax.add_patch(gt_circle)
         ax.axis("off")
-        plt.savefig(f"./vis/{self.val_hash}/sat_overlay_{self.val_hash}-{i}-{j}.png", bbox_inches='tight', pad_inches=0)
+        plt.savefig(
+            f"./vis/{self.val_hash}/sat_overlay_{self.val_hash}-{i}-{j}.png",
+            bbox_inches="tight",
+            pad_inches=0,
+        )
         plt.close()
 
     def compute_metadata(
