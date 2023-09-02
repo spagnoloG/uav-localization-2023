@@ -225,30 +225,42 @@ class CrossViewValidator:
                 ).item()
                 ### MA ###
 
-                if self.plot:
-                    for j in range(len(outputs)):
-                        metadata = {
-                            "x_sat": drone_infos["x_sat"][j].item(),
-                            "y_sat": drone_infos["y_sat"][j].item(),
-                            "x_offset": drone_infos["x_offset"][j].item(),
-                            "y_offset": drone_infos["y_offset"][j].item(),
-                            "zoom_level": drone_infos["zoom_level"][j].item(),
-                            "lat_gt": drone_infos["lat"][j].item()
-                            if self.dataset_type == "castral"
-                            else drone_infos["coordinate"]["latitude"][j].item(),
-                            "lon_gt": drone_infos["lon"][j].item()
-                            if self.dataset_type == "castral"
-                            else drone_infos["coordinate"]["longitude"][j].item(),
-                            "filename": drone_infos["filename"][j],
-                            "scale": drone_infos["scale"][j].item(),
-                        }
+                for j in range(len(outputs)):
+                    metadata = {
+                        "x_sat": drone_infos["x_sat"][j].item(),
+                        "y_sat": drone_infos["y_sat"][j].item(),
+                        "x_offset": drone_infos["x_offset"][j].item(),
+                        "y_offset": drone_infos["y_offset"][j].item(),
+                        "zoom_level": drone_infos["zoom_level"][j].item(),
+                        "lat_gt": drone_infos["lat"][j].item()
+                        if self.dataset_type == "castral"
+                        else drone_infos["coordinate"]["latitude"][j].item(),
+                        "lon_gt": drone_infos["lon"][j].item()
+                        if self.dataset_type == "castral"
+                        else drone_infos["coordinate"]["longitude"][j].item(),
+                        "filename": drone_infos["filename"][j],
+                        "scale": drone_infos["scale"][j].item(),
+                    }
 
-                        if self.dataset_type == "castral":
-                            metadata["sat_transform"] = (
-                                drone_infos["sat_transform"][j].cpu().numpy()
-                            )
+                    if self.dataset_type == "castral":
+                        metadata["sat_transform"] = (
+                            drone_infos["sat_transform"][j].cpu().numpy()
+                        )
+
+                    if self.plot:
 
                         self.plot_results(
+                            drone_images[j].detach(),
+                            sat_images[j].detach(),
+                            heatmap_gt[j].detach(),
+                            outputs[j].detach(),
+                            metadata,
+                            i,
+                            j,
+                        )
+
+                    else:
+                        self.compute_metadata(
                             drone_images[j].detach(),
                             sat_images[j].detach(),
                             heatmap_gt[j].detach(),
@@ -358,6 +370,13 @@ class CrossViewValidator:
             y_pred,
             metadata["x_sat"],
             metadata["y_sat"],
+        )
+
+        metadata["distance_in_meters"] = self.map_utils.metre_distance(
+            metadata["lat_gt"],
+            metadata["lon_gt"],
+            lat_pred,
+            lon_pred,
         )
 
         # Initialize figure
@@ -472,6 +491,90 @@ class CrossViewValidator:
             f"./vis/{self.val_hash}/validation_{self.val_hash}-{i}-{j}.json", "w"
         ) as f:
             json.dump(metadata, f)
+
+    def compute_metadata(
+        self,
+        drone_image,
+        sat_image,
+        heatmap_gt,
+        heatmap_pred,
+        metadata,
+        i,
+        j,
+    ):
+        """
+        Compute the metadata.
+
+        This function will compute the validation results for the specified number of epochs.
+        """
+
+        # Compute prediction, ground truth positions, and the distance
+        heatmap_pred_np = heatmap_pred.cpu().numpy()
+        y_pred, x_pred = np.unravel_index(
+            np.argmax(heatmap_pred_np), heatmap_pred_np.shape
+        )
+
+        sat_image_path = metadata["filename"]
+        zoom_level = metadata["zoom_level"]
+        x_offset = metadata["x_offset"]
+        y_offset = metadata["y_offset"]
+
+        if self.dataset_type == "castral":
+            tensor_values = metadata["sat_transform"]
+            sat_transform = Affine(
+                tensor_values[0],
+                0,
+                tensor_values[2],
+                0,
+                tensor_values[1],
+                tensor_values[3],
+            )
+            lon_pred, lat_pred = rasterio.transform.xy(
+                sat_transform, y_pred + y_offset, x_pred + x_offset
+            )
+        else:
+            with rasterio.open(f"{sat_image_path}_sat_{zoom_level}.tiff") as s_image:
+                sat_transform = s_image.transform
+                lon_pred, lat_pred = rasterio.transform.xy(
+                    sat_transform, y_pred + y_offset, x_pred + x_offset
+                )
+
+        metadata["lat_pred"] = lat_pred
+        metadata["lon_pred"] = lon_pred
+
+        metadata["rds"] = self.map_utils.RDS(
+            10,
+            np.abs(metadata["x_sat"] - x_pred),
+            np.abs(metadata["y_sat"] - y_pred),
+            heatmap_gt.shape[-1],
+            heatmap_gt.shape[-2],
+        )
+
+        metadata["ma"] = self.map_utils.MA(
+            x_pred,
+            y_pred,
+            metadata["x_sat"],
+            metadata["y_sat"],
+        )
+
+        metadata["distance_in_meters"] = self.map_utils.metre_distance(
+            metadata["lat_gt"],
+            metadata["lon_gt"],
+            lat_pred,
+            lon_pred,
+        )
+
+        if self.dataset_type == "castral":
+            del metadata["sat_transform"]
+
+        # Save metadata
+        os.makedirs(f"./vis/{self.val_hash}", exist_ok=True)
+        with open(
+            f"./vis/{self.val_hash}/metadata_{self.val_hash}-{i}-{j}.json", "w"
+        ) as f:
+            json.dump(metadata, f)
+
+        return metadata
 
 
 def load_config(config_path):

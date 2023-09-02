@@ -235,3 +235,22 @@ class MapUtils:
         dx = abs(x_pred.item() - x_gt)
         dy = abs(y_pred.item() - y_gt)
         return (dx**2 + dy**2) ** 0.5
+
+    def metre_distance(self, lat_gt, lon_gt, lat_pred, lon_pred):
+        """
+        Calculate the great circle distance between two points
+        on the earth (specified in decimal degrees)
+        """
+        lat_gt, lon_gt, lat_pred, lon_pred = map(
+            np.radians, [lat_gt, lon_gt, lat_pred, lon_pred]
+        )
+
+        dlat = lat_pred - lat_gt
+        dlon = lon_pred - lon_gt
+        a = (
+            np.sin(dlat / 2.0) ** 2
+            + np.cos(lat_gt) * np.cos(lat_pred) * np.sin(dlon / 2.0) ** 2
+        )
+        c = 2 * np.arcsin(np.sqrt(a))
+        r = 6371000  # Radius of earth in meters. Use 6371 for kilometers.
+        return c * r
