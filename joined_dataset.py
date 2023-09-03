@@ -759,20 +759,25 @@ def test():
 
         drone_images, drone_infos, satellite_images, _ = batch  # We don't need heatmaps
 
-        fig, axs = plt.subplots(1, 4, figsize=(30, 8))
+        fig = plt.figure(figsize=(30, 8))
+
+        # Using gridspec to define the structure
+        gs = gridspec.GridSpec(1, 5, width_ratios=[1, 2, 0.5, 1, 2])
 
         # Drone Image 1
-        axs[0].imshow(inverse_transforms(drone_images[0]))
-        axs[0].set_title(
+        ax1 = fig.add_subplot(gs[0])
+        ax1.imshow(inverse_transforms(drone_images[0]))
+        ax1.set_title(
             f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][0]}",
             fontsize=16,
         )
-        axs[0].axis("off")
+        ax1.axis("off")
 
         # Satellite Image 1
-        axs[1].imshow(inverse_transforms(satellite_images[0]))
-        axs[1].set_title(f"Pripadajoča satelitska slika", fontsize=16)
-        axs[1].scatter(
+        ax2 = fig.add_subplot(gs[1])
+        ax2.imshow(inverse_transforms(satellite_images[0]))
+        ax2.set_title(f"Pripadajoča satelitska slika", fontsize=16)
+        ax2.scatter(
             drone_infos["x_sat"][0],
             drone_infos["y_sat"][0],
             c="r",
@@ -780,26 +785,22 @@ def test():
             edgecolor="yellow",
             linewidths=1.5,
         )
-        axs[1].axis("off")
-
-        # Adjusting the positions
-        axs[0].set_position([0.05, 0.125, 0.2, 0.775])  # [left, bottom, width, height]
-        axs[1].set_position([0.255, 0.125, 0.2, 0.775])
-        axs[2].set_position([0.55, 0.125, 0.2, 0.775])
-        axs[3].set_position([0.755, 0.125, 0.2, 0.775])
+        ax2.axis("off")
 
         # Drone Image 2
-        axs[2].imshow(inverse_transforms(drone_images[1]))
-        axs[2].set_title(
+        ax3 = fig.add_subplot(gs[3])
+        ax3.imshow(inverse_transforms(drone_images[1]))
+        ax3.set_title(
             f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][1]}",
             fontsize=16,
         )
-        axs[2].axis("off")
+        ax3.axis("off")
 
         # Satellite Image 2
-        axs[3].imshow(inverse_transforms(satellite_images[1]))
-        axs[3].set_title(f"Pripadajoča satelitska slika", fontsize=16)
-        axs[3].scatter(
+        ax4 = fig.add_subplot(gs[4])
+        ax4.imshow(inverse_transforms(satellite_images[1]))
+        ax4.set_title(f"Pripadajoča satelitska slika", fontsize=16)
+        ax4.scatter(
             drone_infos["x_sat"][1],
             drone_infos["y_sat"][1],
             c="r",
@@ -807,7 +808,9 @@ def test():
             edgecolor="yellow",
             linewidths=1.5,
         )
-        axs[3].axis("off")
+        ax4.axis("off")
+
+        plt.tight_layout()
 
         plt.savefig(
             f"./utils/res/drone_sat_examples/drone_sat_example_{count + 1}.png", dpi=120

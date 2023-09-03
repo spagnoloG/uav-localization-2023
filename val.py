@@ -508,6 +508,9 @@ class CrossViewValidator:
             sat_image, heatmap_pred, x_pred, y_pred, metadata, i, j, inverse_transforms
         )
 
+        ## Satellite image
+        self.save_satellite_image(sat_image, i, j, inverse_transforms)
+
     def save_drone_image(self, drone_image, i, j, inverse_transforms):
         """Save just the drone image."""
         fig, ax = plt.subplots(figsize=(10, 10))
@@ -515,6 +518,18 @@ class CrossViewValidator:
         ax.axis("off")
         plt.savefig(
             f"./vis/{self.val_hash}/drone_image_{self.val_hash}-{i}-{j}.png",
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.close()
+
+    def save_satellite_image(self, sat_image, i, j, inverse_transforms):
+        """Save just the satellite image."""
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.imshow(inverse_transforms(sat_image))
+        ax.axis("off")
+        plt.savefig(
+            f"./vis/{self.val_hash}/satellite_image_{self.val_hash}-{i}-{j}.png",
             bbox_inches="tight",
             pad_inches=0,
         )
