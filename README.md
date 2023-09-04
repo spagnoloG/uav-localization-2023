@@ -49,13 +49,21 @@ Note: Dataset is currently unavailable.
 ## Examples
 
 ### Example of good localization
-![Good localization](./assets/example_of_localization.jpg "Example of good localization")
-![Good localization](./assets/localizaton_2.png "Example of good localization")
+Residential house in a housing estate with an error of 6.93m and RDS value of 0.90. On the right, a parking lot in a monotone environment with an error of 3.77m and RDS value of 0.94.
+![Good localization](./utils/res/drone_net_example_0.png "Example of good localization")
+Section of the highway with an error of 6.55m and RDS value of 0.91. On the right, vicinity of a residential house in an estate with an error of 5.73m and RDS value of 0.90.
+![Good localization](./utils/res/drone_net_example_1.png "Example of good localization")
+Industrial building in an industrial zone with an error of 3.99m and RDS value of 0.95. On the right, meadow by residential houses with an error of 2.07m and RDS value of 0.97.
+![Good localization](./utils/res/drone_net_example_2.png "Example of good localization")
 
 
 ### Example of poor localization
-![Poor localization](./assets/poor_localization.jpg "Example of poor localization")
-![Poor localization](./assets/poor_localization_2.png "Example of poor localization")
+Both images show meadows and trees. Left image has an error of 50.74m with RDS value of 0.31, right has 30.16m with RDS value of 0.42.
+![Good localization](./utils/res/drone_net_example_3.png "Example of poor localization")
+Residential house overlaid by a cloud on the satellite image with an error of 54.24m and RDS value of 0.30. On the right, industrial building in a monotone industrial zone with an error of 150.47m and RDS value of 0.10.
+![Good localization](./utils/res/drone_net_example_4.png "Example of poor localization")
+Construction site present in the drone image but absent in the satellite one with an error of 169.43m and RDS value of 0.09. On the right, a field in a monotone setting with an error of 155.47m and RDS value of 0.10.
+![Good localization](./utils/res/drone_net_example_5.png "Example of poor localization")
 
 
 ## Backbone Architecture
