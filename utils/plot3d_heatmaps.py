@@ -59,40 +59,30 @@ def plot_images_from_directory(directory, hash_to_kernel):
     # Sort files by kernel size
     files = sorted(files, key=lambda f: get_kernel_size_from_file(f, hash_to_kernel))
 
-    images_per_plot = 2
-    n_plots = math.ceil(len(files) / images_per_plot)
+    plt.figure(figsize=(10, 25))  # Adjust the figure size to make it compact
 
-    for plot_idx in range(n_plots):
-        start_idx = plot_idx * images_per_plot
-        end_idx = start_idx + images_per_plot
+    for idx, file in enumerate(files):
+        hash_value = file.split("_")[-1]
+        hash_value = hash_value.split("-")[0].strip()
+        kernel_size = hash_to_kernel.get(hash_value, "Unknown")
 
-        plt.figure(figsize=(12, 12))
+        rds_value = get_rds_from_file(file, directory)
+        title = f"Velikost hanningovega okna: {kernel_size}"
 
-        for idx, file in enumerate(files[start_idx:end_idx]):
-            hash_value = file.split("_")[-1]
-            hash_value = hash_value.split("-")[0].strip()
-            kernel_size = hash_to_kernel.get(hash_value, "Unknown")
+        if rds_value is not None:
+            title += f", RDS: {rds_value:.2f}"
 
-            rds_value = get_rds_from_file(file, directory)
-            title = f"Velikost hanningovega okna: {kernel_size}"
+        img_path = os.path.join(directory, file)
+        img = mpimg.imread(img_path)
 
-            if rds_value is not None:
-                title += f", RDS: {rds_value:.2f}"
+        ax = plt.subplot(5, 2, idx + 1)  # 5 rows, 2 columns for 10 images
+        ax.imshow(img)
+        ax.axis("off")  # Hide axes
+        ax.set_title(title, fontsize=14)
 
-            img_path = os.path.join(directory, file)
-            img = mpimg.imread(img_path)
-
-            if len(files[start_idx:end_idx]) <= 3:
-                ax = plt.subplot(1, len(files[start_idx:end_idx]), idx + 1)  # 1 row
-            else:
-                ax = plt.subplot(2, 3, idx + 1)  # 2 rows, 3 columns for 6 images
-
-            ax.imshow(img)
-            ax.axis("off")  # Hide axes
-            ax.set_title(title, fontsize=14)
-
-        plt.tight_layout()
-        plt.savefig(f"res/heatmaps3d_{plot_idx + 1}.png")
+    plt.tight_layout(pad=0)  # Remove padding between subplots
+    plt.subplots_adjust(wspace=0, hspace=0)  # Remove whitespace between subplots
+    plt.savefig("res/combined_heatmaps3d.png")
 
 
 if __name__ == "__main__":
