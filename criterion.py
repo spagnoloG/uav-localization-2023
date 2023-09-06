@@ -435,10 +435,13 @@ class MeterDistance(nn.Module):
             drone_infos: Information about drones which includes ground truth latitudes and longitudes, as well as satellite image details.
 
         Returns:
-            Meter Distance value.
+            Tensor of Meter Distances.
         """
 
-        running_distance = 0.0
+        distances = torch.zeros(
+            len(heatmaps_pred)
+        )  # Initialize tensor to store distances
+
         for idx in range(len(heatmaps_pred)):
 
             coords = torch.where(heatmaps_pred[idx] == heatmaps_pred[idx].max())
@@ -460,9 +463,9 @@ class MeterDistance(nn.Module):
                 drone_infos["coordinate"]["longitude"][idx].item(),
             )
             distance = self.haversine(lon_pred[0], lat_pred[0], lon_gt, lat_gt)
-            running_distance += distance
+            distances[idx] = distance
 
-        return running_distance / len(heatmaps_pred)
+        return distances
 
     def haversine(self, lon1, lat1, lon2, lat2):
         """

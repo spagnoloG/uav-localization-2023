@@ -66,9 +66,9 @@ class JoinedDataset(Dataset):
                 transforms.Normalize(mean=config["mean"], std=config["std"]),
             ]
         )
-        if self.dataset == "train":
-            self.random_seed = config.get("random_seed", 42)
-            self.set_seed(self.random_seed)
+
+        self.random_seed = config.get("random_seed", 42)
+        self.set_seed(self.random_seed)
 
         self.prepare_kernels()
 
@@ -85,9 +85,9 @@ class JoinedDataset(Dataset):
             torch.cuda.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)
             torch.backends.cudnn.benchmark = True
-            torch.backends.cudnn.deterministic = (
-                True  # Slows down a bit, but ensures reproducibility
-            )
+            # torch.backends.cudnn.deterministic = (
+            #    True  # Slows down a bit, but ensures reproducibility
+            # )
 
     def count_total_train_test_samples(self, path):
         total_train_test_samples = 0
@@ -767,16 +767,11 @@ def test():
         # Drone Image 1
         ax1 = fig.add_subplot(gs[0])
         ax1.imshow(inverse_transforms(drone_images[0]))
-        ax1.set_title(
-            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][0]}",
-            fontsize=16,
-        )
         ax1.axis("off")
 
         # Satellite Image 1
         ax2 = fig.add_subplot(gs[1])
         ax2.imshow(inverse_transforms(satellite_images[0]))
-        ax2.set_title(f"Pripadajoča satelitska slika", fontsize=16)
         ax2.scatter(
             drone_infos["x_sat"][0],
             drone_infos["y_sat"][0],
@@ -790,16 +785,11 @@ def test():
         # Drone Image 2
         ax3 = fig.add_subplot(gs[3])
         ax3.imshow(inverse_transforms(drone_images[1]))
-        ax3.set_title(
-            f"Slika iz brezpilotnega letalnika, skala: {drone_infos['scale'][1]}",
-            fontsize=16,
-        )
         ax3.axis("off")
 
         # Satellite Image 2
         ax4 = fig.add_subplot(gs[4])
         ax4.imshow(inverse_transforms(satellite_images[1]))
-        ax4.set_title(f"Pripadajoča satelitska slika", fontsize=16)
         ax4.scatter(
             drone_infos["x_sat"][1],
             drone_infos["y_sat"][1],

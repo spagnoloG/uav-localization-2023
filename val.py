@@ -190,12 +190,20 @@ class CrossViewValidator:
         total_samples = 0
         running_RDS = 0.0
         running_MA = 0.0
-        running_MeterDistance = 0.0
+        running_meter_distances = None
+        running_meter_distance = 0.0
+        below_10m = 0
+        below_20m = 0
+        below_50m = 0
+        below_100m = 0
+        total_samples = 0
+
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
                 total=len(self.val_dataloader),
             ):
+                total_samples += len(drone_images)
                 drone_images = drone_images.to(self.device)
                 sat_images = sat_images.to(self.device)
                 heatmap_gt = heatmaps_gt.to(self.device)
@@ -228,7 +236,22 @@ class CrossViewValidator:
                 ### MA ###
 
                 ### Meter Distance ###
-                running_MeterDistance += self.MeterDistance(outputs, drone_infos)
+                running_meter_distances = self.MeterDistance(outputs, drone_infos)
+                for meter_distance in running_meter_distances:
+                    if meter_distance < 10:
+                        below_10m += 1
+                    if meter_distance < 20:
+                        below_20m += 1
+                    if meter_distance < 50:
+                        below_50m += 1
+                    if meter_distance < 100:
+                        below_100m += 1
+                    else:
+                        pass
+                    running_meter_distance += meter_distance
+                running_meter_distance = running_meter_distance / len(
+                    running_meter_distances
+                )
                 ### Meter Distance ###
 
                 for j in range(len(outputs)):
@@ -279,14 +302,24 @@ class CrossViewValidator:
         epoch_loss = running_loss / len(self.val_dataloader)
         self.val_loss = epoch_loss
 
+        below_10m = below_10m / total_samples
+        below_20m = below_20m / total_samples
+        below_50m = below_50m / total_samples
+        below_100m = below_100m / total_samples
+
         logger.info(f"Validation loss: {epoch_loss}")
         logger.info(
             f"Validation RDS: {running_RDS.cpu().item() / len(self.val_dataloader)}"
         )
         logger.info(f"Validation MA: {running_MA / len(self.val_dataloader)}")
         logger.info(
-            f"Validation Meter Distance: {running_MeterDistance / len(self.val_dataloader)}"
+            f"Validation Meter Distance: {running_meter_distance / len(self.val_dataloader)}"
         )
+        logger.info("Validation Meter Distance Histogram:")
+        logger.info(f"Below 10m: {below_10m}")
+        logger.info(f"Below 20m: {below_20m}")
+        logger.info(f"Below 50m: {below_50m}")
+        logger.info(f"Below 100m: {below_100m}")
 
     def visualize_model(self):
         tensor_uav = torch.randn(1, 128, 128, 3)

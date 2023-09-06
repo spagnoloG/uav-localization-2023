@@ -373,11 +373,19 @@ class CrossViewTrainer:
         running_loss = 0.0
         running_RDS = 0.0
         running_MA = 0.0
-        running_MeterDistance = 0.0
+        running_meter_distances = None
+        running_meter_distance = 0.0
+        below_10m = 0
+        below_20m = 0
+        below_50m = 0
+        below_100m = 0
+        total_samples = 0
+
         for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
             enumerate(self.train_dataloader),
             total=len(self.train_dataloader),
         ):
+            total_samples += len(drone_images)
             drone_images = drone_images.to(self.device)
             sat_images = sat_images.to(self.device)
             heatmap_gt = heatmaps_gt.to(self.device)
@@ -388,6 +396,8 @@ class CrossViewTrainer:
             outputs = self.model(drone_images, sat_images)
             # Calculate loss
             loss = self.criterion(outputs, heatmap_gt)
+            # Accumulate the loss
+            running_loss += loss.item() * drone_images.size(0)
 
             # Backward pass and optimize
             loss.backward()
@@ -417,7 +427,20 @@ class CrossViewTrainer:
             ### MA ###
 
             ### Meter Distance ###
-            running_MeterDistance += self.MeterDistance(outputs, drone_infos)
+            running_meter_distances = self.MeterDistance(outputs, drone_infos)
+            for meter_distance in running_meter_distances:
+                if meter_distance < 10:
+                    below_10m += 1
+                if meter_distance < 20:
+                    below_20m += 1
+                if meter_distance < 50:
+                    below_50m += 1
+                if meter_distance < 100:
+                    below_100m += 1
+                running_meter_distance += meter_distance
+            running_meter_distance = running_meter_distance / len(
+                running_meter_distances
+            )
             ### Meter Distance ###
 
             if i == 0 and self.plot:
@@ -452,15 +475,24 @@ class CrossViewTrainer:
                     "train",
                 )
 
-            running_loss += loss.item() * drone_images.size(0)
-
         epoch_loss = running_loss / len(self.train_dataloader)
+
+        below_10m = below_10m / total_samples
+        below_20m = below_20m / total_samples
+        below_50m = below_50m / total_samples
+        below_100m = below_100m / total_samples
+
         logger.info(f"Training loss: {epoch_loss}")
         logger.info(f"Training RDS: {running_RDS / len(self.train_dataloader)}")
         logger.info(f"Training MA: {running_MA / len(self.train_dataloader)}")
         logger.info(
-            f"Training Meter Distance: {running_MeterDistance / len(self.train_dataloader)}"
+            f"Training Meter Distance: {running_meter_distance / len(self.train_dataloader)}"
         )
+        logger.info("Training Meter Distance Histogram:")
+        logger.info(f"Below 10m: {below_10m}")
+        logger.info(f"Below 20m: {below_20m}")
+        logger.info(f"Below 50m: {below_50m}")
+        logger.info(f"Below 100m: {below_100m}")
 
     def validate(self, epoch):
         """
@@ -470,12 +502,20 @@ class CrossViewTrainer:
         running_loss = 0.0
         running_RDS = 0.0
         running_MA = 0.0
-        running_MeterDistance = 0.0
+        running_meter_distances = None
+        running_meter_distance = 0.0
+        below_10m = 0
+        below_20m = 0
+        below_50m = 0
+        below_100m = 0
+        total_samples = 0
+
         with torch.no_grad():
             for i, (drone_images, drone_infos, sat_images, heatmaps_gt,) in tqdm(
                 enumerate(self.val_dataloader),
                 total=len(self.val_dataloader),
             ):
+                total_samples += len(drone_images)
                 drone_images = drone_images.to(self.device)
                 sat_images = sat_images.to(self.device)
                 heatmap_gt = heatmaps_gt.to(self.device)
@@ -509,7 +549,22 @@ class CrossViewTrainer:
                 ### MA ###
 
                 ### Meter Distance ###
-                running_MeterDistance += self.MeterDistance(outputs, drone_infos)
+                running_meter_distances = self.MeterDistance(outputs, drone_infos)
+                for meter_distance in running_meter_distances:
+                    if meter_distance < 10:
+                        below_10m += 1
+                    if meter_distance < 20:
+                        below_20m += 1
+                    if meter_distance < 50:
+                        below_50m += 1
+                    if meter_distance < 100:
+                        below_100m += 1
+                    else:
+                        pass
+                    running_meter_distance += meter_distance
+                running_meter_distance = running_meter_distance / len(
+                    running_meter_distances
+                )
                 ### Meter Distance ###
 
                 if i == 0 and self.plot:
@@ -546,14 +601,23 @@ class CrossViewTrainer:
 
         epoch_loss = running_loss / len(self.val_dataloader)
         self.val_loss = epoch_loss
+
+        below_10m = below_10m / total_samples
+        below_20m = below_20m / total_samples
+        below_50m = below_50m / total_samples
+        below_100m = below_100m / total_samples
+
         logger.info(f"Validation loss: {epoch_loss}")
-        rds = running_RDS / len(self.val_dataloader)
-        logger.info(f"Validation RDS: {rds}")
-        self.best_RDS = max(self.best_RDS, rds)
+        logger.info(f"Validation RDS: {running_RDS / len(self.val_dataloader)}")
         logger.info(f"Validation MA: {running_MA / len(self.val_dataloader)}")
         logger.info(
-            f"Validation Meter Distance: {running_MeterDistance / len(self.val_dataloader)}"
+            f"Validation Meter Distance: {running_meter_distance / len(self.val_dataloader)}"
         )
+        logger.info("Validation Meter Distance Histogram:")
+        logger.info(f"Below 10m: {below_10m}")
+        logger.info(f"Below 20m: {below_20m}")
+        logger.info(f"Below 50m: {below_50m}")
+        logger.info(f"Below 100m: {below_100m}")
 
     def plot_results(
         self,
